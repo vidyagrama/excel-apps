@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --primary-purple: #673ab7;
+      --hover-purple: #512da8;
+      --bg-purple: #f3e5f5;
+    }
+
+    body, input, textarea, button, select {
+      font-family: Verdana, Geneva, sans-serif;
+    }
+
+    body { 
+      padding: 20px; 
+      background-color: var(--bg-purple); 
+      display: flex; 
+      justify-content: center; 
+    }
+
+    .container { 
+      width: 100%; 
+      max-width: 550px; 
+      background: white; 
+      padding: 30px; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); 
+    }
+
+    h2 { 
+      text-align: center; 
+      color: var(--primary-purple); 
+      margin-top: 0;
+      border-bottom: 2px solid var(--bg-purple);
+      padding-bottom: 10px;
+    }
+    
+    .field { margin-bottom: 18px; }
+    
+    label { 
+      display: block; 
+      margin-bottom: 6px; 
+      font-weight: bold; 
+      color: #4a148c; 
+      font-size: 14px;
+    }
+
+    input, textarea, select { 
+      width: 100%; 
+      padding: 12px; 
+      border: 2px solid #e1bee7; 
+      border-radius: 8px; 
+      box-sizing: border-box; 
+      font-size: 14px;
+      background-color: #fff;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary-purple);
+      outline: none;
+      box-shadow: 0 0 8px rgba(103, 58, 183, 0.2);
+    }
+
+    button { 
+      width: 100%; 
+      padding: 14px; 
+      background-color: var(--primary-purple); 
+      color: white; 
+      border: none; 
+      border-radius: 8px; 
+      font-size: 16px; 
+      font-weight: bold;
+      cursor: pointer; 
+      transition: all 0.3s ease;
+    }
+
+    button:hover { background-color: var(--hover-purple); }
+
+    #success-msg { display: none; text-align: center; padding: 40px 10px; }
+    .check-icon { font-size: 60px; color: #4caf50; margin-bottom: 15px; }
+    
+    select {
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23673ab7' stroke='none'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 20px;
+      appearance: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="form-container">
+    <h2>Vidyaarthi's Registration Form</h2>
+    <form id="entryForm">
+      
+      <div class="field">
+        <label>Varga</label>
+        <select name="varga" required>
+          <option value="" disabled selected>Select Varga</option>
+          <option value="Valmiki">Valmiki</option>
+          <option value="Vasishta">Vasishta</option>
+          <option value="Viswamitra">Viswamitra</option>
+          <option value="Kashyapa">Kashyapa</option>
+          <option value="Agasthya">Agasthya</option>
+          <option value="Vyasa">Vyasa</option>
+          <option value="Atri">Atri</option>
+          <option value="Bharadwaja">Bharadwaja</option>
+          <option value="Gautama">Gautama</option>
+          <option value="Kapila">Kapila</option>
+          <option value="Lopamudra">Lopamudra</option>
+          <option value="Maitreyi">Maitreyi</option>
+          <option value="Shishuvatika">Shishuvatika</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Vidyaarthi Name</label>
+        <input type="text" name="name" required>
+      </div>
+
+      <div class="field">
+        <label>Father's Name</label>
+        <input type="text" name="father" required>
+      </div>
+
+      <div class="field">
+        <label>Mother's Name</label>
+        <input type="text" name="mother" required>
+      </div>
+
+      <div class="field">
+        <label>Mobile Number (Max 13 digits with +91)</label>
+        <input type="text" id="mobileInput" name="mobile" placeholder="+919980950950" required>
+      </div>
+
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" name="email" required>
+      </div>
+
+      <div class="field">
+        <label>Discount (%)</label>
+        <input type="number" id="discountInput" name="discount" value="0" min="0" max="100">
+      </div>
+
+      <div class="field">
+        <label>Notes</label>
+        <textarea name="notes" rows="3"></textarea>
+      </div>
+      
+      <button type="submit" id="submitBtn">Register Vidyaarthi</button>
+    </form>
+  </div>
+
+  <div id="success-msg">
+    <div class="check-icon">✓</div>
+    <h2 style="color: #28a745;">Registration Successful!</h2>
+    <p>The student details have been recorded.</p>
+    <button onclick="resetToForm()" style="background-color: var(--primary-purple); margin-top:20px;">Add Another Vidyaarthi</button>
+  </div>
+</div>
+
+<script>
+  // 1. Mobile formatting logic
+  const mobileField = document.getElementById('mobileInput');
+  mobileField.addEventListener('input', function(e) {
+    let val = e.target.value;
+    if (!val.startsWith('+91')) {
+      val = '+91' + val.replace(/\D/g, '');
+    }
+    e.target.value = val.slice(0, 13);
+  });
+
+  // 2. Clear success and show form again
+  function resetToForm() {
+    document.getElementById('entryForm').reset();
+    document.getElementById('discountInput').value = "0";
+    document.getElementById('success-msg').style.display = 'none';
+    document.getElementById('form-container').style.display = 'block';
+    
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = false;
+    btn.innerHTML = "Register Vidyaarthi";
+  }
+
+  function handleFormSubmit(formObject) {
+    const btn = document.getElementById('submitBtn');
+    
+    // Validate mobile length before sending
+    if (mobileField.value.length < 12) {
+      alert("Please enter a valid mobile number with +91");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = "Submitting Data...";
+
+    google.script.run
+      .withSuccessHandler(function() {
+        document.getElementById('form-container').style.display = 'none';
+        document.getElementById('success-msg').style.display = 'block';
+      })
+      .withFailureHandler(function(error) {
+        alert("Submission Failed: " + error.message);
+        btn.disabled = false;
+        btn.innerHTML = "Register Vidyaarthi";
+      })
+      .processForm(formObject);
+  }
+
+  document.getElementById('entryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    handleFormSubmit(this);
+  });
+</script>
+
+</body>
+</html>
