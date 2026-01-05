@@ -1,6 +1,6 @@
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-      .setTitle("Grocery Inventory Manager")
+      .setTitle("Vidyagrama Inventory Manager")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -38,20 +38,22 @@ function processForm(formObject) {
   var stockVal = Number(formObject.salePrice) * Number(formObject.stock);
   var status = Number(formObject.stock) <= Number(formObject.reorderPoint) ? "Low Stock" : "In Stock";
 
+  // Prepare the row data based on your specific columns
+  // Note: We leave Column I (index 8) blank or as null so the ArrayFormula handles it
   var rowData = [
-    itemId,                 // Col A
-    formObject.itemName,    // Col B
-    formObject.category,    // Col C
-    formObject.uom,         // Col D
-    formObject.salePrice,   // Col E
-    formObject.purchasePrice, // Col F
-    formObject.stock,       // Col G
-    formObject.reorderPoint, // Col H
-    stockVal,               // Col I
-    formObject.vendorID,    // Col J
-    status,                 // Col K
-    formObject.expiryDate,  // Col L
-    formObject.sku          // Col M
+    itemId,                 // Col A: Item ID
+    formObject.itemName,    // Col B: Item name
+    formObject.category,    // Col C: Category
+    formObject.uom,         // Col D: UOM
+    formObject.salePrice,   // Col E: Sale Price
+    formObject.purchasePrice, // Col F: Purchase Price
+    formObject.stock,       // Col G: Stock
+    formObject.reorderPoint, // Col H: Reorder Point
+    "",                     // Col I: Stock Value (Leave empty for ArrayFormula)
+    formObject.vendorID,    // Col J: VendorID
+    "",                     // Col K: Status (You can also use an ArrayFormula for this!)
+    formObject.expiryDate,  // Col L: Expiry Date
+    formObject.sku          // Col M: SKU/Barcode
   ];
 
   if (rowIndex > -1) {

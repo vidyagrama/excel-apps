@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --primary-purple: #673ab7;
+      --hover-purple: #512da8;
+      --bg-purple: #f3e5f5;
+      --delete-red: #d32f2f;
+      --update-blue: #1976d2;
+    }
+
+    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
+    body { padding: 20px; background-color: var(--bg-purple); display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 600px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
+    h2 { text-align: center; color: var(--primary-purple); border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px; }
+    
+    .field { margin-bottom: 15px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .full { grid-column: span 2; }
+    
+    label { display: block; margin-bottom: 6px; font-weight: bold; color: #4a148c; font-size: 13px; }
+    input, select { width: 100%; padding: 10px; border: 2px solid #e1bee7; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+    input:focus { border-color: var(--primary-purple); outline: none; }
+    input[readonly] { background-color: #f9f9f9; border-color: #eee; cursor: not-allowed; }
+
+    .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+    button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
+    
+    .btn-add { background-color: var(--primary-purple); }
+    .btn-update { background-color: var(--update-blue); }
+    .btn-delete { background-color: var(--delete-red); }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+    #success-msg { display: none; text-align: center; padding: 40px 10px; }
+    .check-icon { font-size: 50px; color: #4caf50; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="form-container">
+    <h2>Grocery Stock Manager</h2>
+    <form id="stockForm">
+      
+      <div class="field">
+        <label>SKU / Barcode (Scan/Type to Search)</label>
+        <input type="text" name="sku" id="sku" placeholder="Enter SKU..." onchange="fetchDetails()" required>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Item ID (Auto)</label>
+          <input type="text" name="itemId" id="itemId" readonly>
+        </div>
+        <div class="field">
+          <label>Category</label>
+          <select name="category" id="category">
+            <option value="Produce">Produce</option>
+            <option value="Dairy">Dairy</option>
+            <option value="Dry Goods">Dry Goods</option>
+            <option value="Bakery">Bakery</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Item Name</label>
+        <input type="text" name="itemName" id="itemName" required>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>UOM</label>
+          <input type="text" name="uom" id="uom" placeholder="kg, pcs, pkt">
+        </div>
+        <div class="field">
+          <label>Vendor ID</label>
+          <input type="text" name="vendorID" id="vendorID">
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Purchase Price</label>
+          <input type="number" step="0.01" name="purchasePrice" id="purchasePrice" required>
+        </div>
+        <div class="field">
+          <label>Sale Price</label>
+          <input type="number" step="0.01" name="salePrice" id="salePrice" required>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label>Current Stock</label>
+          <input type="number" name="stock" id="stock" required>
+        </div>
+        <div class="field">
+          <label>Reorder Point</label>
+          <input type="number" name="reorderPoint" id="reorderPoint" value="10">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Expiry Date</label>
+        <input type="date" name="expiryDate" id="expiryDate">
+      </div>
+
+      <div class="btn-group">
+        <button type="button" class="btn-add" id="addBtn" onclick="submitAction('insert')">Add New</button>
+        <button type="button" class="btn-update" id="updBtn" onclick="submitAction('update')">Update</button>
+        <button type="button" class="btn-delete" id="delBtn" onclick="submitAction('delete')">Delete</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="success-msg">
+    <div class="check-icon">✓</div>
+    <h2 id="res-title">Success!</h2>
+    <p id="res-msg">Inventory has been updated.</p>
+    <button onclick="resetForm()" style="background-color: var(--primary-purple); margin-top:20px;">Back to Manager</button>
+  </div>
+</div>
+
+<script>
+  function fetchDetails() {
+    const sku = document.getElementById('sku').value;
+    if (!sku) return;
+    
+    google.script.run.withSuccessHandler(item => {
+      if (item) {
+        document.getElementById('itemId').value = item.id;
+        document.getElementById('itemName').value = item.name;
+        document.getElementById('category').value = item.category;
+        document.getElementById('uom').value = item.uom;
+        document.getElementById('salePrice').value = item.sale;
+        document.getElementById('purchasePrice').value = item.purchase;
+        document.getElementById('stock').value = item.stock;
+        document.getElementById('reorderPoint').value = item.reorder;
+        document.getElementById('vendorID').value = item.vendor;
+        document.getElementById('expiryDate').value = item.expiry;
+      }
+    }).getItemBySku(sku);
+  }
+
+  function submitAction(action) {
+    if (action === 'delete' && !confirm("Permanently delete this item?")) return;
+    
+    const form = document.getElementById('stockForm');
+    if (!form.checkValidity() && action !== 'delete') {
+      form.reportValidity();
+      return;
+    }
+
+    const data = Object.fromEntries(new FormData(form).entries());
+    
+    // Disable buttons
+    toggleButtons(true);
+
+    google.script.run
+      .withSuccessHandler(res => {
+        document.getElementById('form-container').style.display = 'none';
+        document.getElementById('success-msg').style.display = 'block';
+        document.getElementById('res-msg').innerText = res;
+      })
+      .manageStock(data, action);
+  }
+
+  function toggleButtons(status) {
+    document.getElementById('addBtn').disabled = status;
+    document.getElementById('updBtn').disabled = status;
+    document.getElementById('delBtn').disabled = status;
+  }
+
+  function resetForm() {
+    document.getElementById('stockForm').reset();
+    document.getElementById('form-container').style.display = 'block';
+    document.getElementById('success-msg').style.display = 'none';
+    toggleButtons(false);
+  }
+</script>
+
+</body>
+</html>
