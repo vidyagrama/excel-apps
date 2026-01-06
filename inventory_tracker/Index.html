@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <style>
     :root {
@@ -11,21 +12,34 @@
     body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
     body { padding: 20px; background-color: var(--bg-purple); display: flex; justify-content: center; }
 
-    .container { 
-      width: 100%; 
-      max-width: 650px; 
-      background: white; 
-      padding: 30px; 
-      border-radius: 12px; 
-      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); 
+    .container {
+      width: 100%;
+      max-width: 650px;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
     }
 
-    h2 { 
-      text-align: center; color: var(--primary-purple); margin-top: 0;
-      border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px;
+    h2 {
+      text-align: center;
+      color: var(--primary-purple);
+      margin-top: 0;
+      border-bottom: 2px solid var(--bg-purple);
+      padding-bottom: 10px;
     }
 
-    /* Search Section Styling */
+    /* Status Bar Styling */
+    #status-bar {
+      display: none;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
     .search-box {
       margin-bottom: 25px;
       padding: 15px;
@@ -34,241 +48,269 @@
       display: flex;
       gap: 10px;
     }
-    
+
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 15px;
     }
-    
+
     .field { margin-bottom: 15px; }
     .full-width { grid-column: span 2; }
-    
     label { display: block; margin-bottom: 6px; font-weight: bold; color: #4a148c; font-size: 13px; }
 
-    input, select, textarea { 
-      width: 100%; padding: 10px; border: 2px solid #e1bee7; 
+    input, select, textarea {
+      width: 100%; padding: 10px; border: 2px solid #e1bee7;
       border-radius: 8px; box-sizing: border-box; font-size: 14px;
     }
 
     input:focus, select:focus { border-color: var(--primary-purple); outline: none; }
 
-    button { 
-      width: 100%; padding: 14px; background-color: var(--primary-purple); 
-      color: white; border: none; border-radius: 8px; font-size: 16px; 
+    button {
+      width: 100%; padding: 14px; background-color: var(--primary-purple);
+      color: white; border: none; border-radius: 8px; font-size: 16px;
       font-weight: bold; cursor: pointer; transition: 0.3s;
     }
 
     button:hover { background-color: var(--hover-purple); }
     .secondary-btn { background-color: #9575cd; padding: 10px 20px; width: auto; }
+    .reset-btn { background-color: #757575; padding: 10px 20px; width: auto; }
 
     #success-msg { display: none; text-align: center; padding: 40px 10px; }
     .check-icon { font-size: 60px; color: #4caf50; }
   </style>
 </head>
+
 <body>
 
-<div class="container">
-  <div id="form-container">
-    <h2>Vidyagrama Inventory Manager</h2>
+  <div class="container">
+    <div id="form-container">
+      <h2>Vidyagrama Inventory Manager</h2>
 
-    <div class="search-box">
-    <input type="text" id="searchInput" placeholder="Search Item ID or SKU..." 
-          onkeypress="handleSearchKeyPress(event)">
-    <button type="button" class="secondary-btn" onclick="findItem()">Search</button>
+      <div id="status-bar"></div>
+
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search Item ID or SKU..." onkeypress="handleSearchKeyPress(event)">
+        <button type="button" class="secondary-btn" onclick="findItem()">Search</button>
+        <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
+      </div>
+
+      <form id="entryForm">
+        <input type="hidden" id="rowNumber" name="rowNumber">
+        <input type="hidden" id="itemId" name="itemId">
+
+        <div class="grid-container">
+          <div class="field full-width">
+            <label>Item Name</label>
+            <input type="text" name="itemName" required>
+          </div>
+
+          <div class="field">
+            <label>Category</label>
+            <select name="category">
+              <option value="Rice">Rice</option>
+              <option value="Millets">Millets</option>
+              <option value="Dals">Dals</option>
+              <option value="Pulses">Pulses</option>
+              <option value="Cereals">Cereals</option>
+              <option value="Flours">Flours</option>
+              <option value="Oil Seeds">Oil Seeds</option>
+              <option value="Spices & Herbs">Spices & Herbs</option>
+              <option value="Sweetners">Sweetners</option>
+              <option value="Dry Fruits">Dry Fruits</option>
+              <option value="Salts">Salts</option>
+              <option value="Oils & Ghee">Oils & Ghee</option>
+              <option value="Homemade Powders">Homemade Powders</option>
+              <option value="Soaps">Soaps</option>
+              <option value="Dhoop">Dhoop</option>
+              <option value="Ecofriendly Products">Ecofriendly Products</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>SKU</label>
+            <input type="text" name="sku">
+          </div>
+
+          <div class="field">
+            <label>Unit of Measure</label>
+            <select name="uom">
+              <option value="Kilogram (kg)">Kilogram (kg)</option>
+              <option value="Liter (ltr)">Liter (ltr)</option>
+              <option value="Meter (mtr)">Meter (mtr)</option>
+              <option value="Piece (pc)">Piece (pc)</option>
+              <option value="Box (Bx)">Box (Bx)</option>
+              <option value="Bottle (Btl)">Bottle (Btl)</option>
+              <option value="Tin (tin)">Tin (tin)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select name="status">
+              <option value="In stock">In stock</option>
+              <option value="Temporarily unavailable">Temporarily unavailable</option>
+              <option value="Repurchase needed">Repurchase needed</option>
+              <option value="Sold out">Sold out</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Purchase Price</label>
+            <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calcValue()">
+          </div>
+          <div class="field">
+            <label>Sale Price</label>
+            <input type="number" step="0.01" name="salePrice" required>
+          </div>
+
+          <div class="field">
+            <label>Current Stock</label>
+            <input type="number" name="stock" id="stockInput" required oninput="calcValue()">
+          </div>
+          <div class="field">
+            <label>Reorder Point</label>
+            <input type="number" name="reorderPoint" value="5">
+          </div>
+
+          <div class="field">
+            <label>Stock Value (Auto)</label>
+            <input type="number" name="stockValue" id="valOutput" readonly style="background:#f9f9f9">
+          </div>
+          <div class="field">
+            <label>Expiry Date</label>
+            <input type="date" name="expiryDate">
+          </div>
+
+          <div class="field full-width">
+            <label>Vendor ID / Name</label>
+            <input type="text" name="vendorID">
+          </div>
+        </div>
+
+        <button type="submit" id="submitBtn">Add to Inventory</button>
+      </form>
     </div>
 
-    <form id="entryForm">
-      <input type="hidden" id="rowNumber" name="rowNumber">
-      <input type="hidden" id="itemId" name="itemId">
+    <div id="success-msg">
+      <div class="check-icon">✓</div>
+      <h2 id="msg-title">Action Successful!</h2>
+      <p id="msg-body">The inventory record has been processed.</p>
+      <button onclick="resetToForm()" style="margin-top:20px;">Return to Form</button>
+    </div>
 
-      <div class="grid-container">
-        <div class="field full-width">
-          <label>Item Name</label>
-          <input type="text" name="itemName" required>
-        </div>
-
-        <div class="field">
-          <label>Category</label>
-          <select name="category">
-            <option value="Rice">Rice</option>
-            <option value="Millets">Millets</option>
-            <option value="Dals">Dals</option>
-            <option value="Pulses">Pulses</option>
-            <option value="Cereals">Cereals</option>
-            <option value="Flours">Flours</option>
-            <option value="Oil Seeds">Oil Seeds</option>
-            <option value="Spices & Herbs">Spices & Herbs</option>
-            <option value="Sweetners">Sweetners</option>
-            <option value="Dry Fruits">Dry Fruits</option>
-            <option value="Salts">Salts</option>
-            <option value="Oils & Ghee">Oils & Ghee</option>
-            <option value="Homemade Powders">Homemade Powders</option>
-            <option value="Soaps">Soaps</option>
-            <option value="Dhoop">Dhoop</option>
-            <option value="Ecofriendly Products">Ecofriendly Products</option>
-            </select>
-        </div>
-        <div class="field">
-          <label>SKU</label>
-          <input type="text" name="sku">
-        </div>
-
-        <div class="field">
-          <label>Unit of Measure</label>
-          <select name="uom">
-            <option value="Kilogram (kg)">Kilogram (kg)</option>
-            <option value="Liter (ltr)">Liter (ltr)</option>
-            <option value="Meter (mtr)">Meter (mtr)</option>
-            <option value="Piece (pc)">Piece (pc)</option>
-            <option value="Box (Bx)">Box (Bx)</option>
-            <option value="Bottle (Btl)">Bottle (Btl)</option>
-            <option value="Tin (tin)">Tin (tin)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Status</label>
-          <select name="status">
-            <option value="In stock">In stock</option>
-            <option value="Temporarily unavailable">Temporarily unavailable</option>
-            <option value="Repurchase needed">Repurchase needed</option>
-            <option value="Sold out">Sold out</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Purchase Price</label>
-          <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calcValue()">
-        </div>
-        <div class="field">
-          <label>Sale Price</label>
-          <input type="number" step="0.01" name="salePrice" required>
-        </div>
-
-        <div class="field">
-          <label>Current Stock</label>
-          <input type="number" name="stock" id="stockInput" required oninput="calcValue()">
-        </div>
-        <div class="field">
-          <label>Reorder Point</label>
-          <input type="number" name="reorderPoint" value="5">
-        </div>
-
-        <div class="field">
-          <label>Stock Value (Auto)</label>
-          <input type="number" name="stockValue" id="valOutput" readonly style="background:#f9f9f9">
-        </div>
-        <div class="field">
-          <label>Expiry Date</label>
-          <input type="date" name="expiryDate">
-        </div>
-
-        <div class="field full-width">
-          <label>Vendor ID / Name</label>
-          <input type="text" name="vendorID">
-        </div>
-      </div>
-      
-      <button type="submit" id="submitBtn">Add to Inventory</button>
-    </form>
+    <footer style="text-align:center; margin-top:25px; padding-top:15px; border-top:1px solid #eee; font-size:10px; color:gray; width:100%;">
+      Developed by Vidyagrama • Version 1.0
+    </footer>
   </div>
 
-  <div id="success-msg">
-    <div class="check-icon">✓</div>
-    <h2 id="msg-title">Action Successful!</h2>
-    <p id="msg-body">The inventory record has been processed.</p>
-    <button onclick="resetToForm()" style="margin-top:20px;">Return to Form</button>
-  </div>
-</div>
-
-<script>
-  function calcValue() {
-    const stock = document.getElementById('stockInput').value;
-    const price = document.getElementById('pPrice').value;
-    document.getElementById('valOutput').value = (stock * price).toFixed(2);
-  }
-
-  // SEARCH FUNCTION
-  function findItem() {
-    const term = document.getElementById('searchInput').value;
-    if (!term) return alert("Please enter an ID or SKU.");
-
-    const btn = document.querySelector('.secondary-btn');
-    btn.innerHTML = "Searching...";
-
-    google.script.run
-      .withSuccessHandler(res => {
-        btn.innerHTML = "Search";
-        if (res) {
-          const d = res.data;
-          // Set metadata
-          document.getElementById('rowNumber').value = res.row;
-          document.getElementById('itemId').value = d[0];
-          
-          // Populate Form
-          const f = document.getElementById('entryForm');
-          f.itemName.value = d[1];
-          f.category.value = d[2];
-          f.uom.value = d[3];
-          f.salePrice.value = d[4];
-          f.purchasePrice.value = d[5];
-          f.stock.value = d[6];
-          f.reorderPoint.value = d[7];
-          f.stockValue.value = d[8];
-          f.vendorID.value = d[9];
-          f.status.value = d[10];
-          if(d[11]) f.expiryDate.value = new Date(d[11]).toISOString().split('T')[0];
-          f.sku.value = d[12];
-          
-          document.getElementById('submitBtn').innerHTML = "Update Item " + d[0];
-          document.getElementById('submitBtn').style.backgroundColor = "#2e7d32"; // Green for update
-        } else {
-          alert("No item found with that ID or SKU.");
-        }
-      })
-      .searchItem(term);
-  }
-
-  function resetToForm() {
-    document.getElementById('entryForm').reset();
-    document.getElementById('rowNumber').value = "";
-    document.getElementById('itemId').value = "";
-    document.getElementById('searchInput').value = "";
-    document.getElementById('submitBtn').innerHTML = "Add to Inventory";
-    document.getElementById('submitBtn').style.backgroundColor = "var(--primary-purple)";
-    document.getElementById('success-msg').style.display = 'none';
-    document.getElementById('form-container').style.display = 'block';
-  }
-
-  document.getElementById('entryForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.innerHTML = "Processing...";
-
-    google.script.run
-      .withSuccessHandler((response) => {
-        document.getElementById('msg-body').innerHTML = response;
-        document.getElementById('form-container').style.display = 'none';
-        document.getElementById('success-msg').style.display = 'block';
-        btn.disabled = false;
-      })
-      .withFailureHandler((err) => {
-        alert("Error: " + err.message);
-        btn.disabled = false;
-      })
-      .processForm(this);
-  });
-
-  function handleSearchKeyPress(event) {
-    // Check if the key pressed was 'Enter'
-    if (event.keyCode === 13) {
-      event.preventDefault(); // Stop the form from submitting/refreshing
-      findItem();            // Trigger the search function
+  <script>
+    function calcValue() {
+      const stock = document.getElementById('stockInput').value;
+      const price = document.getElementById('pPrice').value;
+      document.getElementById('valOutput').value = (stock * price).toFixed(2);
     }
-  }
 
-</script>
+    function showStatus(msg, color) {
+      const statusBar = document.getElementById('status-bar');
+      statusBar.innerHTML = msg;
+      statusBar.style.backgroundColor = color + "22"; 
+      statusBar.style.color = color;
+      statusBar.style.border = "1px solid " + color;
+      statusBar.style.display = 'block';
+      // Auto-hide status after 5 seconds
+      setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
+    }
 
+    function findItem() {
+      const term = document.getElementById('searchInput').value;
+      if (!term) {
+        showStatus("Please enter an ID or SKU.", "#dc3545");
+        return;
+      }
+
+      const btn = document.querySelector('.secondary-btn');
+      btn.innerHTML = "Searching...";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.innerHTML = "Search";
+          if (res) {
+            const d = res.data;
+            document.getElementById('rowNumber').value = res.row;
+            document.getElementById('itemId').value = d[0];
+
+            const f = document.getElementById('entryForm');
+            f.itemName.value = d[1];
+            f.category.value = d[2];
+            f.uom.value = d[3];
+            f.salePrice.value = d[4];
+            f.purchasePrice.value = d[5];
+            f.stock.value = d[6];
+            f.reorderPoint.value = d[7];
+            f.stockValue.value = d[8];
+            f.vendorID.value = d[9];
+            f.status.value = d[10];
+            if (d[11]) f.expiryDate.value = new Date(d[11]).toISOString().split('T')[0];
+            f.sku.value = d[12];
+
+            document.getElementById('submitBtn').innerHTML = "Update Item " + d[0];
+            document.getElementById('submitBtn').style.backgroundColor = "#2e7d32";
+            showStatus("Item " + d[0] + " loaded successfully.", "#28a745");
+          } else {
+            showStatus("No item found with ID or SKU: " + term, "#dc3545");
+            clearFormToDefault(true);
+          }
+        })
+        .withFailureHandler(err => {
+           btn.innerHTML = "Search";
+           showStatus("Error: " + err, "#dc3545");
+        })
+        .searchItem(term);
+    }
+
+    function clearFormToDefault(clearSearch = false) {
+      document.getElementById('entryForm').reset();
+      document.getElementById('rowNumber').value = "";
+      document.getElementById('itemId').value = "";
+      if (clearSearch) document.getElementById('searchInput').value = "";
+      document.getElementById('submitBtn').innerHTML = "Add to Inventory";
+      document.getElementById('submitBtn').style.backgroundColor = "var(--primary-purple)";
+      document.getElementById('valOutput').value = "";
+    }
+
+    function resetToForm() {
+      clearFormToDefault(true);
+      document.getElementById('success-msg').style.display = 'none';
+      document.getElementById('form-container').style.display = 'block';
+    }
+
+    document.getElementById('entryForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = "Processing...";
+
+      google.script.run
+        .withSuccessHandler((response) => {
+          document.getElementById('msg-title').innerHTML = "Success!";
+          document.getElementById('msg-title').style.color = "#28a745";
+          document.getElementById('msg-body').innerHTML = response;
+          document.getElementById('form-container').style.display = 'none';
+          document.getElementById('success-msg').style.display = 'block';
+          btn.disabled = false;
+        })
+        .withFailureHandler((err) => {
+          showStatus("Save failed: " + err, "#dc3545");
+          btn.disabled = false;
+        })
+        .processForm(this);
+    });
+
+    function handleSearchKeyPress(event) {
+      if (event.keyCode === 13) {
+        event.preventDefault();
+        findItem();
+      }
+    }
+  </script>
 </body>
 </html>
