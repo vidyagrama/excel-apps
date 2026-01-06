@@ -70,11 +70,12 @@
 
 <div class="container">
   <div id="form-container">
-    <h2>Inventory Management</h2>
+    <h2>Vidyagrama Inventory Manager</h2>
 
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search Item ID or SKU...">
-      <button type="button" class="secondary-btn" onclick="findItem()">Search</button>
+    <input type="text" id="searchInput" placeholder="Search Item ID or SKU..." 
+          onkeypress="handleSearchKeyPress(event)">
+    <button type="button" class="secondary-btn" onclick="findItem()">Search</button>
     </div>
 
     <form id="entryForm">
@@ -90,11 +91,23 @@
         <div class="field">
           <label>Category</label>
           <select name="category">
-            <option value="Electronics">Electronics</option>
-            <option value="Office Supplies">Office Supplies</option>
-            <option value="Furniture">Furniture</option>
-            <option value="Hardware">Hardware</option>
-          </select>
+            <option value="Rice">Rice</option>
+            <option value="Millets">Millets</option>
+            <option value="Dals">Dals</option>
+            <option value="Pulses">Pulses</option>
+            <option value="Cereals">Cereals</option>
+            <option value="Flours">Flours</option>
+            <option value="Oil Seeds">Oil Seeds</option>
+            <option value="Spices & Herbs">Spices & Herbs</option>
+            <option value="Sweetners">Sweetners</option>
+            <option value="Dry Fruits">Dry Fruits</option>
+            <option value="Salts">Salts</option>
+            <option value="Oils & Ghee">Oils & Ghee</option>
+            <option value="Homemade Powders">Homemade Powders</option>
+            <option value="Soaps">Soaps</option>
+            <option value="Dhoop">Dhoop</option>
+            <option value="Ecofriendly Products">Ecofriendly Products</option>
+            </select>
         </div>
         <div class="field">
           <label>SKU</label>
@@ -104,18 +117,22 @@
         <div class="field">
           <label>Unit of Measure</label>
           <select name="uom">
-            <option value="Each">Each</option>
-            <option value="Box">Box</option>
-            <option value="Kg">Kg</option>
-            <option value="Litre">Litre</option>
+            <option value="Kilogram (kg)">Kilogram (kg)</option>
+            <option value="Liter (ltr)">Liter (ltr)</option>
+            <option value="Meter (mtr)">Meter (mtr)</option>
+            <option value="Piece (pc)">Piece (pc)</option>
+            <option value="Box (Bx)">Box (Bx)</option>
+            <option value="Bottle (Btl)">Bottle (Btl)</option>
+            <option value="Tin (tin)">Tin (tin)</option>
           </select>
         </div>
         <div class="field">
           <label>Status</label>
           <select name="status">
-            <option value="Active">Active</option>
-            <option value="Out of Stock">Out of Stock</option>
-            <option value="Discontinued">Discontinued</option>
+            <option value="In stock">In stock</option>
+            <option value="Temporarily unavailable">Temporarily unavailable</option>
+            <option value="Repurchase needed">Repurchase needed</option>
+            <option value="Sold out">Sold out</option>
           </select>
         </div>
 
@@ -242,6 +259,15 @@
       })
       .processForm(this);
   });
+
+  function handleSearchKeyPress(event) {
+    // Check if the key pressed was 'Enter'
+    if (event.keyCode === 13) {
+      event.preventDefault(); // Stop the form from submitting/refreshing
+      findItem();            // Trigger the search function
+    }
+  }
+
 </script>
 
 </body>
