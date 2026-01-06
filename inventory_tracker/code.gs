@@ -6,61 +6,87 @@ function doGet() {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// 1. Logic for Inventory Form Submissions
-function processForm(formObject) {
-  // Ensure the sheet name matches exactly
+// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 13)
+function searchItem(searchText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
-  if (!sheet) return "Error: Sheet 'main' not found!";
+  var data = sheet.getDataRange().getValues();
   
-  // Logic to generate the next Item ID
-  var lastRow = sheet.getLastRow();
-  var nextId = 1001; // Starting ID for inventory items
-  
-  if (lastRow > 1) {
-    var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-    var maxId = Math.max(...idValues.map(r => isNaN(r[0]) ? 0 : Number(r[0])));
-    if (maxId >= 1001) nextId = maxId + 1;
-  }
+  for (var i = 1; i < data.length; i++) {
+    // Check Column A (ID) or Column M (SKU)
+    if (data[i][0].toString().trim() == searchText.toString().trim() || 
+        data[i][12].toString().trim() == searchText.toString().trim()) {
+      
+      // CLEAN THE DATA: Convert Dates to Strings so they don't crash the return
+      var cleanData = data[i].map(function(cell) {
+        if (cell instanceof Date) {
+          // Converts date to YYYY-MM-DD format for the HTML input
+          return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        }
+        return cell;
+      });
 
-  // Append data mapping to your 13 columns
-  sheet.appendRow([
-    nextId,                 // itemId
-    formObject.itemName,    // itemName
-    formObject.category,    // category
-    formObject.uom,         // uom
-    formObject.salePrice,   // salePrice
-    formObject.purchasePrice,// purchasePrice
-    formObject.stock,       // stock
-    formObject.reorderPoint,// reorderPoint
-    formObject.stockValue,  // stockValue (Recommended: calculation or form value)
-    formObject.vendorID,    // vendorID
-    formObject.status,      // status
-    formObject.expiryDate,  // expiryDate
-    formObject.sku          // sku
-  ]);
-  
-  return "Item " + nextId + " added successfully!"; 
+      return {
+        row: i + 1,
+        data: cleanData
+      };
+    }
+  }
+  return null; 
 }
 
-// 2. Auto-ID for Manual Entries
+// 2. CREATE or UPDATE: Decision logic
+function processForm(formObject) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
+  var rowNumber = formObject.rowNumber; // Hidden field from HTML
+  
+  var formData = [
+    formObject.itemId || "", // This will be filled by logic below if empty
+    formObject.itemName,
+    formObject.category,
+    formObject.uom,
+    formObject.salePrice,
+    formObject.purchasePrice,
+    formObject.stock,
+    formObject.reorderPoint,
+    formObject.stockValue,
+    formObject.vendorID,
+    formObject.status,
+    formObject.expiryDate,
+    formObject.sku
+  ];
+
+  if (rowNumber) {
+    // UPDATE EXISTING
+    sheet.getRange(rowNumber, 1, 1, 13).setValues([formData]);
+    return "Item " + formObject.itemId + " updated successfully!";
+  } else {
+    // CREATE NEW
+    var lastRow = sheet.getLastRow();
+    var nextId = 1001;
+    if (lastRow > 1) {
+      var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      var maxId = Math.max(...idValues.map(r => isNaN(r[0]) ? 0 : Number(r[0])));
+      if (maxId >= 1001) nextId = maxId + 1;
+    }
+    formData[0] = nextId; // Assign the new ID
+    sheet.appendRow(formData);
+    return "New Item " + nextId + " added successfully!";
+  }
+}
+
+// 3. Auto-ID for Manual Spreadsheet Entries
 function onEdit(e) {
   var range = e.range;
   var sheet = range.getSheet();
-  
   if (sheet.getName() !== "main") return;
-
   var row = range.getRow();
   var col = range.getColumn();
-
-  // If user edits any column except ID (1) and it's not the header
   if (row > 1 && col > 1) {
     var idCell = sheet.getRange(row, 1);
-    
     if (idCell.getValue() === "") {
       var lastRow = sheet.getLastRow();
       var idValues = sheet.getRange(2, 1, lastRow, 1).getValues();
       var maxId = 1000;
-      
       for (var i = 0; i < idValues.length; i++) {
         var val = Number(idValues[i][0]);
         if (!isNaN(val) && val > maxId) maxId = val;
