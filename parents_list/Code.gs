@@ -1,84 +1,57 @@
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-      .setTitle("Grocery Inventory Manager")
+      .setTitle("Vidyaarthi Registration")
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// 1. Logic for Form Submissions
 function processForm(formObject) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
-  var data = sheet.getDataRange().getValues();
   
-  // 1. Search for existing item by SKU (Column M / Index 12)
-  var rowIndex = -1;
-  var searchSku = formObject.sku;
+  // Get all IDs from Column A to find the highest number
+  var lastRow = sheet.getLastRow();
+  var nextId = 1; // Default for first entry
   
-  if (searchSku) {
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][12] == searchSku) { // Check Column M
-        rowIndex = i + 1;
-        break;
-      }
-    }
+  if (lastRow > 1) {
+    var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    var maxId = Math.max(...idValues.map(r => isNaN(r[0]) ? 0 : Number(r[0])));
+    nextId = maxId + 1;
   }
 
-  // 2. Logic for Item ID (Column A)
-  var itemId = formObject.itemId;
-  if (!itemId && rowIndex === -1) {
-    // Generate next ID if it's a brand new entry
-    var ids = data.slice(1).map(r => isNaN(r[0]) ? 0 : Number(r[0]));
-    itemId = ids.length > 0 ? Math.max(...ids) + 1 : 1;
-  } else if (rowIndex !== -1) {
-    // Keep existing ID if updating
-    itemId = data[rowIndex - 1][0];
-  }
-
-  // 3. Prepare the row data based on your specific columns
-  // Order: Item ID, Item name, Category, UOM, Sale Price, Purchase Price, Stock, 
-  // Reorder Point, Stock value (calc), VendorID, Status (calc), Expiry Date, SKU
-  var stockVal = Number(formObject.salePrice) * Number(formObject.stock);
-  var status = Number(formObject.stock) <= Number(formObject.reorderPoint) ? "Low Stock" : "In Stock";
-
-  var rowData = [
-    itemId,                 // Col A
-    formObject.itemName,    // Col B
-    formObject.category,    // Col C
-    formObject.uom,         // Col D
-    formObject.salePrice,   // Col E
-    formObject.purchasePrice, // Col F
-    formObject.stock,       // Col G
-    formObject.reorderPoint, // Col H
-    stockVal,               // Col I
-    formObject.vendorID,    // Col J
-    status,                 // Col K
-    formObject.expiryDate,  // Col L
-    formObject.sku          // Col M
-  ];
-
-  if (rowIndex > -1) {
-    // UPDATE existing row
-    sheet.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
-    return "Inventory Updated!";
-  } else {
-    // ADD new row
-    sheet.appendRow(rowData);
-    return "New Item Added!";
-  }
+  sheet.appendRow([
+    nextId,
+    formObject.varga,
+    formObject.name,
+    formObject.father,
+    formObject.mother,
+    "'" + formObject.mobile, // Added ' to keep +91 formatting
+    formObject.email,
+    formObject.discount,
+    formObject.notes
+  ]);
+  
+  return "Success!"; 
 }
 
-// Keep your manual entry ID logic - it's great for direct sheet edits!
+// 2. Logic for Manual Entries (onEdit)
 function onEdit(e) {
   var sheet = e.source.getActiveSheet();
   if (sheet.getName() !== "main") return;
+
   var range = e.range;
   var row = range.getRow();
   var col = range.getColumn();
 
+  // If we edited any column other than ID (Col 1) and Row 1 (Header)
+  // AND the ID cell is currently empty
   if (row > 1 && col > 1) {
     var idCell = sheet.getRange(row, 1);
+    
     if (idCell.getValue() === "") {
       var lastRow = sheet.getLastRow();
       var idValues = sheet.getRange(2, 1, lastRow, 1).getValues();
       var maxId = 0;
+      
       for (var i = 0; i < idValues.length; i++) {
         var val = Number(idValues[i][0]);
         if (!isNaN(val) && val > maxId) maxId = val;
