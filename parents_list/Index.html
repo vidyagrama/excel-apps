@@ -175,14 +175,18 @@
           <textarea name="notes" rows="3"></textarea>
         </div>
 
-        <button type="submit" id="submitBtn">Register</button>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+          <button type="button" onclick="confirmReset()" id="resetBtn" style="background-color: #e57373; flex: 1;">Clear
+            Form</button>
+          <button type="submit" id="submitBtn" style="flex: 2;">Register</button>
+        </div>
       </form>
     </div>
 
     <div id="success-msg">
       <div class="check-icon">✓</div>
       <h2 style="color: #28a745;">Registration Successful!</h2>
-      <p>The student details have been recorded.</p>
+      <p>The details have been recorded.</p>
       <button onclick="resetToForm()" style="background-color: var(--primary-purple); margin-top:20px;">Add
         Another</button>
     </div>
@@ -200,15 +204,33 @@
     });
 
     // 2. Clear success and show form again
+    // 2. Clear success and show form again (plus unlocking logic)
     function resetToForm() {
-      document.getElementById('entryForm').reset();
-      document.getElementById('discountInput').value = "0";
+      const form = document.getElementById('entryForm');
+      form.reset();
+
+      // Ensure all fields are re-enabled and styling is restored
+      const fieldsToRestore = [discountInput, fatherInput, motherInput];
+      fieldsToRestore.forEach(field => {
+        field.disabled = false;
+        field.style.backgroundColor = "#fff";
+        field.setAttribute('required', 'required');
+      });
+
+      // UI Reset
       document.getElementById('success-msg').style.display = 'none';
       document.getElementById('form-container').style.display = 'block';
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = false;
-      btn.innerHTML = "Register Vidyaarthi";
+      btn.innerHTML = "Register";
+    }
+
+    // 4. Safety check before clearing data manually
+    function confirmReset() {
+      if (confirm("Are you sure you want to clear all entered data?")) {
+        resetToForm();
+      }
     }
 
     //3. Disable discount,father's,mother's name for guest and Acharya Nirmaan
