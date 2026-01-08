@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    :root {
+      --primary-purple: #673ab7;
+      --hover-purple: #512da8;
+      --bg-purple: #f3e5f5;
+    }
+
+    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
+    body { padding: 20px; background-color: var(--bg-purple); display: flex; justify-content: center; }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
+    }
+
+    h2 { text-align: center; color: var(--primary-purple); margin-top: 0; border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px; }
+
+    #status-bar {
+      display: none; padding: 10px; margin-bottom: 15px; border-radius: 8px;
+      text-align: center; font-size: 13px; font-weight: bold;
+    }
+
+    .search-box {
+      margin-bottom: 25px; padding: 15px; background: #ede7f6;
+      border-radius: 8px; display: flex; gap: 10px;
+    }
+
+    .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .field { margin-bottom: 15px; }
+    .full-width { grid-column: span 2; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; color: #4a148c; font-size: 13px; }
+
+    input, select, textarea {
+      width: 100%; padding: 10px; border: 2px solid #e1bee7;
+      border-radius: 8px; box-sizing: border-box; font-size: 14px;
+    }
+
+    input:focus, select:focus { border-color: var(--primary-purple); outline: none; }
+
+    button {
+      width: 100%; padding: 14px; background-color: var(--primary-purple);
+      color: white; border: none; border-radius: 8px; font-size: 16px;
+      font-weight: bold; cursor: pointer; transition: 0.3s;
+    }
+
+    button:hover { background-color: var(--hover-purple); }
+    .secondary-btn { background-color: #9575cd; padding: 10px 20px; width: auto; }
+    .reset-btn { background-color: #757575; padding: 10px 20px; width: auto; }
+
+    #success-msg { display: none; text-align: center; padding: 40px 10px; }
+    .check-icon { font-size: 60px; color: #4caf50; }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div id="form-container">
+      <h2>Vidyagrama Vendor Manager</h2>
+
+      <div id="status-bar"></div>
+
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search Vendor ID..." onkeypress="handleSearchKeyPress(event)">
+        <button type="button" class="secondary-btn" onclick="findVendor()">Search</button>
+        <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
+      </div>
+
+      <form id="entryForm">
+        <input type="hidden" id="rowNumber" name="rowNumber">
+
+        <div class="grid-container">
+          
+          <div class="field full-width">
+            <label>Vendor ID (Manual String)</label>
+            <input type="text" id="vendorIdInput" name="vendorId" placeholder="e.g. VG-VENDOR-001" required>
+          </div>
+
+          <div class="field full-width">
+            <label>Business Name</label>
+            <input type="text" name="businessName" required>
+          </div>
+
+          <div class="field">
+            <label>Identity</label>
+            <select name="identity">
+              <option value="Wholesaler">Wholesaler</option>
+              <option value="Local Farmer">Local Farmer</option>
+              <option value="Distributor">Distributor</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Product Category</label>
+            <select name="prodCategory">
+              <option value="Oil">Oil</option>
+              <option value="Ghee">Ghee</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Vegetables">Vegetables</option>
+              <option value="Fruits">Fruits</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Vendor Status</label>
+            <select name="status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Pending">Pending</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Contact Person</label>
+            <input type="text" name="contactPerson" required>
+          </div>
+
+          <div class="field">
+            <label>Phone Number</label>
+            <input type="text" name="phone" id="phoneInput" placeholder="+91..." required>
+          </div>
+
+          <div class="field">
+            <label>Email Address</label>
+            <input type="email" name="email">
+          </div>
+
+          <div class="field full-width">
+            <label>Address</label>
+            <input type="text" name="address">
+          </div>
+
+          <div class="field">
+            <label>GST/VAT/TAX</label>
+            <input type="text" name="taxId">
+          </div>
+
+          <div class="field">
+            <label>MOQ(Minimum Order Quantity)</label>
+            <input type="text" name="moq">
+          </div>
+
+          <div class="field">
+            <label>Lead Time</label>
+            <input type="text" name="leadTime">
+          </div>
+
+          <div class="field">
+            <label>Bank Details</label>
+            <textarea name="bankDetails" rows="1"></textarea>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button type="submit" id="submitBtn" style="flex: 3;">Save Vendor</button>
+          <button type="button" id="deleteBtn" onclick="deleteEntry()" style="background-color: #e57373; flex: 1; display: none;">Delete</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="success-msg">
+      <div class="check-icon">✓</div>
+      <h2 id="msg-title">Success!</h2>
+      <p id="msg-body"></p>
+      <button onclick="resetToForm()" style="margin-top:20px;">Return to Form</button>
+    </div>
+  </div>
+
+  <script>
+    // AUTO-CAPITALIZE ID inputs for better data quality
+    const idInputs = ['vendorIdInput', 'searchInput'];
+    idInputs.forEach(id => {
+      document.getElementById(id).addEventListener('input', function(e) {
+        e.target.value = e.target.value.toUpperCase();
+      });
+    });
+
+    // Phone prefix logic
+    document.getElementById('phoneInput').addEventListener('input', function (e) {
+      let val = e.target.value;
+      if (!val.startsWith('+91')) val = '+91' + val.replace(/\D/g, '');
+      e.target.value = val.slice(0, 13);
+    });
+
+    function showStatus(msg, color) {
+      const statusBar = document.getElementById('status-bar');
+      statusBar.innerHTML = msg;
+      statusBar.style.backgroundColor = color + "22"; 
+      statusBar.style.color = color;
+      statusBar.style.border = "1px solid " + color;
+      statusBar.style.display = 'block';
+      setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
+    }
+
+    function findVendor() {
+      const term = document.getElementById('searchInput').value;
+      if (!term) return showStatus("Enter ID to search", "#dc3545");
+
+      const btn = document.querySelector('.secondary-btn');
+      btn.innerHTML = "Searching...";
+
+      google.script.run.withSuccessHandler(res => {
+         btn.innerHTML = "Search";
+         if (res) {
+          const d = res.data;
+          document.getElementById('rowNumber').value = res.row;
+          const f = document.getElementById('entryForm');
+          
+          f.vendorId.value = d[0];
+          f.businessName.value = d[1];
+          f.identity.value = d[2];
+          f.prodCategory.value = d[3];
+          f.status.value = d[4];
+          f.contactPerson.value = d[5];
+          f.phone.value = d[6].replace(/'/g, "");
+          f.email.value = d[7];
+          f.address.value = d[8];
+          f.taxId.value = d[9];
+          f.moq.value = d[10];
+          f.leadTime.value = d[11];
+          f.bankDetails.value = d[12];
+
+          document.getElementById('submitBtn').innerHTML = "Update Vendor " + d[0];
+          document.getElementById('deleteBtn').style.display = "block";
+          showStatus("Vendor " + d[0] + " loaded successfully.", "#28a745");
+        } else {
+          showStatus("Vendor ID not found (Search is case-insensitive).", "#dc3545");
+          clearFormToDefault(false); // Clear fields but keep search term
+          f.vendorId.value = term; // Auto-fill searched ID into form
+          document.getElementById('rowNumber').value = ""; // Ensure it's a new row
+          document.getElementById('submitBtn').innerHTML = "Onboard New Vendor: " + term;
+          document.getElementById('submitBtn').style.backgroundColor = "var(--primary-purple)";
+          document.getElementById('deleteBtn').style.display = "none";
+          showStatus("ID not found. Form reset to onboard '" + term + "' as new.", "#ff9800");
+        }
+      })
+      .withFailureHandler(err => {
+           btn.innerHTML = "Search";
+           showStatus("Error: " + err, "#dc3545");
+        })
+        .searchVendor(term);
+    }
+
+    function deleteEntry() {
+      const row = document.getElementById('rowNumber').value;
+      if (confirm("Delete this vendor record?")) {
+        google.script.run.withSuccessHandler(msg => {
+          alert(msg);
+          resetToForm();
+        }).deleteVendorByRow(row);
+      }
+    }
+
+    document.getElementById('entryForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = "Processing...";
+
+      google.script.run
+        .withSuccessHandler(response => {
+          document.getElementById('msg-body').innerHTML = response;
+          document.getElementById('form-container').style.display = 'none';
+          document.getElementById('success-msg').style.display = 'block';
+          btn.disabled = false;
+        })
+        .processForm(this);
+    });
+
+    function clearFormToDefault(clearSearch = false) {
+      document.getElementById('entryForm').reset();
+      document.getElementById('rowNumber').value = "";
+      document.getElementById('deleteBtn').style.display = "none";
+      document.getElementById('submitBtn').innerHTML = "Save Vendor";
+      if (clearSearch) document.getElementById('searchInput').value = "";
+    }
+
+    function resetToForm() {
+      clearFormToDefault(true);
+      document.getElementById('success-msg').style.display = 'none';
+      document.getElementById('form-container').style.display = 'block';
+    }
+
+    function handleSearchKeyPress(event) {
+      if (event.keyCode === 13) { event.preventDefault(); findVendor(); }
+    }
+  </script>
+</body>
+</html>
