@@ -7,14 +7,27 @@
       --primary-purple: #673ab7;
       --hover-purple: #512da8;
       --bg-purple: #f3e5f5;
+      --success-green: #2e7d32;
     }
 
-    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
-    body { padding: 20px; background-color: var(--bg-purple); display: flex; justify-content: center; }
+    body,
+    input,
+    textarea,
+    button,
+    select {
+      font-family: Verdana, Geneva, sans-serif;
+    }
+
+    body {
+      padding: 20px;
+      background-color: var(--bg-purple);
+      display: flex;
+      justify-content: center;
+    }
 
     .container {
       width: 100%;
-      max-width: 650px;
+      max-width: 700px;
       background: white;
       padding: 30px;
       border-radius: 12px;
@@ -29,7 +42,6 @@
       padding-bottom: 10px;
     }
 
-    /* Status Bar Styling */
     #status-bar {
       display: none;
       padding: 10px;
@@ -55,29 +67,83 @@
       gap: 15px;
     }
 
-    .field { margin-bottom: 15px; }
-    .full-width { grid-column: span 2; }
-    label { display: block; margin-bottom: 6px; font-weight: bold; color: #4a148c; font-size: 13px; }
-
-    input, select, textarea {
-      width: 100%; padding: 10px; border: 2px solid #e1bee7;
-      border-radius: 8px; box-sizing: border-box; font-size: 14px;
+    .field {
+      margin-bottom: 12px;
     }
 
-    input:focus, select:focus { border-color: var(--primary-purple); outline: none; }
+    .full-width {
+      grid-column: span 2;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #4a148c;
+      font-size: 12px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #e1bee7;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--primary-purple);
+      outline: none;
+    }
+
+    input[readonly] {
+      background-color: #f5f5f5;
+      cursor: not-allowed;
+      border-color: #ddd;
+    }
 
     button {
-      width: 100%; padding: 14px; background-color: var(--primary-purple);
-      color: white; border: none; border-radius: 8px; font-size: 16px;
-      font-weight: bold; cursor: pointer; transition: 0.3s;
+      width: 100%;
+      padding: 14px;
+      background-color: var(--primary-purple);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
     }
 
-    button:hover { background-color: var(--hover-purple); }
-    .secondary-btn { background-color: #9575cd; padding: 10px 20px; width: auto; }
-    .reset-btn { background-color: #757575; padding: 10px 20px; width: auto; }
+    button:hover {
+      background-color: var(--hover-purple);
+    }
 
-    #success-msg { display: none; text-align: center; padding: 40px 10px; }
-    .check-icon { font-size: 60px; color: #4caf50; }
+    .secondary-btn {
+      background-color: #9575cd;
+      padding: 10px 20px;
+      width: auto;
+    }
+
+    .reset-btn {
+      background-color: #757575;
+      padding: 10px 20px;
+      width: auto;
+    }
+
+    #success-msg {
+      display: none;
+      text-align: center;
+      padding: 40px 10px;
+    }
+
+    .check-icon {
+      font-size: 60px;
+      color: #4caf50;
+    }
   </style>
 </head>
 
@@ -126,23 +192,27 @@
               <option value="Ecofriendly Products">Ecofriendly Products</option>
             </select>
           </div>
+
           <div class="field">
-            <label>SKU</label>
+            <label>SKU / Barcode</label>
             <input type="text" name="sku">
           </div>
 
           <div class="field">
             <label>Unit of Measure</label>
             <select name="uom">
-              <option value="Kilogram (kg)">Kilogram (kg)</option>
-              <option value="Liter (ltr)">Liter (ltr)</option>
-              <option value="Meter (mtr)">Meter (mtr)</option>
-              <option value="Piece (pc)">Piece (pc)</option>
-              <option value="Box (Bx)">Box (Bx)</option>
-              <option value="Bottle (Btl)">Bottle (Btl)</option>
-              <option value="Tin (tin)">Tin (tin)</option>
+              <option value="kilogram (kg)">kilogram (kg)</option>
+              <option value="grams (gms)">grams (gms)</option>
+              <option value="liter (ltr)">liter (ltr)</option>
+              <option value="meter (mtr)">meter (mtr)</option>
+              <option value="piece (pc)">piece (pc)</option>
+              <option value="box (Bx)">box (Bx)</option>
+              <option value="bottle (Btl)">bottle (Btl)</option>
+              <option value="tin (tin)">tin (tin)</option>
+              <option value="No's">No's</option>
             </select>
           </div>
+
           <div class="field">
             <label>Status</label>
             <select name="status">
@@ -155,26 +225,39 @@
 
           <div class="field">
             <label>Purchase Price</label>
-            <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calcValue()">
+            <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
           </div>
+
           <div class="field">
-            <label>Sale Price</label>
-            <input type="number" step="0.01" name="salePrice" required>
+            <label>Markup % (e.g. 20 for 20%)</label>
+            <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
+          </div>
+
+          <div class="field">
+            <label>Sale Price (Auto)</label>
+            <input type="number" step="0.01" name="salePrice" id="sPrice" readonly>
           </div>
 
           <div class="field">
             <label>Current Stock</label>
-            <input type="number" name="stock" id="stockInput" required oninput="calcValue()">
+            <input type="number" name="stock" id="stockInput" required oninput="calculateAutoFields()">
           </div>
+
+          <div class="field">
+            <label>Stock Value (Auto)</label>
+            <input type="number" step="0.01" name="stockValue" id="valOutput" readonly>
+          </div>
+
           <div class="field">
             <label>Reorder Point</label>
             <input type="number" name="reorderPoint" value="5">
           </div>
 
           <div class="field">
-            <label>Stock Value (Auto)</label>
-            <input type="number" name="stockValue" id="valOutput" readonly style="background:#f9f9f9">
+            <label>Mfg Date</label>
+            <input type="date" name="mfgDate">
           </div>
+
           <div class="field">
             <label>Expiry Date</label>
             <input type="date" name="expiryDate">
@@ -192,21 +275,29 @@
 
     <div id="success-msg">
       <div class="check-icon">✓</div>
-      <h2 id="msg-title">Action Successful!</h2>
-      <p id="msg-body">The inventory record has been processed.</p>
-      <button onclick="resetToForm()" style="margin-top:20px;">Return to Form</button>
+      <h2 id="msg-title">Success!</h2>
+      <p id="msg-body">The item has been saved.</p>
+      <button onclick="resetToForm()" style="margin-top:20px;">Add Another Item</button>
     </div>
 
-    <footer style="text-align:center; margin-top:25px; padding-top:15px; border-top:1px solid #eee; font-size:10px; color:gray; width:100%;">
-      Developed by Vidyagrama • Version 1.0
+    <footer
+      style="text-align:center; margin-top:25px; padding-top:15px; border-top:1px solid #eee; font-size:10px; color:gray; width:100%;">
+      Vidyagrama Inventory System • v1.2
     </footer>
   </div>
 
   <script>
-    function calcValue() {
-      const stock = document.getElementById('stockInput').value;
-      const price = document.getElementById('pPrice').value;
-      document.getElementById('valOutput').value = (stock * price).toFixed(2);
+    function calculateAutoFields() {
+      const pPrice = parseFloat(document.getElementById('pPrice').value) || 0;
+      const markupPercent = parseFloat(document.getElementById('markup').value) || 0;
+      const stock = parseFloat(document.getElementById('stockInput').value) || 0;
+
+      // Logic: Purchase Price + (Purchase Price * (Markup / 100))
+      const salePrice = pPrice * (1 + (markupPercent / 100));
+      const stockValue = pPrice * stock;
+
+      document.getElementById('sPrice').value = salePrice.toFixed(2);
+      document.getElementById('valOutput').value = stockValue.toFixed(2);
     }
 
     function showStatus(msg, color) {
@@ -216,14 +307,13 @@
       statusBar.style.color = color;
       statusBar.style.border = "1px solid " + color;
       statusBar.style.display = 'block';
-      // Auto-hide status after 5 seconds
       setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
     }
 
     function findItem() {
       const term = document.getElementById('searchInput').value;
       if (!term) {
-        showStatus("Please enter an ID or SKU.", "#dc3545");
+        showStatus("Please enter ID or SKU", "#dc3545");
         return;
       }
 
@@ -235,46 +325,50 @@
           btn.innerHTML = "Search";
           if (res) {
             const d = res.data;
+            const f = document.getElementById('entryForm');
+
             document.getElementById('rowNumber').value = res.row;
             document.getElementById('itemId').value = d[0];
 
-            const f = document.getElementById('entryForm');
-            f.itemName.value = d[1];
-            f.category.value = d[2];
+            f.category.value = d[1];
+            f.itemName.value = d[2];
             f.uom.value = d[3];
-            f.salePrice.value = d[4];
+            f.stock.value = d[4];
             f.purchasePrice.value = d[5];
-            f.stock.value = d[6];
-            f.reorderPoint.value = d[7];
+            f.priceMarkupPercentage.value = d[6];
+            f.salePrice.value = d[7];
             f.stockValue.value = d[8];
-            f.vendorID.value = d[9];
-            f.status.value = d[10];
-            if (d[11]) f.expiryDate.value = new Date(d[11]).toISOString().split('T')[0];
-            f.sku.value = d[12];
+            f.reorderPoint.value = d[9];
+            f.vendorID.value = d[10];
+            f.status.value = d[11];
+            f.mfgDate.value = d[12];
+            f.expiryDate.value = d[13];
+            f.sku.value = d[14];
 
             document.getElementById('submitBtn').innerHTML = "Update Item " + d[0];
-            document.getElementById('submitBtn').style.backgroundColor = "#2e7d32";
-            showStatus("Item " + d[0] + " loaded successfully.", "#28a745");
+            document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
+            showStatus("Item " + d[0] + " loaded.", "var(--success-green)");
           } else {
-            showStatus("No item found with ID or SKU: " + term, "#dc3545");
-            clearFormToDefault(true);
+            showStatus("Item not found.", "#dc3545");
+            clearFormToDefault(false);
           }
         })
         .withFailureHandler(err => {
-           btn.innerHTML = "Search";
-           showStatus("Error: " + err, "#dc3545");
+          btn.innerHTML = "Search";
+          showStatus("Error: " + err, "#dc3545");
         })
         .searchItem(term);
     }
 
-    function clearFormToDefault(clearSearch = false) {
+    function clearFormToDefault(clearSearch) {
       document.getElementById('entryForm').reset();
       document.getElementById('rowNumber').value = "";
       document.getElementById('itemId').value = "";
       if (clearSearch) document.getElementById('searchInput').value = "";
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
       document.getElementById('submitBtn').style.backgroundColor = "var(--primary-purple)";
-      document.getElementById('valOutput').value = "";
+      document.getElementById('markup').value = "20"; // Default back to 20%
+      calculateAutoFields();
     }
 
     function resetToForm() {
@@ -291,8 +385,6 @@
 
       google.script.run
         .withSuccessHandler((response) => {
-          document.getElementById('msg-title').innerHTML = "Success!";
-          document.getElementById('msg-title').style.color = "#28a745";
           document.getElementById('msg-body').innerHTML = response;
           document.getElementById('form-container').style.display = 'none';
           document.getElementById('success-msg').style.display = 'block';
@@ -301,6 +393,7 @@
         .withFailureHandler((err) => {
           showStatus("Save failed: " + err, "#dc3545");
           btn.disabled = false;
+          btn.innerHTML = "Try Again";
         })
         .processForm(this);
     });
@@ -313,4 +406,5 @@
     }
   </script>
 </body>
+
 </html>
