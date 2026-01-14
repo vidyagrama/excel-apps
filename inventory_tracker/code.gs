@@ -1,25 +1,34 @@
 /** @OnlyCurrentDoc */
 
 function doGet() {
+  // .addMetaTag is essential for mobile responsiveness
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle("Vidyagrama Inventory Manager")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 // 1. SEARCH: Find item by ID (Col 1) or SKU (Col 13)
 function searchItem(searchText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
   var data = sheet.getDataRange().getValues();
+  
+  // Clean the incoming search text
+  var cleanSearch = searchText.toString().trim().toLowerCase();
 
   for (var i = 1; i < data.length; i++) {
-    // Check Column A (ID) or Column M (SKU)
-    if (data[i][0].toString().trim() == searchText.toString().trim() ||
-      data[i][12].toString().trim() == searchText.toString().trim()) {
+    // Convert Sheet values to "Plain Text" strings for comparison
+    // .toFixed(0) prevents scientific notation for long barcodes
+    var idInSheet = data[i][0].toString().trim().toLowerCase();
+    
+    // Column M is index 14
+    var skuValue = data[i][14];
+    var skuInSheet = skuValue.toString().trim().toLowerCase();
 
-      // CLEAN THE DATA: Convert Dates to Strings so they don't crash the return
+    if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
+      // Convert Dates for the HTML input fields
       var cleanData = data[i].map(function (cell) {
         if (cell instanceof Date) {
-          // Converts date to YYYY-MM-DD format for the HTML input
           return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy-MM-dd");
         }
         return cell;
@@ -33,6 +42,7 @@ function searchItem(searchText) {
   }
   return null;
 }
+
 
 // 2. CREATE or UPDATE: Decision logic
 function processForm(formObject) {

@@ -2,6 +2,8 @@
 <html>
 
 <head>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  
   <style>
     :root {
       --primary-purple: #673ab7;
@@ -10,139 +12,39 @@
       --success-green: #2e7d32;
     }
 
-    body,
-    input,
-    textarea,
-    button,
-    select {
-      font-family: Verdana, Geneva, sans-serif;
-    }
+    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
+    body { padding: 15px; background-color: var(--bg-purple); display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 700px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
+    h2 { text-align: center; color: var(--primary-purple); margin-top: 0; border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px; font-size: 1.2rem; }
 
-    body {
-      padding: 20px;
-      background-color: var(--bg-purple);
-      display: flex;
-      justify-content: center;
-    }
+    #status-bar { display: none; padding: 10px; margin-bottom: 15px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
 
-    .container {
-      width: 100%;
-      max-width: 700px;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
-    }
+    /* Scanner UI Styles */
+    #scanner-wrapper { display: none; margin-bottom: 15px; border: 2px solid var(--primary-purple); border-radius: 8px; overflow: hidden; background: #000; }
+    #reader { width: 100%; }
 
-    h2 {
-      text-align: center;
-      color: var(--primary-purple);
-      margin-top: 0;
-      border-bottom: 2px solid var(--bg-purple);
-      padding-bottom: 10px;
-    }
+    .search-box { margin-bottom: 25px; padding: 15px; background: #ede7f6; border-radius: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .search-box input { flex: 1; min-width: 150px; }
 
-    #status-bar {
-      display: none;
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: bold;
-    }
+    .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 10px; }
+    .full-width { grid-column: span 2; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; color: #4a148c; font-size: 11px; }
+    input, select { width: 100%; padding: 10px; border: 2px solid #e1bee7; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+    
+    button { width: 100%; padding: 12px; background-color: var(--primary-purple); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+    .search-btn { background-color: #9575cd; padding: 10px 15px; width: auto; font-size: 13px; }
+    .scan-btn { background-color: #009688; }
+    .reset-btn { background-color: #757575; padding: 10px 15px; width: auto; font-size: 13px; }
 
-    .search-box {
-      margin-bottom: 25px;
-      padding: 15px;
-      background: #ede7f6;
-      border-radius: 8px;
-      display: flex;
-      gap: 10px;
-    }
+    #success-msg { display: none; text-align: center; padding: 30px 10px; }
+    .check-icon { font-size: 50px; color: #4caf50; }
 
-    .grid-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
-
-    .field {
-      margin-bottom: 12px;
-    }
-
-    .full-width {
-      grid-column: span 2;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #4a148c;
-      font-size: 12px;
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 10px;
-      border: 2px solid #e1bee7;
-      border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 14px;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: var(--primary-purple);
-      outline: none;
-    }
-
-    input[readonly] {
-      background-color: #f5f5f5;
-      cursor: not-allowed;
-      border-color: #ddd;
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      background-color: var(--primary-purple);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    button:hover {
-      background-color: var(--hover-purple);
-    }
-
-    .secondary-btn {
-      background-color: #9575cd;
-      padding: 10px 20px;
-      width: auto;
-    }
-
-    .reset-btn {
-      background-color: #757575;
-      padding: 10px 20px;
-      width: auto;
-    }
-
-    #success-msg {
-      display: none;
-      text-align: center;
-      padding: 40px 10px;
-    }
-
-    .check-icon {
-      font-size: 60px;
-      color: #4caf50;
+    @media (max-width: 500px) {
+      .grid-container { grid-template-columns: 1fr; }
+      .full-width { grid-column: span 1; }
+      .search-box { flex-direction: column; }
+      .search-box button { width: 100%; }
     }
   </style>
 </head>
@@ -155,9 +57,15 @@
 
       <div id="status-bar"></div>
 
+      <div id="scanner-wrapper">
+        <div id="reader"></div>
+        <button type="button" onclick="stopScanner()" style="background:#f44336; border-radius:0;">Close Camera</button>
+      </div>
+
       <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search Item ID or SKU..." onkeypress="handleSearchKeyPress(event)">
-        <button type="button" class="secondary-btn" onclick="findItem()">Search</button>
+        <input type="text" id="searchInput" placeholder="Search ID or SKU..." onkeypress="handleSearchKeyPress(event)">
+        <button type="button" class="scan-btn" onclick="startScanner()">📸 Scan</button>
+        <button type="button" class="search-btn" onclick="findItem()">Search</button>
         <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
       </div>
 
@@ -229,7 +137,7 @@
           </div>
 
           <div class="field">
-            <label>Markup % (e.g. 20 for 20%)</label>
+            <label>Markup %</label>
             <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
           </div>
 
@@ -280,13 +188,48 @@
       <button onclick="resetToForm()" style="margin-top:20px;">Add Another Item</button>
     </div>
 
-    <footer
-      style="text-align:center; margin-top:25px; padding-top:15px; border-top:1px solid #eee; font-size:10px; color:gray; width:100%;">
-      Vidyagrama Inventory System • v1.2
+    <footer style="text-align:center; margin-top:20px; font-size:10px; color:gray;">
+      Vidyagrama Inventory System • v1.3
     </footer>
   </div>
 
   <script>
+    let html5QrCode;
+
+    // --- SCANNER FUNCTIONS ---
+    function startScanner() {
+      document.getElementById('scanner-wrapper').style.display = 'block';
+      html5QrCode = new Html5Qrcode("reader");
+      
+      const config = { 
+        fps: 10, 
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.0 
+      };
+
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        config,
+        (decodedText) => {
+          document.getElementById('searchInput').value = decodedText;
+          stopScanner();
+          findItem(); // Auto-search after scanning
+        },
+        (errorMessage) => { /* scanning... */ }
+      ).catch(err => {
+        showStatus("Camera Error: " + err, "#dc3545");
+      });
+    }
+
+    function stopScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          document.getElementById('scanner-wrapper').style.display = 'none';
+        }).catch(err => console.error(err));
+      }
+    }
+
+    // --- CORE LOGIC ---
     function calculateAutoFields() {
       const pPrice = parseFloat(document.getElementById('pPrice').value) || 0;
       const markupPercent = parseFloat(document.getElementById('markup').value) || 0;
@@ -317,7 +260,7 @@
         return;
       }
 
-      const btn = document.querySelector('.secondary-btn');
+      const btn = document.querySelector('.search-btn');
       btn.innerHTML = "Searching...";
 
       google.script.run
