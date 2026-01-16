@@ -3,7 +3,7 @@
 
 <head>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  
+
   <style>
     :root {
       --primary-purple: #673ab7;
@@ -14,16 +14,41 @@
 
     body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
     body { padding: 15px; background-color: var(--bg-purple); display: flex; justify-content: center; }
-    .container { width: 100%; max-width: 700px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
-    h2 { text-align: center; color: var(--primary-purple); margin-top: 0; border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px; font-size: 1.2rem; }
+    
+    .main-layout {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      max-width: 1100px;
+      align-items: flex-start;
+    }
+
+    .container { flex: 2; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
+    
+    .sidebar {
+      flex: 1;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    h2, h3 { color: var(--primary-purple); margin-top: 0; border-bottom: 2px solid var(--bg-purple); padding-bottom: 10px; }
+    h2 { text-align: center; font-size: 1.2rem; }
+    h3 { font-size: 1rem; text-align: left; }
 
     #status-bar { display: none; padding: 10px; margin-bottom: 15px; border-radius: 8px; text-align: center; font-size: 13px; font-weight: bold; }
 
-    /* Scanner UI Styles */
+    .item-list-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .item-list-table th { text-align: left; padding: 8px; background: var(--bg-purple); color: var(--primary-purple); }
+    .item-list-table td { padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .item-list-table tr:hover { background: #fdfbff; }
+
     #scanner-wrapper { display: none; margin-bottom: 15px; border: 2px solid var(--primary-purple); border-radius: 8px; overflow: hidden; background: #000; }
     #reader { width: 100%; }
 
-    /* --- UPDATED SEARCH BOX SECTION --- */
     .search-box { 
       margin-bottom: 25px; 
       padding: 10px; 
@@ -31,14 +56,10 @@
       border-radius: 8px; 
       display: flex; 
       gap: 6px; 
-      flex-wrap: nowrap; /* Prevents wrapping to second line */
+      flex-wrap: nowrap; 
       align-items: center;
     }
-    .search-box input { 
-      flex: 2; 
-      min-width: 0; /* Allows input to shrink to fit row */
-      padding: 10px;
-    }
+    .search-box input { flex: 2; min-width: 0; padding: 10px; }
 
     .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .field { margin-bottom: 10px; }
@@ -48,18 +69,15 @@
     
     button { width: 100%; padding: 12px; background-color: var(--primary-purple); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; }
     
-    /* Small button adjustments for row alignment */
     .search-btn { background-color: #9575cd; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
     .scan-btn { background-color: #009688; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
     .reset-btn { background-color: #757575; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
 
-    #success-msg { display: none; text-align: center; padding: 30px 10px; }
-    .check-icon { font-size: 50px; color: #4caf50; }
-
-    @media (max-width: 500px) {
+    @media (max-width: 850px) {
+      .main-layout { flex-direction: column; }
+      .sidebar { width: 100%; box-sizing: border-box; }
       .grid-container { grid-template-columns: 1fr; }
       .full-width { grid-column: span 1; }
-      /* REMOVED: flex-direction: column logic to keep row alignment on mobile */
       .search-box { padding: 5px; gap: 4px; }
       .search-box input { padding: 8px; font-size: 12px; }
       .search-box button { padding: 8px 6px; font-size: 10px; }
@@ -69,174 +87,190 @@
 
 <body>
 
-  <div class="container">
-    <div id="form-container">
-      <h2>Vidyagrama Inventory Manager</h2>
+  <div class="main-layout">
+    <div class="container">
+      <div id="form-container">
+        <h2>Vidyagrama Inventory Manager</h2>
 
-      <div id="status-bar"></div>
+        <div id="status-bar"></div>
 
-      <div id="scanner-wrapper">
-        <div id="reader"></div>
-        <button type="button" onclick="stopScanner()" style="background:#f44336; border-radius:0;">Close Camera</button>
-      </div>
-
-      <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search ID or SKU..." onkeypress="handleSearchKeyPress(event)">
-        <button type="button" class="scan-btn" onclick="startScanner()">📸 Scan</button>
-        <button type="button" class="search-btn" onclick="findItem()">Search</button>
-        <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
-      </div>
-
-      <form id="entryForm">
-        <input type="hidden" id="rowNumber" name="rowNumber">
-        <input type="hidden" id="itemId" name="itemId">
-
-        <div class="grid-container">
-          <div class="field full-width">
-            <label>Item Name</label>
-            <input type="text" name="itemName" required>
-          </div>
-
-          <div class="field">
-            <label>Category</label>
-            <select name="category">
-              <option value="Rice">Rice</option>
-              <option value="Millets">Millets</option>
-              <option value="Dals">Dals</option>
-              <option value="Pulses">Pulses</option>
-              <option value="Cereals">Cereals</option>
-              <option value="Flours">Flours</option>
-              <option value="Oil Seeds">Oil Seeds</option>
-              <option value="Spices & Herbs">Spices & Herbs</option>
-              <option value="Sweetners">Sweetners</option>
-              <option value="Dry Fruits">Dry Fruits</option>
-              <option value="Salts">Salts</option>
-              <option value="Oils & Ghee">Oils & Ghee</option>
-              <option value="Homemade Powders">Homemade Powders</option>
-              <option value="Soaps">Soaps</option>
-              <option value="Dhoop">Dhoop</option>
-              <option value="Ecofriendly Products">Ecofriendly Products</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>SKU / Barcode</label>
-            <input type="text" name="sku">
-          </div>
-
-          <div class="field">
-            <label>Unit of Measure</label>
-            <select name="uom">
-              <option value="kilogram (kg)">kilogram (kg)</option>
-              <option value="grams (gms)">grams (gms)</option>
-              <option value="liter (ltr)">liter (ltr)</option>
-              <option value="meter (mtr)">meter (mtr)</option>
-              <option value="piece (pc)">piece (pc)</option>
-              <option value="box (Bx)">box (Bx)</option>
-              <option value="bottle (Btl)">bottle (Btl)</option>
-              <option value="tin (tin)">tin (tin)</option>
-              <option value="No's">No's</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Status</label>
-            <select name="status">
-              <option value="In stock">In stock</option>
-              <option value="Temporarily unavailable">Temporarily unavailable</option>
-              <option value="Repurchase needed">Repurchase needed</option>
-              <option value="Sold out">Sold out</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Purchase Price</label>
-            <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
-          </div>
-
-          <div class="field">
-            <label>Markup %</label>
-            <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
-          </div>
-
-          <div class="field">
-            <label>Sale Price (Auto)</label>
-            <input type="number" step="0.01" name="salePrice" id="sPrice" readonly>
-          </div>
-
-          <div class="field">
-            <label>Current Stock</label>
-            <input type="number" name="stock" id="stockInput" required oninput="calculateAutoFields()">
-          </div>
-
-          <div class="field">
-            <label>Stock Value (Auto)</label>
-            <input type="number" step="0.01" name="stockValue" id="valOutput" readonly>
-          </div>
-
-          <div class="field">
-            <label>Reorder Point</label>
-            <input type="number" name="reorderPoint" value="5">
-          </div>
-
-          <div class="field">
-            <label>Mfg Date</label>
-            <input type="date" name="mfgDate">
-          </div>
-
-          <div class="field">
-            <label>Expiry Date</label>
-            <input type="date" name="expiryDate">
-          </div>
-
-          <div class="field full-width">
-            <label>Vendor ID / Name</label>
-            <input type="text" name="vendorID">
-          </div>
+        <div id="scanner-wrapper">
+          <div id="reader"></div>
+          <button type="button" onclick="stopScanner()" style="background:#f44336; border-radius:0;">Close Camera</button>
         </div>
 
-        <button type="submit" id="submitBtn">Add to Inventory</button>
-      </form>
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Search ID or SKU..." onkeypress="handleSearchKeyPress(event)">
+          <button type="button" class="scan-btn" onclick="startScanner()">📸 Scan</button>
+          <button type="button" class="search-btn" onclick="findItem()">Search</button>
+          <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
+        </div>
+
+        <form id="entryForm">
+          <input type="hidden" id="rowNumber" name="rowNumber">
+          <input type="hidden" id="itemId" name="itemId">
+
+          <div class="grid-container">
+            <div class="field full-width">
+              <label>Item Name</label>
+              <input type="text" name="itemName" required>
+            </div>
+
+            <div class="field">
+              <label>Category</label>
+              <select name="category">
+                <option value="Rice">Rice</option>
+                <option value="Millets">Millets</option>
+                <option value="Dals">Dals</option>
+                <option value="Pulses">Pulses</option>
+                <option value="Cereals">Cereals</option>
+                <option value="Flours">Flours</option>
+                <option value="Oil Seeds">Oil Seeds</option>
+                <option value="Spices & Herbs">Spices & Herbs</option>
+                <option value="Sweetners">Sweetners</option>
+                <option value="Dry Fruits">Dry Fruits</option>
+                <option value="Salts">Salts</option>
+                <option value="Oils & Ghee">Oils & Ghee</option>
+                <option value="Homemade Powders">Homemade Powders</option>
+                <option value="Soaps">Soaps</option>
+                <option value="Dhoop">Dhoop</option>
+                <option value="Ecofriendly Products">Ecofriendly Products</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>SKU / Barcode</label>
+              <input type="text" name="sku">
+            </div>
+
+            <div class="field">
+              <label>Unit of Measure</label>
+              <select name="uom">
+                <option value="kilogram (kg)">kilogram (kg)</option>
+                <option value="grams (gms)">grams (gms)</option>
+                <option value="liter (ltr)">liter (ltr)</option>
+                <option value="meter (mtr)">meter (mtr)</option>
+                <option value="piece (pc)">piece (pc)</option>
+                <option value="box (Bx)">box (Bx)</option>
+                <option value="bottle (Btl)">bottle (Btl)</option>
+                <option value="tin (tin)">tin (tin)</option>
+                <option value="No's">No's</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Status</label>
+              <select name="status">
+                <option value="In stock">In stock</option>
+                <option value="Temporarily unavailable">Temporarily unavailable</option>
+                <option value="Repurchase needed">Repurchase needed</option>
+                <option value="Sold out">Sold out</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Purchase Price</label>
+              <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
+            </div>
+
+            <div class="field">
+              <label>Markup %</label>
+              <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
+            </div>
+
+            <div class="field">
+              <label>Sale Price (Auto)</label>
+              <input type="number" step="0.01" name="salePrice" id="sPrice" readonly>
+            </div>
+
+            <div class="field">
+              <label>Current Stock</label>
+              <input type="number" name="stock" id="stockInput" required oninput="calculateAutoFields()">
+            </div>
+
+            <div class="field">
+              <label>Stock Value (Auto)</label>
+              <input type="number" step="0.01" name="stockValue" id="valOutput" readonly>
+            </div>
+
+            <div class="field">
+              <label>Reorder Point</label>
+              <input type="number" name="reorderPoint" value="5">
+            </div>
+
+            <div class="field">
+              <label>Mfg Date</label>
+              <input type="date" name="mfgDate">
+            </div>
+
+            <div class="field">
+              <label>Expiry Date</label>
+              <input type="date" name="expiryDate">
+            </div>
+
+            <div class="field full-width">
+              <label>Vendor ID / Name</label>
+              <input type="text" name="vendorID">
+            </div>
+          </div>
+
+          <button type="submit" id="submitBtn">Add to Inventory</button>
+        </form>
+      </div>
     </div>
 
-    <div id="success-msg">
-      <div class="check-icon">✓</div>
-      <h2 id="msg-title">Success!</h2>
-      <p id="msg-body">The item has been saved.</p>
-      <button onclick="resetToForm()" style="margin-top:20px;">Add Another Item</button>
+    <div class="sidebar">
+      <h3>Recent Items</h3>
+      <table class="item-list-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>SKU</th>
+          </tr>
+        </thead>
+        <tbody id="recentItemsBody">
+          <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
+        </tbody>
+      </table>
     </div>
-
-    <footer style="text-align:center; margin-top:20px; font-size:10px; color:gray;">
-      Vidyagrama Inventory System • v1.3
-    </footer>
   </div>
 
   <script>
     let html5QrCode;
 
-    // --- SCANNER FUNCTIONS ---
+    window.onload = loadRecentItems;
+
+    function loadRecentItems() {
+      google.script.run
+        .withSuccessHandler(items => {
+          const tbody = document.getElementById('recentItemsBody');
+          tbody.innerHTML = '';
+          if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No items found</td></tr>';
+            return;
+          }
+          items.forEach(item => {
+            const row = tbody.insertRow();
+            row.onclick = () => {
+              document.getElementById('searchInput').value = item.id;
+              findItem();
+            };
+            row.innerHTML = `<td>${item.id}</td><td>${item.name}</td><td>${item.sku || '-'}</td>`;
+          });
+        })
+        .getRecentItems();
+    }
+
     function startScanner() {
       document.getElementById('scanner-wrapper').style.display = 'block';
       html5QrCode = new Html5Qrcode("reader");
-      
-      const config = { 
-        fps: 10, 
-        qrbox: { width: 250, height: 150 },
-        aspectRatio: 1.0 
-      };
-
-      html5QrCode.start(
-        { facingMode: "environment" }, 
-        config,
-        (decodedText) => {
+      const config = { fps: 10, qrbox: { width: 250, height: 150 }, aspectRatio: 1.0 };
+      html5QrCode.start({ facingMode: "environment" }, config, (decodedText) => {
           document.getElementById('searchInput').value = decodedText;
           stopScanner();
-          findItem(); // Auto-search after scanning
-        },
-        (errorMessage) => { /* scanning... */ }
-      ).catch(err => {
-        showStatus("Camera Error: " + err, "#dc3545");
-      });
+          findItem();
+        }, () => {}).catch(err => showStatus("Camera Error: " + err, "#dc3545"));
     }
 
     function stopScanner() {
@@ -268,29 +302,23 @@
       statusBar.style.color = color;
       statusBar.style.border = "1px solid " + color;
       statusBar.style.display = 'block';
+      window.scrollTo({top: 0, behavior: 'smooth'});
       setTimeout(() => { statusBar.style.display = 'none'; }, 5000);
     }
 
     function findItem() {
       const term = document.getElementById('searchInput').value;
-      if (!term) {
-        showStatus("Please enter ID or SKU", "#dc3545");
-        return;
-      }
-
+      if (!term) { showStatus("Please enter ID or SKU", "#dc3545"); return; }
       const btn = document.querySelector('.search-btn');
       btn.innerHTML = "Searching...";
-
       google.script.run
         .withSuccessHandler(res => {
           btn.innerHTML = "Search";
           if (res) {
             const d = res.data;
             const f = document.getElementById('entryForm');
-
             document.getElementById('rowNumber').value = res.row;
             document.getElementById('itemId').value = d[0];
-
             f.category.value = d[1];
             f.itemName.value = d[2];
             f.uom.value = d[3];
@@ -314,10 +342,7 @@
             clearFormToDefault(false);
           }
         })
-        .withFailureHandler(err => {
-          btn.innerHTML = "Search";
-          showStatus("Error: " + err, "#dc3545");
-        })
+        .withFailureHandler(err => { btn.innerHTML = "Search"; showStatus("Error: " + err, "#dc3545"); })
         .searchItem(term);
     }
 
@@ -328,28 +353,25 @@
       if (clearSearch) document.getElementById('searchInput').value = "";
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
       document.getElementById('submitBtn').style.backgroundColor = "var(--primary-purple)";
-      document.getElementById('markup').value = "20"; // Default back to 20%
+      document.getElementById('markup').value = "20";
       calculateAutoFields();
     }
 
-    function resetToForm() {
-      clearFormToDefault(true);
-      document.getElementById('success-msg').style.display = 'none';
-      document.getElementById('form-container').style.display = 'block';
-    }
-
+    // UPDATED SUBMISSION LOGIC: Stay on page and show message in status bar
     document.getElementById('entryForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
+      const originalText = btn.innerHTML;
       btn.innerHTML = "Processing...";
 
       google.script.run
         .withSuccessHandler((response) => {
-          document.getElementById('msg-body').innerHTML = response;
-          document.getElementById('form-container').style.display = 'none';
-          document.getElementById('success-msg').style.display = 'block';
+          showStatus(response, "var(--success-green)"); // Show success in status bar
           btn.disabled = false;
+          btn.innerHTML = originalText;
+          clearFormToDefault(true); // Clear form to prepare for next item
+          loadRecentItems(); // Update the sidebar list
         })
         .withFailureHandler((err) => {
           showStatus("Save failed: " + err, "#dc3545");

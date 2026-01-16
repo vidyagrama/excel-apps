@@ -7,7 +7,29 @@ function doGet() {
     .setTitle("Vidyagrama Inventory Manager")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
-    .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png')
+    .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
+}
+
+/** * NEW FUNCTION: Fetches the last 10 items for the sidebar list
+ */
+function getRecentItems() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return []; // Return empty if only header exists
+
+  // Get the last 10 rows (or fewer if the sheet is small)
+  var numItems = Math.min(10, lastRow - 1);
+  var startRow = lastRow - numItems + 1;
+  var data = sheet.getRange(startRow, 1, numItems, 15).getValues();
+
+  // Map to a clean object for the HTML list, reversed so newest is on top
+  return data.map(function(row) {
+    return {
+      id: row[0],   // Column A
+      name: row[2], // Column C
+      sku: row[14]  // Column O
+    };
+  }); 
 }
 
 // 1. SEARCH: Find item by ID (Col 1) or SKU (Col 15/Index 14)
@@ -94,7 +116,7 @@ function processForm(formObject) {
       }
       formData[0] = nextId;
       sheet.appendRow(formData);
-      return "New Item " + nextId + " added successfully!";
+      return "New Item " + formObject.itemName + " added successfully!";
     }
   } catch (e) {
     return "Error: " + e.toString();
