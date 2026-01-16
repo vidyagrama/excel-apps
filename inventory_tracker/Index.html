@@ -23,8 +23,22 @@
     #scanner-wrapper { display: none; margin-bottom: 15px; border: 2px solid var(--primary-purple); border-radius: 8px; overflow: hidden; background: #000; }
     #reader { width: 100%; }
 
-    .search-box { margin-bottom: 25px; padding: 15px; background: #ede7f6; border-radius: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
-    .search-box input { flex: 1; min-width: 150px; }
+    /* --- UPDATED SEARCH BOX SECTION --- */
+    .search-box { 
+      margin-bottom: 25px; 
+      padding: 10px; 
+      background: #ede7f6; 
+      border-radius: 8px; 
+      display: flex; 
+      gap: 6px; 
+      flex-wrap: nowrap; /* Prevents wrapping to second line */
+      align-items: center;
+    }
+    .search-box input { 
+      flex: 2; 
+      min-width: 0; /* Allows input to shrink to fit row */
+      padding: 10px;
+    }
 
     .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .field { margin-bottom: 10px; }
@@ -33,9 +47,11 @@
     input, select { width: 100%; padding: 10px; border: 2px solid #e1bee7; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
     
     button { width: 100%; padding: 12px; background-color: var(--primary-purple); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-    .search-btn { background-color: #9575cd; padding: 10px 15px; width: auto; font-size: 13px; }
-    .scan-btn { background-color: #009688; }
-    .reset-btn { background-color: #757575; padding: 10px 15px; width: auto; font-size: 13px; }
+    
+    /* Small button adjustments for row alignment */
+    .search-btn { background-color: #9575cd; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
+    .scan-btn { background-color: #009688; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
+    .reset-btn { background-color: #757575; padding: 10px 12px; width: auto; font-size: 12px; white-space: nowrap; }
 
     #success-msg { display: none; text-align: center; padding: 30px 10px; }
     .check-icon { font-size: 50px; color: #4caf50; }
@@ -43,8 +59,10 @@
     @media (max-width: 500px) {
       .grid-container { grid-template-columns: 1fr; }
       .full-width { grid-column: span 1; }
-      .search-box { flex-direction: column; }
-      .search-box button { width: 100%; }
+      /* REMOVED: flex-direction: column logic to keep row alignment on mobile */
+      .search-box { padding: 5px; gap: 4px; }
+      .search-box input { padding: 8px; font-size: 12px; }
+      .search-box button { padding: 8px 6px; font-size: 10px; }
     }
   </style>
 </head>
@@ -288,9 +306,9 @@
             f.expiryDate.value = d[13];
             f.sku.value = d[14];
 
-            document.getElementById('submitBtn').innerHTML = "Update Item " + d[0];
+            document.getElementById('submitBtn').innerHTML = "Update Item" ;
             document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
-            showStatus("Item " + d[0] + " loaded.", "var(--success-green)");
+            showStatus("Item " + d[2] + " loaded successfully", "var(--success-green)");
           } else {
             showStatus("Item not found.", "#dc3545");
             clearFormToDefault(false);

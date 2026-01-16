@@ -2,36 +2,36 @@
 
 function doGet() {
   // .addMetaTag is essential for mobile responsiveness
+  // .setFaviconUrl adds a professional touch when saved as a mobile bookmark
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle("Vidyagrama Inventory Manager")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+    .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png')
 }
 
-// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 13)
+// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 15/Index 14)
 function searchItem(searchText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
   var data = sheet.getDataRange().getValues();
   
-  // Clean the incoming search text
+  // Clean the incoming search text for mobile keyboard compatibility
   var cleanSearch = searchText.toString().trim().toLowerCase();
 
   for (var i = 1; i < data.length; i++) {
-    // Convert Sheet values to "Plain Text" strings for comparison
-    // .toFixed(0) prevents scientific notation for long barcodes
     var idInSheet = data[i][0].toString().trim().toLowerCase();
     
-    // Column M is index 14
-    var skuValue = data[i][14];
+    // Column O is index 14 (SKU)
+    var skuValue = data[i][14] || "";
     var skuInSheet = skuValue.toString().trim().toLowerCase();
 
     if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
-      // Convert Dates for the HTML input fields
-      var cleanData = data[i].map(function (cell) {
-        if (cell instanceof Date) {
-          return Utilities.formatDate(cell, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      // Convert Dates so mobile HTML5 date inputs can read them (yyyy-MM-dd)
+      var cleanData = data[i].map(function (cellValue) {
+        if (cellValue instanceof Date) {
+          return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
         }
-        return cell;
+        return cellValue;
       });
 
       return {
@@ -43,12 +43,12 @@ function searchItem(searchText) {
   return null;
 }
 
-
-// 2. CREATE or UPDATE: Decision logic
+// 2. CREATE or UPDATE: Decision logic with LockService for multi-user mobile safety
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
+    // Mobile connections can be flaky; 15 seconds wait is safer than 10
+    lock.waitLock(15000); 
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
     var rowNumber = formObject.rowNumber;
 
@@ -78,28 +78,32 @@ function processForm(formObject) {
     ];
 
     if (rowNumber) {
-      // UPDATE: Changed 13 to 15 here to match your new column count
+      // UPDATE: Matches the 15 columns in your HTML form
       sheet.getRange(rowNumber, 1, 1, 15).setValues([formData]);
-      return "Item " + formObject.itemId + " updated successfully!";
+      return "Item " + formObject.itemName + " updated successfully!";
     } else {
-      // CREATE NEW
+      // CREATE NEW: Auto-ID logic
       var lastRow = sheet.getLastRow();
       var nextId = 1001;
       if (lastRow > 1) {
         var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        var maxId = Math.max(...idValues.map(r => isNaN(r[0]) ? 0 : Number(r[0])));
+        var maxId = Math.max(...idValues.map(function(r) { 
+          return isNaN(r[0]) || r[0] === "" ? 0 : Number(r[0]); 
+        }));
         if (maxId >= 1001) nextId = maxId + 1;
       }
       formData[0] = nextId;
       sheet.appendRow(formData);
       return "New Item " + nextId + " added successfully!";
     }
+  } catch (e) {
+    return "Error: " + e.toString();
   } finally {
     lock.releaseLock();
   }
 }
 
-// 3. Auto-ID for Manual Spreadsheet Entries
+// 3. Auto-ID for Manual Spreadsheet Entries (Optional for Mobile App, but good for Sheet)
 function onEdit(e) {
   var range = e.range;
   var sheet = range.getSheet();
@@ -110,6 +114,7 @@ function onEdit(e) {
     var idCell = sheet.getRange(row, 1);
     if (idCell.getValue() === "") {
       var lastRow = sheet.getLastRow();
+      if (lastRow <= 1) { idCell.setValue(1001); return; }
       var idValues = sheet.getRange(2, 1, lastRow, 1).getValues();
       var maxId = 1000;
       for (var i = 0; i < idValues.length; i++) {
