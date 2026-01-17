@@ -89,22 +89,14 @@ function finalizeOrderBulk(summary, fullCart) {
     fullCart.forEach(cartItem => {
       for (let i = 1; i < invData.length; i++) {
         if (invData[i][0] == cartItem.itemId) {
-          
-          // Data from Array (0-indexed)
-          let currentStock = parseFloat(invData[i][4]) || 0; // Index 3 = Column 4 (D)
-          let reorderPoint = parseFloat(invData[i][9]) || 0; // Index 8 = Column 9 (I)
+          let currentStock = parseFloat(invData[i][4]) || 0; 
+          let reorderPoint = parseFloat(invData[i][9]) || 0; 
           let newStock = currentStock - cartItem.quantity;
-          
-          // Update Stock: Column 4 (D)
           invSheet.getRange(i + 1, 5).setValue(newStock);
           
-          // Update Status: Column 11 (K)
           let status = "In stock";
-          if (newStock <= 0) {
-            status = "Sold out";
-          } else if (newStock <= reorderPoint) {
-            status = "Repurchase needed";
-          }
+          if (newStock <= 0) status = "Sold out";
+          else if (newStock <= reorderPoint) status = "Repurchase needed";
           invSheet.getRange(i + 1, 12).setValue(status);
           break;
         }
@@ -125,10 +117,15 @@ function sendReceiptEmail(summary, cart) {
   try {
     const ss = SpreadsheetApp.openById(ID_PARENTS);
     const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
-    const user = data.find(r => r[0] == summary.customerId);
+    
+    // Improved matching logic: trims whitespace to prevent lookup failure
+    const user = data.find(r => String(r[0]).trim() === String(summary.customerId).trim());
     const userEmail = user ? user[6] : null;
 
-    if (!userEmail || userEmail === "") return;
+    if (!userEmail) {
+      console.log("No email found for ID: " + summary.customerId);
+      return;
+    }
 
     let itemTable = cart.map(i => `
       <tr>
@@ -141,7 +138,7 @@ function sendReceiptEmail(summary, cart) {
       <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px;">
         <h2 style="color: #2e7d32;">Order Confirmation</h2>
         <p>Namaste <b>${summary.customerName}</b>,</p>
-        <p>Your Order <b>${summary.orderId}</b> has been placed.</p>
+        <p>Your Order <b>${summary.orderId}</b> has been placed successfully.</p>
         <table style="width: 100%; border-collapse: collapse;">
           <tr style="background: #f4f4f4;">
             <th style="text-align: left; padding: 8px;">Item</th>
@@ -151,18 +148,32 @@ function sendReceiptEmail(summary, cart) {
           ${itemTable}
         </table>
         <p style="font-size: 18px; margin-top: 20px;"><b>Final Total: ₹${summary.finalTotal}</b></p>
-        <p><small>Delivery Note: ${summary.notes || "None"}</small></p>
+        <p><small>Note: ${summary.notes || "None"}</small></p>
       </div>
     `;
 
     MailApp.sendEmail({
       to: userEmail,
-      subject: "Your Grocery Order - " + summary.orderId,
+      bcc: "writetovidyagrama@gmail.com", // Keeping a copy for your records
+      subject: "New Grocery Order - " + summary.orderId,
       htmlBody: htmlBody
     });
   } catch (e) {
-    Logger.log("Email Error: " + e.toString());
+    console.log("Email Error: " + e.toString());
   }
+}
+
+function testEmail() {
+  const summary = {
+    orderId: "TEST-123",
+    customerName: "Admin Test",
+    customerId: "1", // REPLACE THIS with a real ID from your spreadsheet Column A
+    finalTotal: "100",
+    notes: "Testing"
+  };
+  const cart = [{itemName: "Test Item", quantity: 1, uom: "kg", fullSubtotal: 100}];
+  
+  sendReceiptEmail(summary, cart);
 }
 
 function getFirstEmptyRowInColumn(sheet, col) {
