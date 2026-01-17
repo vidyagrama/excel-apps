@@ -11,7 +11,8 @@ var TAB_ORDERS = "main";
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle("Grocery Shop")
+    .setTitle("Vidyagrama Online Order")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
