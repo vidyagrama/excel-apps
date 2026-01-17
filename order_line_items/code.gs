@@ -16,7 +16,6 @@ function doGet() {
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
 
-// --- DATA FETCHING ---
 function getVargas() {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
   const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
@@ -46,7 +45,6 @@ function getInventoryData() {
   }));
 }
 
-// --- ORDER FINALIZATION ---
 function finalizeOrderBulk(orderSummary, fullCart) {
   try {
     const ssLineItems = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS);
@@ -54,9 +52,18 @@ function finalizeOrderBulk(orderSummary, fullCart) {
     const lineItemSheet = ssLineItems.getSheetByName(TAB_LINE_ITEMS);
     const summarySheet = ssOrders.getSheetByName(TAB_ORDERS);
 
+    // MAPPING UNIT PRICE: Column H from fullCart (index 7) is passed here
     const lineItemRows = fullCart.map((item, index) => [
-      index + 1, orderSummary.orderId, item.category, item.itemId, item.itemName,
-      item.quantity, item.uom, item.price, item.subtotal, ""
+      index + 1,            // Column A: Sr No
+      orderSummary.orderId, // Column B: Order ID
+      item.category,        // Column C: Category
+      item.itemId,          // Column D: ID
+      item.itemName,        // Column E: Name
+      item.quantity,        // Column F: Qty
+      item.uom,             // Column G: UOM
+      item.salePrice,       // Column H: UNIT PRICE (Added as requested)
+      item.subtotal,        // Column I: Subtotal
+      ""                    // Column J: Notes
     ]);
 
     const liStartRow = getFirstEmptyRowInColumn(lineItemSheet, 2);
@@ -65,19 +72,11 @@ function finalizeOrderBulk(orderSummary, fullCart) {
     lineItemSheet.getRange(liStartRow, 1, lineItemRows.length, 10).setValues(lineItemRows);
 
     const summaryData = [[
-      "P0",                   // Column A: Priority
-      orderSummary.orderId,   // Column B: Order ID
-      orderSummary.customerId,// Column C: Customer ID
-      orderSummary.customerName,// Column D: Name
-      new Date(),             // Column E: Date
-      "Received",             // Column F: Status
-      orderSummary.total,     // Column G: Total
-      "Not Recieved",         // Column H: Payment Status
-      ""                      // Column I: Notes
+      "P0", orderSummary.orderId, orderSummary.customerId, orderSummary.customerName,
+      new Date(), "Received", orderSummary.total, "Not Recieved", ""
     ]];
     
     summarySheet.getRange(summaryStartRow, 1, 1, 9).setValues(summaryData);
-
     SpreadsheetApp.flush(); 
     return true;
   } catch (e) {
@@ -85,7 +84,6 @@ function finalizeOrderBulk(orderSummary, fullCart) {
   }
 }
 
-// Helper to find empty row ignoring cell formatting/borders
 function getFirstEmptyRowInColumn(sheet, col) {
   const range = sheet.getRange(1, col, sheet.getMaxRows()).getValues();
   for (let i = 0; i < range.length; i++) {
