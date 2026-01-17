@@ -7,54 +7,25 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    :root { --primary-color: #2e7d32; }
-    body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    
-    /* Login Styles */
-    #login-container { max-width: 450px; margin-top: 10vh; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-    .login-header { background: var(--primary-color); color: white; padding: 20px; border-radius: 15px 15px 0 0; text-align: center; }
-
-    /* Shop Styles */
-    .item-card { background: white; border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; height: 100%; }
-    .item-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
-    .item-img { width: 100%; height: 160px; object-fit: cover; background: #eee; }
-    .price-tag { color: var(--primary-color); font-weight: bold; font-size: 1.1rem; }
-    
-    /* Cart Styles */
-    #cart-sidebar { position: sticky; top: 20px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .cart-item { font-size: 0.9rem; border-bottom: 1px solid #eee; padding: 8px 0; display: flex; justify-content: space-between; }
-    
+    :root { --primary: #2e7d32; --bg: #f4f7f6; }
+    body { background: var(--bg); font-family: 'Segoe UI', sans-serif; }
     .hidden { display: none; }
-    .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; display: inline-block; vertical-align: middle; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .item-card { background: white; border-radius: 10px; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .item-img { height: 120px; object-fit: cover; border-radius: 8px 8px 0 0; background: #eee; }
+    .loader { width: 20px; height: 20px; border: 3px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+    @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
 <div class="container py-4">
-
-  <div id="login-section" class="card mx-auto" id="login-container">
-    <div class="login-header">
-      <h4><i class="material-icons">local_grocery_store</i> Grocery Login</h4>
-    </div>
+  <div id="login-section" class="card shadow mx-auto" style="max-width: 400px;">
+    <div class="card-header bg-success text-white text-center"><h5>Grocery Shop Login</h5></div>
     <div class="card-body p-4">
-      <div class="mb-3">
-        <label class="form-label">Select Varga</label>
-        <select id="varga" class="form-select" onchange="fetchNames()">
-          <option value="">Loading Vargas...</option>
-        </select>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Select Your Name</label>
-        <select id="name" class="form-select">
-          <option value="">Select Varga first</option>
-        </select>
-      </div>
-      <div class="mb-4">
-        <label class="form-label">Registered Mobile No.</label>
-        <input type="tel" id="mobile" class="form-control" placeholder="Enter 10 digit mobile">
-      </div>
-      <button id="login-btn" class="btn btn-success w-100 py-2" onclick="doLogin()">Login to Shop</button>
+      <div class="mb-3"><label>Varga</label><select id="varga" class="form-select" onchange="fetchNames()"></select></div>
+      <div class="mb-3"><label>Name</label><select id="name" class="form-select"></select></div>
+      <div class="mb-3"><label>Mobile</label><input type="tel" id="mobile" class="form-control" placeholder="10 Digit Mobile"></div>
+      <button id="login-btn" class="btn btn-success w-100" onclick="doLogin()">Login to Start</button>
     </div>
   </div>
 
@@ -62,41 +33,17 @@
     <div class="row">
       <div class="col-lg-9">
         <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-          <h4 id="welcome-msg" class="mb-0 text-success">Welcome!</h4>
-          <div class="d-flex align-items-center">
-            <span class="me-2 text-muted">Category:</span>
-            <select id="cat-filter" class="form-select form-select-sm w-auto" onchange="filterProducts()">
-              <option value="All">All Items</option>
-            </select>
-          </div>
+          <h5 id="welcome-msg" class="text-success mb-0"></h5>
+          <select id="cat-filter" class="form-select w-auto" onchange="filterProducts()"><option value="All">All Categories</option></select>
         </div>
-
-        <div id="inventory-grid" class="row g-3">
-          </div>
+        <div id="inventory-grid" class="row g-3"></div>
       </div>
-
       <div class="col-lg-3">
-        <div id="cart-sidebar">
-          <h5 class="d-flex justify-content-between align-items-center">
-            Your Cart <i class="material-icons">shopping_basket</i>
-          </h5>
-          <hr>
-          <div id="cart-items-list" class="mb-3">
-            <p class="text-muted text-center small">Your cart is empty</p>
-          </div>
-          <div class="d-flex justify-content-between mb-1">
-            <span>Subtotal:</span>
-            <span id="subtotal-val">0.00</span>
-          </div>
-          <div class="d-flex justify-content-between mb-3 text-danger small">
-            <span>Discount Applied:</span>
-            <span id="discount-val">0%</span>
-          </div>
-          <div class="d-flex justify-content-between mb-4 h5">
-            <strong>Total:</strong>
-            <strong id="final-total">₹0.00</strong>
-          </div>
-          <button id="checkout-btn" class="btn btn-success w-100 disabled" onclick="placeOrder()">Place Order</button>
+        <div id="cart-sidebar" class="bg-white p-3 rounded shadow-sm">
+          <h6><i class="material-icons align-middle">shopping_cart</i> Your Cart</h6><hr>
+          <div id="cart-list" class="mb-3 small">Empty</div>
+          <div class="h6 d-flex justify-content-between"><strong>Total:</strong><strong id="total-val">₹0</strong></div>
+          <button id="place-order-btn" class="btn btn-success w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
         </div>
       </div>
     </div>
@@ -104,80 +51,63 @@
 </div>
 
 <script>
-  let currentUser = null;
-  let fullInventory = [];
-  let cart = [];
-  let currentOrderId = "ORD-" + Math.floor(Date.now() / 1000);
+  let currentUser = null, fullInventory = [], cart = [];
+  let currentOrderId = "";
 
-  // --- INITIALIZATION ---
-  window.onload = function() {
-  google.script.run
-    .withSuccessHandler(function(vargas) {
-      const sel = document.getElementById('varga');
-      sel.innerHTML = '<option value="">Select Varga</option>'; // Clear "Loading"
-      if (vargas && vargas.length > 0) {
-        vargas.forEach(v => {
-          let opt = document.createElement('option');
-          opt.value = v;
-          opt.textContent = v;
-          sel.appendChild(opt);
-        });
-      }
-    })
-    .withFailureHandler(function(err) {
-      alert("Failed to load Vargas: " + err);
-    })
-    .getVargas();
-};
+  function generateOrderId() { currentOrderId = "ORD-" + Date.now(); }
 
-  // --- LOGIN FLOW ---
+  window.onload = () => {
+    generateOrderId();
+    google.script.run.withSuccessHandler(vargas => {
+      const v = document.getElementById('varga');
+      v.innerHTML = '<option value="">Select Varga</option>';
+      vargas.forEach(item => v.add(new Option(item, item)));
+    }).getVargas();
+  };
+
   function fetchNames() {
-    const varga = document.getElementById('varga').value;
-    const nameSel = document.getElementById('name');
-    nameSel.innerHTML = '<option>Loading...</option>';
-    
+    const v = document.getElementById('varga').value;
     google.script.run.withSuccessHandler(names => {
-      nameSel.innerHTML = '<option value="">Select Name</option>';
-      names.forEach(n => nameSel.add(new Option(n, n)));
-    }).getNamesByVarga(varga);
+      const n = document.getElementById('name');
+      n.innerHTML = '<option value="">Select Name</option>';
+      names.forEach(item => n.add(new Option(item, item)));
+    }).getNamesByVarga(v);
   }
 
   function doLogin() {
-    const v = document.getElementById('varga').value;
-    const n = document.getElementById('name').value;
-    const m = document.getElementById('mobile').value;
-    const btn = document.getElementById('login-btn');
-
-    if(!v || !n || !m) { alert("Please fill all fields"); return; }
+    const v = document.getElementById('varga').value, n = document.getElementById('name').value, m = document.getElementById('mobile').value;
+    if(!v || !n || !m) return alert("All fields required");
     
-    btn.innerHTML = '<span class="loader"></span> Validating...';
-    btn.disabled = true;
-
+    // Purge cart on login attempt
+    cart = []; 
+    
+    document.getElementById('login-btn').innerHTML = '<span class="loader"></span> Validating...';
     google.script.run.withSuccessHandler(res => {
-      if(res.success) {
-        currentUser = res;
-        startShop();
-      } else {
-        alert("Login Failed. Please check your mobile number.");
-        btn.innerHTML = 'Login to Shop';
-        btn.disabled = false;
+      if(res.success) { 
+        currentUser = res; 
+        updateCartUI(); 
+        startShop(); 
+      } 
+      else { 
+        alert("Login Failed."); 
+        document.getElementById('login-btn').innerText = "Login to Start"; 
       }
     }).validateLogin(v, n, m);
   }
 
-  // --- SHOP FLOW ---
   function startShop() {
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('shop-section').classList.remove('hidden');
-    document.getElementById('welcome-msg').innerText = "Hello, " + currentUser.name + "!";
-    document.getElementById('discount-val').innerText = currentUser.discount + "%";
-    
+    document.getElementById('welcome-msg').innerText = "Namaste, " + currentUser.name;
+
     google.script.run.withSuccessHandler(data => {
       fullInventory = data;
-      // Populate Categories
-      const cats = [...new Set(data.map(i => i.category))];
+      
+      // Load Categories from data
       const catFilter = document.getElementById('cat-filter');
-      cats.forEach(c => catFilter.add(new Option(c, c)));
+      catFilter.innerHTML = '<option value="All">All Categories</option>';
+      const uniqueCats = [...new Set(data.map(i => i.category))].filter(c => c).sort();
+      uniqueCats.forEach(c => catFilter.add(new Option(c, c)));
       
       renderInventory(data);
     }).getInventoryData();
@@ -185,104 +115,85 @@
 
   function renderInventory(items) {
     const grid = document.getElementById('inventory-grid');
-    if(items.length === 0) {
-      grid.innerHTML = '<div class="col-12 text-center p-5">No items found in this category.</div>';
-      return;
-    }
-    
     grid.innerHTML = items.map(item => `
       <div class="col-6 col-md-4 col-xl-3">
-        <div class="item-card">
-          <img src="${item.imageUrl}" class="item-img" onerror="this.src='https://via.placeholder.com/150?text=No+Image'">
-          <div class="p-3">
-            <div class="text-muted x-small">${item.category}</div>
-            <h6 class="text-truncate mb-1">${item.itemName}</h6>
-            <div class="d-flex justify-content-between align-items-center">
-              <span class="price-tag">₹${item.salePrice}</span>
-              <span class="small text-muted">${item.uom}</span>
-            </div>
-            <button class="btn btn-sm btn-outline-success w-100 mt-2" 
-                    onclick="addToCart('${item.itemId}')">Add to Cart</button>
-          </div>
+        <div class="item-card p-2 h-100 text-center">
+          <img src="${item.imageUrl}" class="item-img w-100 mb-2" onerror="this.src='https://via.placeholder.com/150'">
+          <div class="small fw-bold text-truncate">${item.itemName}</div>
+          <div class="text-success small">₹${item.salePrice} / ${item.uom}</div>
+          <input type="number" id="qty-${item.itemId}" class="form-control form-control-sm my-2" value="1" min="0.1" step="0.5">
+          <button class="btn btn-sm btn-outline-success w-100" onclick="addToCart('${item.itemId}')">Add</button>
         </div>
       </div>
     `).join('');
   }
 
-  function filterProducts() {
-    const cat = document.getElementById('cat-filter').value;
-    const filtered = (cat === "All") ? fullInventory : fullInventory.filter(i => i.category === cat);
-    renderInventory(filtered);
-  }
-
-  // --- CART FLOW ---
   function addToCart(id) {
     const item = fullInventory.find(i => i.itemId === id);
-    const subtotal = item.salePrice; // Base price before discount
+    const qty = parseFloat(document.getElementById('qty-' + id).value);
+    if(isNaN(qty) || qty <= 0) return;
     
-    const lineItem = {
-      orderId: currentOrderId,
-      category: item.category,
-      itemId: item.itemId,
-      itemName: item.itemName,
-      quantity: 1,
-      uom: item.uom,
-      price: item.salePrice,
-      subtotal: subtotal * (1 - (currentUser.discount/100))
-    };
-    
-    cart.push(lineItem);
-    
-    // Server log in background
-    google.script.run.logLineItem(lineItem);
+    const disc = (1 - (currentUser.discount/100));
+    cart.push({ ...item, quantity: qty, subtotal: (qty * item.salePrice * disc).toFixed(2) });
     updateCartUI();
   }
 
   function updateCartUI() {
-    const list = document.getElementById('cart-items-list');
-    const checkoutBtn = document.getElementById('checkout-btn');
+    const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
+    let total = 0;
     
-    if(cart.length === 0) {
-      list.innerHTML = '<p class="text-muted text-center small">Your cart is empty</p>';
-      checkoutBtn.classList.add('disabled');
+    if (cart.length === 0) {
+      list.innerHTML = "Empty";
+      document.getElementById('total-val').innerText = "₹0";
+      btn.classList.add('disabled');
       return;
     }
 
-    checkoutBtn.classList.remove('disabled');
-    let displayTotal = 0;
-    
-    list.innerHTML = cart.map((item, index) => {
-      displayTotal += item.subtotal;
-      return `
-        <div class="cart-item">
-          <span>${item.itemName}</span>
-          <strong>₹${item.subtotal.toFixed(2)}</strong>
-        </div>
-      `;
+    list.innerHTML = cart.map(i => {
+      total += parseFloat(i.subtotal);
+      return `<div class="cart-item d-flex justify-content-between"><span>${i.itemName}</span><span>₹${i.subtotal}</span></div>`;
     }).join('');
+    
+    document.getElementById('total-val').innerText = "₹" + total.toFixed(2);
+    btn.classList.remove('disabled');
+  }
 
-    document.getElementById('subtotal-val').innerText = "₹" + cart.reduce((a,b) => a + b.price, 0).toFixed(2);
-    document.getElementById('final-total').innerText = "₹" + displayTotal.toFixed(2);
+  function hardReset() {
+    cart = []; currentUser = null; generateOrderId();
+    const btn = document.getElementById('place-order-btn');
+    btn.disabled = false; btn.innerHTML = "Place Order"; btn.classList.add('disabled');
+    document.getElementById('login-btn').innerText = "Login to Start";
+    document.getElementById('mobile').value = "";
+    updateCartUI();
+    document.getElementById('shop-section').classList.add('hidden');
+    document.getElementById('login-section').classList.remove('hidden');
   }
 
   function placeOrder() {
-    const btn = document.getElementById('checkout-btn');
-    btn.innerHTML = '<span class="loader"></span> Saving Order...';
-    btn.disabled = true;
+    const btn = document.getElementById('place-order-btn');
+    btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
+    
+    google.script.run.withSuccessHandler(res => {
+      if(res === true) { 
+        alert("Order Successful!"); 
+        hardReset(); 
+      } 
+      else { 
+        alert(res); 
+        btn.disabled = false; btn.innerHTML = "Place Order"; 
+      }
+    }).finalizeOrderBulk({ 
+        orderId: currentOrderId, 
+        customerId: currentUser.id, 
+        customerName: currentUser.name, 
+        total: document.getElementById('total-val').innerText.replace('₹','') 
+    }, cart);
+  }
 
-    const summary = {
-      orderId: currentOrderId,
-      customerId: currentUser.email,
-      customerName: currentUser.name,
-      total: document.getElementById('final-total').innerText.replace('₹','')
-    };
-
-    google.script.run.withSuccessHandler(() => {
-      alert("Order Placed Successfully!");
-      location.reload(); // Go back to login
-    }).finalizeOrder(summary);
+  function filterProducts() {
+    const cat = document.getElementById('cat-filter').value;
+    renderInventory(cat === "All" ? fullInventory : fullInventory.filter(i => i.category === cat));
   }
 </script>
-
 </body>
 </html>
