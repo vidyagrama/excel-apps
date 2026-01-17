@@ -17,7 +17,7 @@
     .cart-item { font-size: 0.85rem; padding: 8px 0; border-bottom: 1px solid #f1f1f1; }
     .remove-btn { color: #dc3545; cursor: pointer; }
     #custom-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; display: none; }
-    .loader { width: 18px; height: 18px; border: 2px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; }
+    .loader { width: 18px; height: 18px; border: 2px solid #FFF; border-bottom-color: transparent; border-radius: 50%; display: inline-block; animation: rotation 1s linear infinite; vertical-align: middle; margin-right: 8px; }
     @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
@@ -29,9 +29,22 @@
   <div id="login-section" class="card shadow mx-auto" style="max-width: 400px;">
     <div class="card-header bg-success text-white text-center py-3"><h5>Grocery Shop Login</h5></div>
     <div id="login-form-container" class="card-body p-4">
-      <div class="mb-3"><label class="fw-bold small">Varga</label><select id="varga" class="form-select" onchange="fetchNames()"></select></div>
-      <div class="mb-3"><label class="fw-bold small">Name</label><select id="name" class="form-select"></select></div>
-      <div class="mb-3"><label class="fw-bold small">Mobile</label><input type="tel" id="mobile" class="form-control" placeholder="10 Digit Number"></div>
+      <div class="mb-3">
+        <label class="fw-bold small">Varga</label>
+        <select id="varga" class="form-select" onchange="fetchNames()" disabled>
+          <option value="">Loading Varga...</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="fw-bold small">Name</label>
+        <select id="name" class="form-select" disabled>
+          <option value="">Select Varga first</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="fw-bold small">Mobile</label>
+        <input type="tel" id="mobile" class="form-control" placeholder="10 Digit Number">
+      </div>
       <button id="login-btn" class="btn btn-success w-100" onclick="doLogin()">Login</button>
     </div>
   </div>
@@ -97,25 +110,43 @@
 
   window.onload = () => {
     generateOrderId();
-    
-    // Feature: Allow Enter key to trigger login
-    document.getElementById('login-form-container').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') doLogin();
-    });
+    document.getElementById('login-form-container').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
+    loadInitialData(); 
+  };
 
+  // CLEARS OLD VALUES AND LOCKS UI UNTIL SERVER RESPONDS
+  function loadInitialData() {
+    const v = document.getElementById('varga');
+    const n = document.getElementById('name');
+    
+    v.disabled = true;
+    v.innerHTML = '<option value="">Loading Varga...</option>';
+    n.disabled = true;
+    n.innerHTML = '<option value="">Select Varga first</option>';
+    
     google.script.run.withSuccessHandler(vargas => {
-      const v = document.getElementById('varga');
       v.innerHTML = '<option value="">Select Varga</option>';
       vargas.forEach(item => v.add(new Option(item, item)));
+      v.disabled = false; 
     }).getVargas();
-  };
+  }
 
   function fetchNames() {
     const v = document.getElementById('varga').value;
+    const n = document.getElementById('name');
+    if(!v) { 
+      n.innerHTML = '<option value="">Select Varga first</option>'; 
+      n.disabled = true; 
+      return; 
+    }
+    
+    n.disabled = true;
+    n.innerHTML = '<option value="">Loading names...</option>';
+    
     google.script.run.withSuccessHandler(names => {
-      const n = document.getElementById('name');
       n.innerHTML = '<option value="">Select Name</option>';
       names.forEach(item => n.add(new Option(item, item)));
+      n.disabled = false; 
     }).getNamesByVarga(v);
   }
 
@@ -125,7 +156,7 @@
     
     const loginBtn = document.getElementById('login-btn');
     loginBtn.disabled = true;
-    loginBtn.innerHTML = '<span class="loader"></span>';
+    loginBtn.innerHTML = '<span class="loader"></span> Authenticating...';
     
     google.script.run.withSuccessHandler(res => {
       if(res.success) { currentUser = res; startShop(); } 
@@ -173,7 +204,6 @@
     const qtyInput = document.getElementById('qty-' + id);
     const qty = parseFloat(qtyInput.value);
     if(qty <= 0 || isNaN(qty)) return;
-    
     cart.push({ ...item, cartId: Date.now()+Math.random(), quantity: qty, fullSubtotal: (qty * item.salePrice).toFixed(2) });
     updateCartUI();
   }
@@ -195,7 +225,6 @@
         <div class="d-flex align-items-center"><span>₹${i.fullSubtotal}</span><i class="material-icons ms-2 remove-btn" style="font-size:16px" onclick="removeFromCart(${i.cartId})">cancel</i></div>
       </div>`;
     }).join('');
-    
     const discAmt = (gross * (currentUser.discount / 100));
     document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
     document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
@@ -211,62 +240,46 @@
 
   function placeOrder() {
     const btn = document.getElementById('place-order-btn');
-    btn.disabled = true; 
-    btn.innerHTML = '<span class="loader"></span> Saving...';
-    
+    btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
     const finalTotal = document.getElementById('final-val').innerText.replace('₹','');
     const saving = document.getElementById('disc-val').innerText.replace('-₹','');
-    
     google.script.run.withSuccessHandler(res => {
       if(res === true) {
         document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
         document.getElementById('modal-saving').innerText = "You saved ₹" + saving + "!";
         successModal.show();
-      } else { 
-        showAlert("Database Error: " + res); 
-        btn.disabled = false; 
-        btn.innerHTML = "Place Order"; 
-      }
-    }).finalizeOrderBulk({ 
-        orderId: currentOrderId, customerId: currentUser.id, customerName: currentUser.name, 
-        finalTotal: finalTotal, notes: document.getElementById('order-notes').value 
-    }, cart);
+      } else { showAlert("Error: " + res); btn.disabled = false; btn.innerHTML = "Place Order"; }
+    }).finalizeOrderBulk({ orderId: currentOrderId, customerId: currentUser.id, customerName: currentUser.name, finalTotal: finalTotal, notes: document.getElementById('order-notes').value }, cart);
   }
 
-  function closeSuccessModal() { 
-    successModal.hide(); 
-    hardReset(); 
-  }
-
+  function closeSuccessModal() { successModal.hide(); hardReset(); }
   function generateOrderId() { currentOrderId = "ORD-" + Date.now(); }
 
   function hardReset() {
-    // 1. Reset Global State
     cart = [];
     currentUser = null;
     generateOrderId();
     
-    // 2. Clear UI Inputs
     document.getElementById('mobile').value = "";
     document.getElementById('order-notes').value = "";
     document.getElementById('search-bar').value = "";
+    document.getElementById('cart-list').innerHTML = "Empty";
     
-    // 3. Reset Buttons (The Bug Fix)
     const placeBtn = document.getElementById('place-order-btn');
-    placeBtn.disabled = false; // Enable the JS property
-    placeBtn.classList.add('disabled'); // Keep visually disabled until cart has items
+    placeBtn.disabled = false;
+    placeBtn.classList.add('disabled');
     placeBtn.innerHTML = "Place Order";
     
     const loginBtn = document.getElementById('login-btn');
     loginBtn.disabled = false;
     loginBtn.innerText = "Login";
-    
-    // 4. Reset Cart Display
-    updateCartUI();
-    
-    // 5. Switch Screens
+
+    // Immediate switch to login screen so user doesn't see old items
     document.getElementById('shop-section').classList.add('hidden');
     document.getElementById('login-section').classList.remove('hidden');
+    
+    // Clear old dropdown data and lock them immediately
+    loadInitialData();
   }
 </script>
 </body>
