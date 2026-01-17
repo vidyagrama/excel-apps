@@ -19,8 +19,7 @@ function doGet() {
 function getVargas() {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
   const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
-  const vargas = data.slice(1).map(row => row[1]); 
-  return [...new Set(vargas)].filter(v => v && v.toString().trim() !== "").sort();
+  return [...new Set(data.slice(1).map(row => row[1]))].filter(v => v).sort();
 }
 
 function getNamesByVarga(varga) {
@@ -45,49 +44,50 @@ function getInventoryData() {
   }));
 }
 
-function finalizeOrderBulk(orderSummary, fullCart) {
+function finalizeOrderBulk(summary, fullCart) {
   try {
-    const ssLineItems = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS);
-    const ssOrders = SpreadsheetApp.openById(ID_ORDERS);
-    const lineItemSheet = ssLineItems.getSheetByName(TAB_LINE_ITEMS);
-    const summarySheet = ssOrders.getSheetByName(TAB_ORDERS);
+    const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS);
+    const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
 
-    // MAPPING UNIT PRICE: Column H from fullCart (index 7) is passed here
-    const lineItemRows = fullCart.map((item, index) => [
+    // Ensure all 10 columns are mapped correctly for Line Items
+    const lineRows = fullCart.map((item, index) => [
       index + 1,            // Column A: Sr No
-      orderSummary.orderId, // Column B: Order ID
+      summary.orderId,      // Column B: Order ID
       item.category,        // Column C: Category
-      item.itemId,          // Column D: ID
+      item.itemId,          // Column D: Item ID
       item.itemName,        // Column E: Name
       item.quantity,        // Column F: Qty
-      item.uom,             // Column G: UOM
-      item.salePrice,       // Column H: UNIT PRICE (Added as requested)
-      item.subtotal,        // Column I: Subtotal
+      item.uom,             // Column G: UOM (FIXED)
+      item.salePrice,       // Column H: Unit Price
+      item.fullSubtotal,    // Column I: Subtotal
       ""                    // Column J: Notes
     ]);
 
-    const liStartRow = getFirstEmptyRowInColumn(lineItemSheet, 2);
-    const summaryStartRow = getFirstEmptyRowInColumn(summarySheet, 2);
+    liSheet.getRange(getFirstEmptyRowInColumn(liSheet, 2), 1, lineRows.length, 10).setValues(lineRows);
 
-    lineItemSheet.getRange(liStartRow, 1, lineItemRows.length, 10).setValues(lineItemRows);
-
-    const summaryData = [[
-      "P0", orderSummary.orderId, orderSummary.customerId, orderSummary.customerName,
-      new Date(), "Received", orderSummary.total, "Not Recieved", ""
+    // Ensure 9 columns are mapped for Orders Summary
+    const ordRow = [[
+      "P0",                 // Column A: Priority
+      summary.orderId,      // Column B: Order ID
+      summary.customerId,   // Column C: Customer ID
+      summary.customerName, // Column D: Name
+      new Date(),           // Column E: Date
+      "Received",           // Column F: Status
+      summary.finalTotal,   // Column G: Total
+      "Not Recieved",       // Column H: Payment
+      summary.notes         // Column I: Notes
     ]];
     
-    summarySheet.getRange(summaryStartRow, 1, 1, 9).setValues(summaryData);
+    ordSheet.getRange(getFirstEmptyRowInColumn(ordSheet, 2), 1, 1, 9).setValues(ordRow);
     SpreadsheetApp.flush(); 
     return true;
-  } catch (e) {
-    return e.toString();
-  }
+  } catch (e) { return e.toString(); }
 }
 
 function getFirstEmptyRowInColumn(sheet, col) {
   const range = sheet.getRange(1, col, sheet.getMaxRows()).getValues();
-  for (let i = 0; i < range.length; i++) {
-    if (range[i][0] === "" || range[i][0] === null) return i + 1;
+  for (let i = 0; i < range.length; i++) { 
+    if (range[i][0] === "" || range[i][0] === null) return i + 1; 
   }
   return sheet.getLastRow() + 1;
 }
