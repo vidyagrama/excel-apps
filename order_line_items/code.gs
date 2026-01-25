@@ -69,7 +69,9 @@ function finalizeOrderBulk(summary, fullCart) {
       item.fullSubtotal,    // Column I: Subtotal
       ""                    // Column J: Notes
     ]);
-    liSheet.getRange(getFirstEmptyRowInColumn(liSheet, 2), 1, lineRows.length, 10).setValues(lineRows);
+    // For Line Items
+    const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2); // Reference Column B
+    liSheet.getRange(nextLiRow, 1, lineRows.length, 10).setValues(lineRows);
 
     // 2. Save Order Summary (Mapping preserved from your working code)
     const ordRow = [[
@@ -83,7 +85,9 @@ function finalizeOrderBulk(summary, fullCart) {
       "Not Recieved",       // Column H: Payment
       summary.notes         // Column I: Notes
     ]];
-    ordSheet.getRange(getFirstEmptyRowInColumn(ordSheet, 2), 1, 1, 9).setValues(ordRow);
+    // For Order Summary
+    const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2); // Reference Column B
+    ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
 
     // 3. INVENTORY SYNC (Fixed Column Mappings)
     const invData = invSheet.getDataRange().getValues();
@@ -228,9 +232,14 @@ function sendReceiptEmail(summary, cart) {
 }
 
 function getFirstEmptyRowInColumn(sheet, col) {
+  // Get all values in the specific column (e.g., Column B for Order ID)
   const range = sheet.getRange(1, col, sheet.getMaxRows()).getValues();
+  
+  // Loop from top to bottom to find the first truly empty cell
   for (let i = 0; i < range.length; i++) { 
-    if (range[i][0] === "" || range[i][0] === null) return i + 1; 
+    if (range[i][0] === "" || range[i][0] === null || range[i][0] === undefined) {
+      return i + 1; 
+    }
   }
   return sheet.getLastRow() + 1;
 }
