@@ -20,19 +20,19 @@ function getRecentItems() {
   // Get the last 10 rows (or fewer if the sheet is small)
   var numItems = Math.min(10, lastRow - 1);
   var startRow = lastRow - numItems + 1;
-  var data = sheet.getRange(startRow, 1, numItems, 15).getValues();
+  var data = sheet.getRange(startRow, 1, numItems, 17).getValues(); // Updated to 17 columns
 
   // Map to a clean object for the HTML list, reversed so newest is on top
   return data.map(function(row) {
     return {
       id: row[0],   // Column A
       name: row[2], // Column C
-      sku: row[14]  // Column O
+      sku: row[15]  // Column P is now index 15
     };
-  }); 
+  }).reverse(); 
 }
 
-// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 15/Index 14)
+// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 16/Index 15)
 function searchItem(searchText) {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
   var data = sheet.getDataRange().getValues();
@@ -43,8 +43,8 @@ function searchItem(searchText) {
   for (var i = 1; i < data.length; i++) {
     var idInSheet = data[i][0].toString().trim().toLowerCase();
     
-    // Column O is index 14 (SKU)
-    var skuValue = data[i][14] || "";
+    // Column P is index 15 (SKU)
+    var skuValue = data[i][15] || "";
     var skuInSheet = skuValue.toString().trim().toLowerCase();
 
     if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
@@ -92,16 +92,18 @@ function processForm(formObject) {
       salePriceFormula,   // Column H
       stockValueFormula,  // Column I
       formObject.reorderPoint,
+      formObject.moq,        // Column K (Index 10)
       formObject.vendorID,
       formObject.status,
       formObject.mfgDate,
       formObject.expiryDate,
-      formObject.sku
+      formObject.sku,
+      formObject.imageUrl    // Column Q (Index 16)
     ];
 
     if (rowNumber) {
-      // UPDATE: Matches the 15 columns in your HTML form
-      sheet.getRange(rowNumber, 1, 1, 15).setValues([formData]);
+      // UPDATE: Matches the 17 columns in your HTML form
+      sheet.getRange(rowNumber, 1, 1, 17).setValues([formData]);
       return "Item " + formObject.itemName + " updated successfully!";
     } else {
       // CREATE NEW: Auto-ID logic
