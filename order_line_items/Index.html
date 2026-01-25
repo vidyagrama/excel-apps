@@ -369,50 +369,34 @@
       updateCartUI();
     }
 
-
-    // function renderInventory(items) {
-    //   const grid = document.getElementById('inventory-grid');
-    //   grid.innerHTML = items.map(i => `
-    //   <div class="col-6 col-md-4">
-    //     <div class="item-card p-2 text-center d-flex flex-column">
-    //       <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
-    //       <div class="small fw-bold text-truncate">${i.itemName}</div>
-    //       <div class="text-success small mb-2">₹${i.salePrice} / ${i.uom}</div>
-    //       <div class="mt-auto d-flex gap-1">
-    //         <input type="number" id="qty-${i.itemId}" class="form-control form-control-sm" value="1" min="0.5" step="0.5">
-    //         <button class="btn btn-sm btn-success" onclick="addToCart('${i.itemId}')">Add</button>
-    //       </div>
-    //     </div>
-    //   </div>
-    // `).join('');
-    // }
-
-    // function addToCart(id) {
-    //   const item = fullInventory.find(i => i.itemId === id);
-    //   const qtyInput = document.getElementById('qty-' + id);
-    //   const qty = parseFloat(qtyInput.value);
-    //   if (qty <= 0 || isNaN(qty)) return;
-    //   cart.push({ ...item, cartId: Date.now() + Math.random(), quantity: qty, fullSubtotal: (qty * item.salePrice).toFixed(2) });
-    //   updateCartUI();
-    // }
-
     function removeFromCart(id) { cart = cart.filter(i => i.cartId !== id); updateCartUI(); }
 
     function updateCartUI() {
-      const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
+      const list = document.getElementById('cart-list'),
+      btn = document.getElementById('place-order-btn');
+
       let gross = 0;
+
       if (!cart.length) {
-        list.innerHTML = "Empty"; document.getElementById('gross-val').innerText = "₹0";
-        document.getElementById('disc-val').innerText = "-₹0"; document.getElementById('final-val').innerText = "₹0";
-        btn.classList.add('disabled'); return;
+        list.innerHTML = "Empty";
+        // RESET THESE VALUES EXPLICITLY
+        document.getElementById('gross-val').innerText = "₹0";
+        document.getElementById('disc-val').innerText = "-₹0";
+        document.getElementById('final-val').innerText = "₹0";
+
+        btn.classList.add('disabled');
+        return;
       }
+
+      // ... rest of your existing mapping logic ...
       list.innerHTML = cart.map(i => {
         gross += parseFloat(i.fullSubtotal);
         return `<div class="cart-item d-flex justify-content-between align-items-center">
-        <div><div class="fw-bold" style="font-size:0.75rem">${i.itemName}</div><small>${i.quantity} ${i.uom} × ₹${i.salePrice}</small></div>
-        <div class="d-flex align-items-center"><span>₹${i.fullSubtotal}</span><i class="material-icons ms-2 remove-btn" style="font-size:16px" onclick="removeFromCart(${i.cartId})">cancel</i></div>
-      </div>`;
+      <div><div class="fw-bold" style="font-size:0.75rem">${i.itemName}</div><small>${i.quantity} ${i.uom} × ₹${i.salePrice}</small></div>
+      <div class="d-flex align-items-center"><span>₹${i.fullSubtotal}</span><i class="material-icons ms-2 remove-btn" style="font-size:16px" onclick="removeFromCart(${i.cartId})">cancel</i></div>
+    </div>`;
       }).join('');
+
       const discAmt = (gross * (currentUser.discount / 100));
       document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
       document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
@@ -469,7 +453,9 @@
       document.getElementById('mobile').value = "";
       document.getElementById('order-notes').value = "";
       document.getElementById('search-bar').value = "";
-      document.getElementById('cart-list').innerHTML = "Empty";
+
+      // ADD THIS LINE to refresh the totals display
+      updateCartUI();
 
       const placeBtn = document.getElementById('place-order-btn');
       placeBtn.disabled = false;
@@ -480,11 +466,9 @@
       loginBtn.disabled = false;
       loginBtn.innerText = "Login";
 
-      // Immediate switch to login screen so user doesn't see old items
       document.getElementById('shop-section').classList.add('hidden');
       document.getElementById('login-section').classList.remove('hidden');
 
-      // Clear old dropdown data and lock them immediately
       loadInitialData();
     }
   </script>
