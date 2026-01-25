@@ -102,11 +102,27 @@
       transition: 0.1s;
     }
 
+    /* MOQ Label styling */
     .moq-label {
-      font-size: 0.7rem;
-      color: #666;
+      font-size: 0.72rem;
+      color: #6c757d;
       display: block;
-      margin-top: 2px;
+      margin-top: 4px;
+    }
+
+    /* Cart highlight animation */
+    @keyframes highlight-cart {
+      0% {
+        background-color: #e8f5e9;
+      }
+
+      100% {
+        background-color: white;
+      }
+    }
+
+    .cart-updated {
+      animation: highlight-cart 0.8s ease-out;
     }
   </style>
 </head>
@@ -289,27 +305,27 @@
       grid.innerHTML = items.map(i => {
         const itemMoq = i.moq || 0.5;
         return `
-      <div class="col-6 col-md-4">
-        <div class="item-card p-2 text-center d-flex flex-column">
-          <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
-          <div class="small fw-bold text-truncate">${i.itemName}</div>
-          <div class="text-success small mb-1">₹${i.salePrice} / ${i.uom}</div>
-          
-          <div class="mt-auto">
-            <div class="d-flex gap-1">
-              <input type="number" 
-                     id="qty-${i.itemId}" 
-                     class="form-control form-control-sm" 
-                     value="${itemMoq}" 
-                     min="${itemMoq}" 
-                     step="0.1">
-              <button id="btn-${i.itemId}" class="btn btn-sm btn-success" onclick="addToCart('${i.itemId}')">Add</button>
-            </div>
-            <span class="moq-label">Min order: <b>${itemMoq} ${i.uom}</b></span>
+    <div class="col-6 col-md-4">
+      <div class="item-card p-2 text-center d-flex flex-column">
+        <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
+        <div class="small fw-bold text-truncate">${i.itemName}</div>
+        <div class="text-success small mb-1">₹${i.salePrice} / ${i.uom}</div>
+        
+        <div class="mt-auto">
+          <div class="d-flex gap-1">
+            <input type="number" 
+                   id="qty-${i.itemId}" 
+                   class="form-control form-control-sm" 
+                   value="${itemMoq}" 
+                   min="${itemMoq}" 
+                   step="0.1">
+            <button id="btn-${i.itemId}" class="btn btn-sm btn-success" onclick="addToCart('${i.itemId}')">Add</button>
           </div>
+          <span class="moq-label">Min order: <b>${itemMoq} ${i.uom}</b></span>
         </div>
       </div>
-    `}).join('');
+    </div>
+  `}).join('');
     }
 
     function addToCart(id) {
@@ -317,23 +333,31 @@
       const qtyInput = document.getElementById('qty-' + id);
       const addBtn = document.getElementById('btn-' + id);
       const qty = parseFloat(qtyInput.value);
-
-      // 1. Validate MOQ
       const minAllowed = item.moq || 0.5;
+
+      // 1. Validation with Item Name and UOM
       if (isNaN(qty) || qty < minAllowed) {
         showAlert(`Minimum order for ${item.itemName} is ${minAllowed} ${item.uom}`);
         return;
       }
 
-      // 2. Visual Feedback for Button
+      // 2. Button Visual Feedback
       addBtn.classList.add('btn-clicked');
+      const originalText = addBtn.innerText;
       addBtn.innerText = "Added!";
+
+      // 3. Cart Highlight Feedback
+      const cartSidebar = document.getElementById('cart-sidebar');
+      cartSidebar.classList.remove('cart-updated');
+      void cartSidebar.offsetWidth; // Trigger reflow to restart animation
+      cartSidebar.classList.add('cart-updated');
+
       setTimeout(() => {
         addBtn.classList.remove('btn-clicked');
-        addBtn.innerText = "Add";
-      }, 400);
+        addBtn.innerText = originalText;
+      }, 500);
 
-      // 3. Logic to add to cart
+      // 4. Cart Logic
       const subtotal = (qty * parseFloat(item.salePrice)).toFixed(2);
       cart.push({
         ...item,
