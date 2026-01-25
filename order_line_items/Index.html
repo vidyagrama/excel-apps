@@ -428,16 +428,34 @@
 
     function placeOrder() {
       const btn = document.getElementById('place-order-btn');
-      btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
-      const finalTotal = document.getElementById('final-val').innerText.replace('₹', '');
-      const saving = document.getElementById('disc-val').innerText.replace('-₹', '');
+
+      // Prevent double clicks
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loader"></span> Saving...';
+
+      // Get numeric value (removing ₹ and any commas)
+      const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
+      const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
+
+      const summary = {
+        orderId: currentOrderId,
+        customerId: currentUser.id,
+        customerName: currentUser.name,
+        finalTotal: parseFloat(finalTotalStr),
+        notes: document.getElementById('order-notes').value
+      };
+
       google.script.run.withSuccessHandler(res => {
         if (res === true) {
           document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
-          document.getElementById('modal-saving').innerText = "You saved ₹" + saving + "!";
+          document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
           successModal.show();
-        } else { showAlert("Error: " + res); btn.disabled = false; btn.innerHTML = "Place Order"; }
-      }).finalizeOrderBulk({ orderId: currentOrderId, customerId: currentUser.id, customerName: currentUser.name, finalTotal: finalTotal, notes: document.getElementById('order-notes').value }, cart);
+        } else {
+          showAlert("Error: " + res);
+          btn.disabled = false;
+          btn.innerHTML = "Place Order";
+        }
+      }).finalizeOrderBulk(summary, cart);
     }
 
     function closeSuccessModal() { successModal.hide(); hardReset(); }

@@ -45,7 +45,7 @@ function getInventoryData() {
     itemName: row[2], 
     uom: row[3], 
     salePrice: row[7],
-    moq: parseFloat(row[10]) || 0.5, // Added: Fetch MOQ from Column K
+    moq: parseFloat(row[10]) || 0.5,
     imageUrl: row[16] || "https://via.placeholder.com/150" 
   }));
 }
@@ -105,7 +105,7 @@ function finalizeOrderBulk(summary, fullCart) {
       }
     });
 
-    // 4. EMAIL RECEIPT
+    // 4. EMAIL INVOICE (Newly Integrated Format)
     sendReceiptEmail(summary, fullCart);
 
     SpreadsheetApp.flush(); 
@@ -115,67 +115,116 @@ function finalizeOrderBulk(summary, fullCart) {
   }
 }
 
+/**
+ * Integrated Tax Invoice Email Logic
+ */
 function sendReceiptEmail(summary, cart) {
   try {
-    const ss = SpreadsheetApp.openById(ID_PARENTS);
-    const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
-    
-    // Improved matching logic: trims whitespace to prevent lookup failure
-    const user = data.find(r => String(r[0]).trim() === String(summary.customerId).trim());
+    const parentSS = SpreadsheetApp.openById(ID_PARENTS);
+    const parentData = parentSS.getSheetByName(TAB_PARENTS).getDataRange().getValues();
+    const user = parentData.find(r => String(r[0]).trim() === String(summary.customerId).trim());
     const userEmail = user ? user[6] : null;
 
-    if (!userEmail) {
-      console.log("No email found for ID: " + summary.customerId);
-      return;
-    }
+    if (!userEmail) return;
 
-    let itemTable = cart.map(i => `
-      <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${i.itemName}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${i.quantity} ${i.uom}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">₹${i.fullSubtotal}</td>
-      </tr>`).join("");
+    // --- Configuration for Invoice ---
+    const logoUrl = "https://i.ibb.co/3mk7ddzj/vidyagrama-logo.png";
+    const upiId = "9035734752@icici";
     
-    const htmlBody = `
-      <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px;">
-        <h2 style="color: #2e7d32;">Order Confirmation</h2>
-        <p>Namaste <b>${summary.customerName}</b>,</p>
-        <p>Your Order <b>${summary.orderId}</b> has been placed successfully.</p>
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr style="background: #f4f4f4;">
-            <th style="text-align: left; padding: 8px;">Item</th>
-            <th style="text-align: left; padding: 8px;">Qty</th>
-            <th style="text-align: left; padding: 8px;">Amount</th>
+    let tableRows = "";
+    let overallTotal = 0;
+
+    cart.forEach(item => {
+      let qty = parseFloat(item.quantity);
+      let price = parseFloat(item.salePrice);
+      let unit = item.uom;
+      
+      // Unit conversion
+      if (unit.toLowerCase() === 'gms') {
+        qty = qty / 1000;
+        unit = 'kg';
+      }
+
+      let lineTotal = qty * price;
+      overallTotal += lineTotal;
+
+      tableRows += `
+        <tr>
+          <td style="border: 1px solid #cccccc; padding: 10px;">${item.itemName}</td>
+          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">${qty} ${unit}</td>
+          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${price.toFixed(2)}</td>
+          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${lineTotal.toFixed(2)}</td>
+        </tr>`;
+    });
+
+    const discountRate = parseFloat(user[7] || 0);
+    const discountAmount = overallTotal * (discountRate / 100);
+    const finalAmount = overallTotal - discountAmount;
+    
+    const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
+
+    const htmlInvoice = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: sans-serif; padding: 20px; color: #333;">
+        <table width="100%" style="margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px;">
+          <tr>
+            <td><img src="${logoUrl}" height="70" alt="Logo"></td>
+            <td align="right">
+              <h1 style="margin:0; font-size: 24px;">TAX INVOICE</h1>
+              <p style="margin:5px 0;">No: <strong>${summary.orderId}</strong></p>
+              <p style="margin:5px 0;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
+            </td>
           </tr>
-          ${itemTable}
         </table>
-        <p style="font-size: 18px; margin-top: 20px;"><b>Final Total: ₹${summary.finalTotal}</b></p>
-        <p><small>Note: ${summary.notes || "None"}</small></p>
-      </div>
-    `;
+        <p><strong>Billed To:</strong> ${summary.customerName}</p>
+        <table width="100%" style="border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f4f4f4;">
+              <th align="left" style="padding: 10px; border: 1px solid #ccc;">Description</th>
+              <th align="right" style="padding: 10px; border: 1px solid #ccc;">Qty</th>
+              <th align="right" style="padding: 10px; border: 1px solid #ccc;">Price</th>
+              <th align="right" style="padding: 10px; border: 1px solid #ccc;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+          <tfoot>
+            <tr><td colspan="3" align="right" style="padding: 10px;">Subtotal</td><td align="right" style="padding: 10px;">₹ ${overallTotal.toFixed(2)}</td></tr>
+            ${discountRate > 0 ? `<tr><td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td><td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td></tr>` : ''}
+            <tr style="font-size: 18px;">
+              <td colspan="3" align="right" style="padding: 10px; font-weight: bold;">Final Amount Due</td>
+              <td align="right" style="padding: 10px; font-weight: bold; color: #d32f2f;">₹ ${finalAmount.toFixed(2)}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+          <table width="100%">
+            <tr>
+              <td width="70%" style="vertical-align: top;">
+                 <p style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">A COMMUNITY ENTERPRISE INSPIRED BY THE VISION OF VIDYAKSHETRA</p>
+                 <p style="font-size: 11px; color: #666;">Thank you for your support!</p>
+              </td>
+              <td width="30%" align="right">
+                <p style="font-size: 11px; margin-bottom: 5px; font-weight: bold;">Scan to Pay via UPI</p>
+                <img src="${qrCodeUrl}" width="130" height="130" style="border: 1px solid #ccc; padding: 5px;">
+              </td>
+            </tr>
+          </table>
+        </div>
+      </body>
+      </html>`;
 
     MailApp.sendEmail({
       to: userEmail,
-      bcc: "writetovidyagrama@gmail.com", // Keeping a copy for your records
-      subject: "New Grocery Order - " + summary.orderId,
-      htmlBody: htmlBody
+      bcc: "writetovidyagrama@gmail.com",
+      subject: "Tax Invoice - " + summary.orderId,
+      htmlBody: htmlInvoice
     });
+
   } catch (e) {
     console.log("Email Error: " + e.toString());
   }
-}
-
-function testEmail() {
-  const summary = {
-    orderId: "TEST-123",
-    customerName: "Admin Test",
-    customerId: "1", // REPLACE THIS with a real ID from your spreadsheet Column A
-    finalTotal: "100",
-    notes: "Testing"
-  };
-  const cart = [{itemName: "Test Item", quantity: 1, uom: "kg", fullSubtotal: 100}];
-  
-  sendReceiptEmail(summary, cart);
 }
 
 function getFirstEmptyRowInColumn(sheet, col) {
