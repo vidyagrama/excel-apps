@@ -357,14 +357,24 @@
         addBtn.innerText = originalText;
       }, 500);
 
-      // 4. Cart Logic
-      const subtotal = (qty * parseFloat(item.salePrice)).toFixed(2);
-      cart.push({
-        ...item,
-        cartId: Date.now() + Math.random(),
-        quantity: qty,
-        fullSubtotal: subtotal
-      });
+      // --- NEW LOGIC TO APPEND QUANTITY ---
+      // Check if item already exists in the cart
+      const existingItem = cart.find(cartItem => cartItem.itemId === id);
+
+      if (existingItem) {
+        // Update existing entry
+        existingItem.quantity += qty;
+        existingItem.fullSubtotal = (existingItem.quantity * parseFloat(existingItem.salePrice)).toFixed(2);
+      } else {
+        // Add as new entry
+        const subtotal = (qty * parseFloat(item.salePrice)).toFixed(2);
+        cart.push({
+          ...item,
+          cartId: Date.now() + Math.random(), // Unique ID for UI removal
+          quantity: qty,
+          fullSubtotal: subtotal
+        });
+      }
 
       updateCartUI();
     }
@@ -373,7 +383,7 @@
 
     function updateCartUI() {
       const list = document.getElementById('cart-list'),
-      btn = document.getElementById('place-order-btn');
+        btn = document.getElementById('place-order-btn');
 
       let gross = 0;
 
@@ -391,10 +401,25 @@
       // ... rest of your existing mapping logic ...
       list.innerHTML = cart.map(i => {
         gross += parseFloat(i.fullSubtotal);
-        return `<div class="cart-item d-flex justify-content-between align-items-center">
-      <div><div class="fw-bold" style="font-size:0.75rem">${i.itemName}</div><small>${i.quantity} ${i.uom} × ₹${i.salePrice}</small></div>
-      <div class="d-flex align-items-center"><span>₹${i.fullSubtotal}</span><i class="material-icons ms-2 remove-btn" style="font-size:16px" onclick="removeFromCart(${i.cartId})">cancel</i></div>
-    </div>`;
+        return `
+      <div class="cart-item d-flex justify-content-between align-items-center py-2">
+        <div style="flex: 1;">
+          <div class="fw-bold" style="font-size:0.85rem">${i.itemName}</div>
+          <small class="text-muted">₹${i.salePrice} / ${i.uom}</small>
+        </div>
+        
+        <div class="d-flex align-items-center">
+          <div class="input-group input-group-sm me-2" style="width: 100px;">
+            <button class="btn btn-outline-secondary px-2" onclick="changeCartQty('${i.itemId}', -1)">-</button>
+            <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.8rem;">${i.quantity}</span>
+            <button class="btn btn-outline-secondary px-2" onclick="changeCartQty('${i.itemId}', 1)">+</button>
+          </div>
+          <div class="text-end" style="min-width: 65px;">
+            <span class="fw-bold">₹${i.fullSubtotal}</span>
+          </div>
+          <i class="material-icons ms-2 remove-btn" style="font-size:18px; cursor:pointer;" onclick="removeFromCart(${i.cartId})">cancel</i>
+        </div>
+      </div>`;
       }).join('');
 
       const discAmt = (gross * (currentUser.discount / 100));
@@ -470,6 +495,39 @@
       document.getElementById('login-section').classList.remove('hidden');
 
       loadInitialData();
+    }
+
+    function changeCartQty(id, direction) {
+      const itemInCart = cart.find(i => i.itemId === id);
+      if (!itemInCart) return;
+
+      const step = 1; // You can change this to 0.5 if you prefer smaller steps
+      const minAllowed = itemInCart.moq || 0.5;
+
+      if (direction === 1) {
+        // Increase Quantity
+        itemInCart.quantity = parseFloat((itemInCart.quantity + step).toFixed(2));
+      } else {
+        // Decrease Quantity logic with alert
+        if (itemInCart.quantity - step < minAllowed) {
+          // If already at MOQ, show the specific alert message
+          showAlert(`Minimum order for ${itemInCart.itemName} is ${minAllowed} ${itemInCart.uom}`);
+
+          // Ensure it stays at MOQ and doesn't go lower
+          if (itemInCart.quantity !== minAllowed) {
+            itemInCart.quantity = minAllowed;
+          } else {
+            return; // Already at MOQ, do nothing else
+          }
+        } else {
+          itemInCart.quantity = parseFloat((itemInCart.quantity - step).toFixed(2));
+        }
+      }
+
+      // Recalculate subtotal for this item row
+      itemInCart.fullSubtotal = (itemInCart.quantity * parseFloat(itemInCart.salePrice)).toFixed(2);
+
+      updateCartUI();
     }
   </script>
 </body>
