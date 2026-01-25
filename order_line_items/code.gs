@@ -45,7 +45,8 @@ function getInventoryData() {
     itemName: row[2], 
     uom: row[3], 
     salePrice: row[7],
-    imageUrl: row[15] || "https://via.placeholder.com/150" 
+    moq: parseFloat(row[10]) || 0.5, // Added: Fetch MOQ from Column K
+    imageUrl: row[16] || "https://via.placeholder.com/150" 
   }));
 }
 
