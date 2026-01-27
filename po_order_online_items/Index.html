@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    :root { --p-purple: #673ab7; }
+    body { background: #f8f9fa; font-size: 14px; }
+    .sidebar { background: white; height: 100vh; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; }
+    .main-content { padding: 20px; }
+    .vendor-card { border-left: 4px solid var(--p-purple); margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
+    .vendor-card:hover, .vendor-card.active { background: #f3e5f5; border-left-width: 8px; }
+    .alert-item { font-size: 12px; border-bottom: 1px solid #eee; padding: 8px 0; }
+    #overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column; }
+  </style>
+</head>
+<body>
+
+<div id="overlay"><div class="spinner-border text-primary mb-2"></div><b>Saving to Database...</b></div>
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-4 sidebar">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">1. Select Vendor</h5>
+        <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">Refresh 🔄</button>
+      </div>
+      <input type="text" id="vendorSearch" class="form-control mb-3" placeholder="Search Vendor..." onkeyup="filterVendors()">
+      <div id="vendor-list"></div>
+      <h5 class="mt-4">2. Stock Alerts</h5>
+      <div id="stock-alerts"><p class="text-muted">Select a vendor first.</p></div>
+    </div>
+
+    <div class="col-md-8 main-content">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <h4>PO Builder</h4>
+            <span class="badge bg-dark" id="po-num-display"></span>
+          </div>
+          <div class="row g-2 mt-3 mb-3">
+            <div class="col-md-4"><label class="small fw-bold">Vendor</label><input type="text" id="po-vendor-name" class="form-control bg-light" readonly></div>
+            <div class="col-md-4"><label class="small fw-bold">Priority</label><select id="po-priority" class="form-select"><option>Normal</option><option>Urgent</option><option>Critical</option></select></div>
+            <div class="col-md-4"><label class="small fw-bold">Arrival</label><input type="date" id="po-arrive" class="form-control"></div>
+          </div>
+          <table class="table table-sm"><thead class="table-light"><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead><tbody id="po-lines"></tbody></table>
+          <div class="text-end mt-3">
+            <h5>Grand Total: ₹<span id="grand-total">0.00</span></h5>
+            <button class="btn btn-primary px-5 btn-lg" onclick="submitPO()">Save Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="successModal" data-bs-backdrop="static" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-body text-center p-5">
+        <div class="display-1 text-success mb-3">✅</div>
+        <h4>Order Saved!</h4>
+        <p class="text-muted">Purchase Order <b id="saved-po-num"></b> has been recorded.</p>
+        <div class="d-grid gap-2 mt-4">
+          <button class="btn btn-outline-primary" onclick="printCurrentPO()">Print PDF 🖨️</button>
+          <button class="btn btn-success" onclick="resetUI()">Create New Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allVendors = [], allAlerts = [], cart = [], selectedVendor = null, lastHeader = null;
+
+  window.onload = () => { generatePONumber(); refreshData(); };
+
+  function generatePONumber() { document.getElementById('po-num-display').innerText = "PO-" + Math.floor(Date.now()/1000); }
+
+  function refreshData() {
+    google.script.run.withSuccessHandler(v => { allVendors = v; renderVendors(v); }).getVendors();
+    google.script.run.withSuccessHandler(a => { allAlerts = a; }).getStockAlerts();
+  }
+
+  function renderVendors(list) {
+    document.getElementById('vendor-list').innerHTML = list.map(v => `
+      <div class="card vendor-card p-2" onclick="selectVendor('${v.vendorID}')">
+        <b>${v.businessName}</b><br><small class="text-muted">${v.vendorID}</small>
+      </div>`).join('');
+  }
+
+  function filterVendors() {
+    const term = document.getElementById('vendorSearch').value.toLowerCase();
+    renderVendors(allVendors.filter(v => v.businessName.toLowerCase().includes(term) || v.vendorID.toLowerCase().includes(term)));
+  }
+
+  function selectVendor(id) {
+    selectedVendor = allVendors.find(v => String(v.vendorID) === String(id));
+    document.getElementById('po-vendor-name').value = selectedVendor.businessName;
+    const vendorAlerts = allAlerts.filter(a => String(a.vendorID) === String(id));
+    document.getElementById('stock-alerts').innerHTML = vendorAlerts.map((a, idx) => `
+      <div class="alert-item d-flex justify-content-between align-items-center">
+        <div><b>${a.itemName}</b><br><small>Stock: ${a.currentStock}</small></div>
+        <button class="btn btn-sm btn-outline-primary" onclick='addToCartByIdx(${allAlerts.indexOf(a)})'>Add</button>
+      </div>`).join('') || '<p class="text-success small">No alerts.</p>';
+  }
+
+  function addToCartByIdx(idx) {
+    const item = allAlerts[idx];
+    if(!cart.find(c => c.itemId === item.itemId)) {
+      cart.push({...item, quantity: item.moq, subtotal: item.moq * item.unitPrice});
+      renderCart();
+    }
+  }
+
+  function renderCart() {
+    let total = 0;
+    document.getElementById('po-lines').innerHTML = cart.map((item, idx) => {
+      total += item.subtotal;
+      return `<tr><td>${item.itemName}</td><td>${item.sku}</td><td><input type="number" class="form-control form-control-sm" value="${item.quantity}" onchange="updateQty(${idx}, this.value)"></td><td>${item.unitPrice}</td><td>${item.subtotal.toFixed(2)}</td><td><button class="btn btn-sm text-danger" onclick="cart.splice(${idx},1);renderCart()">×</button></td></tr>`;
+    }).join('');
+    document.getElementById('grand-total').innerText = total.toFixed(2);
+  }
+
+  function updateQty(idx, val) { cart[idx].quantity = val; cart[idx].subtotal = val * cart[idx].unitPrice; renderCart(); }
+
+  function submitPO() {
+    if(!selectedVendor || !cart.length) return alert("Select vendor and items");
+    document.getElementById('overlay').style.display = 'flex';
+    const header = { poNumber: document.getElementById('po-num-display').innerText, priority: document.getElementById('po-priority').value, vendorID: selectedVendor.vendorID, arriveBy: document.getElementById('po-arrive').value, cost: document.getElementById('grand-total').innerText, poc: selectedVendor.poc, notes: "Auto-Reorder" };
+    lastHeader = header;
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('overlay').style.display = 'none';
+      if(res.success) {
+        document.getElementById('saved-po-num').innerText = header.poNumber;
+        new bootstrap.Modal(document.getElementById('successModal')).show();
+      }
+    }).finalizePurchaseOrder(header, cart);
+  }
+
+  function printCurrentPO() {
+    google.script.run.withSuccessHandler(html => {
+      const win = window.open('', '_blank');
+      win.document.write(html); win.document.close();
+      setTimeout(() => win.print(), 500);
+    }).generatePOPreview(lastHeader, cart);
+  }
+
+  function resetUI() { cart = []; renderCart(); selectedVendor = null; generatePONumber(); location.reload(); }
+</script>
+</body>
+</html>
