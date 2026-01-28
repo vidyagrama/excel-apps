@@ -5,48 +5,91 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <style>
     :root { --p-purple: #673ab7; }
-    body { background: #f8f9fa; font-size: 14px; }
-    .sidebar { background: white; height: 100vh; border-right: 1px solid #ddd; padding: 15px; overflow-y: auto; }
-    .main-content { padding: 20px; }
-    .vendor-card { border-left: 4px solid var(--p-purple); margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
-    .vendor-card:hover, .vendor-card.active { background: #f3e5f5; border-left-width: 8px; }
-    .alert-item { font-size: 12px; border-bottom: 1px solid #eee; padding: 8px 0; }
-    #overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column; }
+    body { background: #f8f9fa; font-size: 14px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .nav-tabs .nav-link.active { color: var(--p-purple); font-weight: bold; border-bottom: 3px solid var(--p-purple); }
+    .sidebar { background: white; height: calc(100vh - 60px); border-right: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
+    .main-content { padding: 25px; height: calc(100vh - 60px); overflow-y: auto; }
+    .vendor-card { border-left: 4px solid var(--p-purple); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; }
+    .vendor-card:hover { transform: translateX(5px); background: #f3e5f5; }
+    .status-badge { font-size: 11px; padding: 5px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
+    .status-ordered { background: #e9ecef; color: #495057; }
+    #overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); z-index:10000; justify-content:center; align-items:center; }
   </style>
 </head>
 <body>
 
-<div id="overlay"><div class="spinner-border text-primary mb-2"></div><b>Saving to Database...</b></div>
+<div id="overlay"><div class="spinner-border text-primary" role="status"></div></div>
 
-<div class="container-fluid">
+<ul class="nav nav-tabs bg-white px-3 pt-2 sticky-top shadow-sm">
+  <li class="nav-item"><a class="nav-link active" id="btn-create" href="#" onclick="showTab('create')">Create Purchase Order</a></li>
+  <li class="nav-item"><a class="nav-link" id="btn-history" href="#" onclick="showTab('history')">Order History</a></li>
+</ul>
+
+<div id="tab-create" class="container-fluid">
   <div class="row">
-    <div class="col-md-4 sidebar">
+    <div class="col-md-3 sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0">1. Select Vendor</h5>
-        <button class="btn btn-sm btn-outline-primary" onclick="refreshData()">Refresh 🔄</button>
+        <h6 class="text-uppercase fw-bold text-muted">Vendors</h6>
+        <button class="btn btn-sm btn-link p-0" onclick="refreshData()">Sync 🔄</button>
       </div>
-      <input type="text" id="vendorSearch" class="form-control mb-3" placeholder="Search Vendor..." onkeyup="filterVendors()">
+      <input type="text" id="vendorSearch" class="form-control form-control-sm mb-3" placeholder="Filter vendors..." onkeyup="filterVendors()">
       <div id="vendor-list"></div>
-      <h5 class="mt-4">2. Stock Alerts</h5>
-      <div id="stock-alerts"><p class="text-muted">Select a vendor first.</p></div>
+      
+      <h6 class="text-uppercase fw-bold text-muted mt-4">Stock Alerts</h6>
+      <div id="stock-alerts" class="small"></div>
     </div>
 
-    <div class="col-md-8 main-content">
-      <div class="card shadow-sm">
+    <div class="col-md-9 main-content">
+      <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <h4>PO Builder</h4>
-            <span class="badge bg-dark" id="po-num-display"></span>
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="mb-0">PO Builder</h4>
+            <div class="text-end">
+              <small class="text-muted d-block">Reference Number</small>
+              <span class="badge bg-dark fs-6" id="po-num-display"></span>
+            </div>
           </div>
-          <div class="row g-2 mt-3 mb-3">
-            <div class="col-md-4"><label class="small fw-bold">Vendor</label><input type="text" id="po-vendor-name" class="form-control bg-light" readonly></div>
-            <div class="col-md-4"><label class="small fw-bold">Priority</label><select id="po-priority" class="form-select"><option>Normal</option><option>Urgent</option><option>Critical</option></select></div>
-            <div class="col-md-4"><label class="small fw-bold">Arrival</label><input type="date" id="po-arrive" class="form-control"></div>
+
+          <div class="row g-3 mb-4">
+            <div class="col-md-5">
+              <label class="form-label fw-bold small">Vendor Name</label>
+              <input type="text" id="po-vendor-name" class="form-control bg-light" placeholder="Select a vendor from sidebar" readonly>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label fw-bold small">Priority</label>
+              <select id="po-priority" class="form-select">
+                <option value="Normal">Normal</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">Requested Arrival</label>
+              <input type="date" id="po-arrive" class="form-control">
+            </div>
           </div>
-          <table class="table table-sm"><thead class="table-light"><tr><th>Item</th><th>SKU</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead><tbody id="po-lines"></tbody></table>
-          <div class="text-end mt-3">
-            <h5>Grand Total: ₹<span id="grand-total">0.00</span></h5>
-            <button class="btn btn-primary px-5 btn-lg" onclick="submitPO()">Save Order</button>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Item Description</th>
+                  <th>SKU</th>
+                  <th width="100">Qty</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  <th width="50"></th>
+                </tr>
+              </thead>
+              <tbody id="po-lines"></tbody>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-end mt-4">
+            <div class="text-muted small">Items are automatically fetched based on vendor selection.</div>
+            <div class="text-end">
+              <h2 class="mb-3">Total: ₹<span id="grand-total">0.00</span></h2>
+              <button class="btn btn-primary btn-lg px-5 shadow" onclick="submitPO()">Finalize & Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -54,16 +97,46 @@
   </div>
 </div>
 
+<div id="tab-history" class="container-fluid d-none p-4">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4>Order History</h4>
+        <input type="text" class="form-control w-25" placeholder="Search POs..." onkeyup="filterHistory(this.value)">
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>PO Number</th>
+              <th>Vendor ID</th>
+              <th>Grand Total</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="successModal" data-bs-backdrop="static" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-body text-center p-5">
+    <div class="modal-content border-0 shadow-lg p-4">
+      <div class="modal-body text-center">
         <div class="display-1 text-success mb-3">✅</div>
-        <h4>Order Saved!</h4>
-        <p class="text-muted">Purchase Order <b id="saved-po-num"></b> has been recorded.</p>
-        <div class="d-grid gap-2 mt-4">
-          <button class="btn btn-outline-primary" onclick="printCurrentPO()">Print PDF 🖨️</button>
-          <button class="btn btn-success" onclick="resetUI()">Create New Order</button>
+        <h3 class="fw-bold">Order Saved</h3>
+        <p class="text-muted">The Purchase Order has been successfully inserted into the spreadsheet.</p>
+        <div class="bg-light p-3 rounded mb-4">
+          <span class="small text-uppercase text-muted d-block">PO Number</span>
+          <h4 class="mb-0" id="saved-po-num"></h4>
+        </div>
+        <div class="d-grid gap-2">
+          <button class="btn btn-primary py-2" onclick="printCurrentPO()">Print Purchase Order 🖨️</button>
+          <button class="btn btn-outline-secondary py-2" onclick="resetUI()">Create New Order</button>
         </div>
       </div>
     </div>
@@ -75,6 +148,14 @@
 
   window.onload = () => { generatePONumber(); refreshData(); };
 
+  function showTab(t) {
+    document.getElementById('tab-create').classList.toggle('d-none', t !== 'create');
+    document.getElementById('tab-history').classList.toggle('d-none', t !== 'history');
+    document.getElementById('btn-create').classList.toggle('active', t === 'create');
+    document.getElementById('btn-history').classList.toggle('active', t === 'history');
+    if(t === 'history') loadHistory();
+  }
+
   function generatePONumber() { document.getElementById('po-num-display').innerText = "PO-" + Math.floor(Date.now()/1000); }
 
   function refreshData() {
@@ -84,25 +165,21 @@
 
   function renderVendors(list) {
     document.getElementById('vendor-list').innerHTML = list.map(v => `
-      <div class="card vendor-card p-2" onclick="selectVendor('${v.vendorID}')">
-        <b>${v.businessName}</b><br><small class="text-muted">${v.vendorID}</small>
+      <div class="card vendor-card p-2 shadow-sm" onclick="selectVendor('${v.vendorID}')">
+        <div class="fw-bold">${v.businessName}</div>
+        <div class="text-muted extra-small" style="font-size:11px">ID: ${v.vendorID}</div>
       </div>`).join('');
   }
 
-  function filterVendors() {
-    const term = document.getElementById('vendorSearch').value.toLowerCase();
-    renderVendors(allVendors.filter(v => v.businessName.toLowerCase().includes(term) || v.vendorID.toLowerCase().includes(term)));
-  }
-
   function selectVendor(id) {
-    selectedVendor = allVendors.find(v => String(v.vendorID) === String(id));
+    selectedVendor = allVendors.find(v => v.vendorID === id);
     document.getElementById('po-vendor-name').value = selectedVendor.businessName;
-    const vendorAlerts = allAlerts.filter(a => String(a.vendorID) === String(id));
-    document.getElementById('stock-alerts').innerHTML = vendorAlerts.map((a, idx) => `
-      <div class="alert-item d-flex justify-content-between align-items-center">
-        <div><b>${a.itemName}</b><br><small>Stock: ${a.currentStock}</small></div>
+    const vendorAlerts = allAlerts.filter(a => String(a.vendorID) === id);
+    document.getElementById('stock-alerts').innerHTML = vendorAlerts.map((a, i) => `
+      <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded bg-white">
+        <span>${a.itemName}</span>
         <button class="btn btn-sm btn-outline-primary" onclick='addToCartByIdx(${allAlerts.indexOf(a)})'>Add</button>
-      </div>`).join('') || '<p class="text-success small">No alerts.</p>';
+      </div>`).join('') || '<div class="text-muted small">No items low on stock for this vendor.</div>';
   }
 
   function addToCartByIdx(idx) {
@@ -117,36 +194,70 @@
     let total = 0;
     document.getElementById('po-lines').innerHTML = cart.map((item, idx) => {
       total += item.subtotal;
-      return `<tr><td>${item.itemName}</td><td>${item.sku}</td><td><input type="number" class="form-control form-control-sm" value="${item.quantity}" onchange="updateQty(${idx}, this.value)"></td><td>${item.unitPrice}</td><td>${item.subtotal.toFixed(2)}</td><td><button class="btn btn-sm text-danger" onclick="cart.splice(${idx},1);renderCart()">×</button></td></tr>`;
+      return `<tr>
+        <td>${item.itemName}</td>
+        <td><small class="text-muted">${item.sku}</small></td>
+        <td><input type="number" class="form-control form-control-sm" value="${item.quantity}" onchange="updateQty(${idx}, this.value)"></td>
+        <td>₹${item.unitPrice}</td>
+        <td class="fw-bold">₹${item.subtotal.toFixed(2)}</td>
+        <td><button class="btn btn-sm text-danger" onclick="cart.splice(${idx},1);renderCart()">×</button></td>
+      </tr>`;
     }).join('');
-    document.getElementById('grand-total').innerText = total.toFixed(2);
+    document.getElementById('grand-total').innerText = total.toLocaleString('en-IN', {minimumFractionDigits: 2});
   }
 
-  function updateQty(idx, val) { cart[idx].quantity = val; cart[idx].subtotal = val * cart[idx].unitPrice; renderCart(); }
+  function updateQty(idx, val) { 
+    cart[idx].quantity = val; 
+    cart[idx].subtotal = val * cart[idx].unitPrice; 
+    renderCart(); 
+  }
 
   function submitPO() {
-    if(!selectedVendor || !cart.length) return alert("Select vendor and items");
+    if(!selectedVendor || !cart.length) return alert("Please select a vendor and add at least one item.");
     document.getElementById('overlay').style.display = 'flex';
-    const header = { poNumber: document.getElementById('po-num-display').innerText, priority: document.getElementById('po-priority').value, vendorID: selectedVendor.vendorID, arriveBy: document.getElementById('po-arrive').value, cost: document.getElementById('grand-total').innerText, poc: selectedVendor.poc, notes: "Auto-Reorder" };
+    const header = { 
+      poNumber: document.getElementById('po-num-display').innerText, 
+      priority: document.getElementById('po-priority').value, 
+      vendorID: selectedVendor.vendorID, 
+      arriveBy: document.getElementById('po-arrive').value, 
+      cost: document.getElementById('grand-total').innerText, 
+      poc: selectedVendor.poc, 
+      notes: "Auto-generated" 
+    };
     lastHeader = header;
     google.script.run.withSuccessHandler(res => {
       document.getElementById('overlay').style.display = 'none';
       if(res.success) {
         document.getElementById('saved-po-num').innerText = header.poNumber;
         new bootstrap.Modal(document.getElementById('successModal')).show();
-      }
+      } else { alert("Error: " + res.error); }
     }).finalizePurchaseOrder(header, cart);
   }
 
+  function loadHistory() {
+    google.script.run.withSuccessHandler(data => {
+      document.getElementById('history-body').innerHTML = data.map(po => `
+        <tr>
+          <td>${po.date}</td>
+          <td><strong>${po.poNumber}</strong></td>
+          <td>${po.vendorID}</td>
+          <td>₹${po.cost}</td>
+          <td><span class="status-badge status-ordered">${po.status}</span></td>
+          <td><button class="btn btn-sm btn-outline-dark" onclick="reprintPO('${po.poNumber}')">Print</button></td>
+        </tr>`).join('');
+    }).getPOHistory();
+  }
+
   function printCurrentPO() {
-    google.script.run.withSuccessHandler(html => {
-      const win = window.open('', '_blank');
-      win.document.write(html); win.document.close();
-      setTimeout(() => win.print(), 500);
+    google.script.run.withSuccessHandler(html => { 
+      const w = window.open(); 
+      w.document.write(html); 
+      w.document.close(); 
+      setTimeout(() => w.print(), 500); 
     }).generatePOPreview(lastHeader, cart);
   }
 
-  function resetUI() { cart = []; renderCart(); selectedVendor = null; generatePONumber(); location.reload(); }
+  function resetUI() { location.reload(); }
 </script>
 </body>
 </html>
