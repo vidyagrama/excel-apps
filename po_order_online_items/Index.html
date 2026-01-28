@@ -5,259 +5,227 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <style>
     :root { --p-purple: #673ab7; }
-    body { background: #f8f9fa; font-size: 14px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: #f8f9fa; font-size: 13px; font-family: 'Segoe UI', sans-serif; }
     .nav-tabs .nav-link.active { color: var(--p-purple); font-weight: bold; border-bottom: 3px solid var(--p-purple); }
     .sidebar { background: white; height: calc(100vh - 60px); border-right: 1px solid #dee2e6; padding: 20px; overflow-y: auto; }
     .main-content { padding: 25px; height: calc(100vh - 60px); overflow-y: auto; }
-    .vendor-card { border-left: 4px solid var(--p-purple); margin-bottom: 12px; cursor: pointer; transition: transform 0.1s; }
-    .vendor-card:hover { transform: translateX(5px); background: #f3e5f5; }
-    .status-badge { font-size: 11px; padding: 5px 10px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
-    .status-ordered { background: #e9ecef; color: #495057; }
+    .status-badge { font-size: 10px; padding: 4px 10px; border-radius: 20px; font-weight: 700; text-transform: uppercase; }
+    .status-ordered { background: #e2e3e5; color: #383d41; }
+    .status-delivered { background: #d4edda; color: #155724; }
+    .stats-card { background: #fff; border-radius: 10px; padding: 15px; border: 1px solid #eef0f2; flex: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stats-val { font-size: 1.4rem; font-weight: 700; color: var(--p-purple); display: block; }
+    .stats-label { font-size: 0.7rem; text-transform: uppercase; color: #6c757d; }
     #overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.7); z-index:10000; justify-content:center; align-items:center; }
+    /* Action Buttons Styles */
+    .btn-action { padding: 4px 12px; font-size: 11px; font-weight: 600; border-radius: 6px; transition: 0.2s; }
+    .btn-print-outline { border: 1px solid #6c757d; color: #6c757d; background: transparent; }
+    .btn-print-outline:hover { background: #6c757d; color: white; }
+    .btn-receive { border: 1px solid #198754; color: #198754; background: transparent; }
+    .btn-receive:hover { background: #198754; color: white; }
   </style>
 </head>
 <body>
 
-<div id="overlay"><div class="spinner-border text-primary" role="status"></div></div>
+<div id="overlay"><div class="spinner-border text-primary"></div></div>
 
 <ul class="nav nav-tabs bg-white px-3 pt-2 sticky-top shadow-sm">
-  <li class="nav-item"><a class="nav-link active" id="btn-create" href="#" onclick="showTab('create')">Create Purchase Order</a></li>
-  <li class="nav-item"><a class="nav-link" id="btn-history" href="#" onclick="showTab('history')">Order History</a></li>
+  <li class="nav-item"><a class="nav-link active" id="btn-create" href="#" onclick="showTab('create')">Create Order</a></li>
+  <li class="nav-item"><a class="nav-link" id="btn-history" href="#" onclick="showTab('history')">Order History & Tracking</a></li>
 </ul>
 
 <div id="tab-create" class="container-fluid">
   <div class="row">
     <div class="col-md-3 sidebar">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h6 class="text-uppercase fw-bold text-muted">Vendors</h6>
-        <button class="btn btn-sm btn-link p-0" onclick="refreshData()">Sync 🔄</button>
-      </div>
-      <input type="text" id="vendorSearch" class="form-control form-control-sm mb-3" placeholder="Filter vendors..." onkeyup="filterVendors()">
+      <h6 class="fw-bold text-muted mb-3">SELECT VENDOR</h6>
+      <input type="text" class="form-control form-control-sm mb-3" placeholder="Search vendors..." onkeyup="filterVendors(this.value)">
       <div id="vendor-list"></div>
-      
-      <h6 class="text-uppercase fw-bold text-muted mt-4">Stock Alerts</h6>
-      <div id="stock-alerts" class="small"></div>
+      <h6 class="fw-bold text-muted mt-4 mb-3">REORDER ALERTS</h6>
+      <div id="stock-alerts"></div>
     </div>
-
     <div class="col-md-9 main-content">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0">PO Builder</h4>
-            <div class="text-end">
-              <small class="text-muted d-block">Reference Number</small>
-              <span class="badge bg-dark fs-6" id="po-num-display"></span>
-            </div>
-          </div>
-
-          <div class="row g-3 mb-4">
-            <div class="col-md-5">
-              <label class="form-label fw-bold small">Vendor Name</label>
-              <input type="text" id="po-vendor-name" class="form-control bg-light" placeholder="Select a vendor from sidebar" readonly>
-            </div>
-            <div class="col-md-3">
-              <label class="form-label fw-bold small">Priority</label>
-              <select id="po-priority" class="form-select">
-                <option value="Normal">Normal</option>
-                <option value="Urgent">Urgent</option>
-              </select>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label fw-bold small">Requested Arrival</label>
-              <input type="date" id="po-arrive" class="form-control">
-            </div>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Item Description</th>
-                  <th>SKU</th>
-                  <th width="100">Qty</th>
-                  <th>Unit Price</th>
-                  <th>Subtotal</th>
-                  <th width="50"></th>
-                </tr>
-              </thead>
-              <tbody id="po-lines"></tbody>
-            </table>
-          </div>
-
-          <div class="d-flex justify-content-between align-items-end mt-4">
-            <div class="text-muted small">Items are automatically fetched based on vendor selection.</div>
-            <div class="text-end">
-              <h2 class="mb-3">Total: ₹<span id="grand-total">0.00</span></h2>
-              <button class="btn btn-primary btn-lg px-5 shadow" onclick="submitPO()">Finalize & Save</button>
-            </div>
-          </div>
+      <div class="card border-0 shadow-sm p-4">
+        <div class="d-flex justify-content-between mb-4 align-items-center"><h4>Purchase Order Builder</h4><span id="po-num-display" class="badge bg-dark fs-6 px-3"></span></div>
+        <div class="row g-3 mb-4">
+          <div class="col-md-4"><label class="small fw-bold">Vendor</label><input type="text" id="po-vendor-name" class="form-control bg-light" readonly></div>
+          <div class="col-md-4"><label class="small fw-bold">Priority Level</label><select id="po-priority" class="form-select"><option>Normal</option><option>Urgent</option></select></div>
+          <div class="col-md-4"><label class="small fw-bold">Expected Date</label><input type="date" id="po-arrive" class="form-control"></div>
         </div>
+        <table class="table align-middle">
+          <thead class="table-light"><tr><th>Item Name</th><th>SKU</th><th width="90">Qty</th><th>Unit Price</th><th>Total</th><th></th></tr></thead>
+          <tbody id="po-lines"></tbody>
+        </table>
+        <div class="text-end mt-4"><h3>Total Payable: ₹<span id="grand-total">0.00</span></h3><button class="btn btn-primary btn-lg px-5 mt-2" onclick="submitPO()">Finalize & Save Order</button></div>
       </div>
     </div>
   </div>
 </div>
 
 <div id="tab-history" class="container-fluid d-none p-4">
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4>Order History</h4>
-        <input type="text" class="form-control w-25" placeholder="Search POs..." onkeyup="filterHistory(this.value)">
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Date</th>
-              <th>PO Number</th>
-              <th>Vendor ID</th>
-              <th>Grand Total</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="history-body"></tbody>
-        </table>
+  <div class="d-flex gap-3 mb-4">
+    <div class="stats-card"><span class="stats-label">Avg Fulfillment Time</span><span class="stats-val" id="stat-avg-lead">0 Days</span></div>
+    <div class="stats-card"><span class="stats-label">Completed Value</span><span class="stats-val" id="stat-total-spend">₹0</span></div>
+    <div class="stats-card"><span class="stats-label">Open Orders</span><span class="stats-val" id="stat-active-count">0</span></div>
+  </div>
+  <div class="card border-0 shadow-sm p-4">
+    <div class="d-flex justify-content-between mb-3 align-items-center">
+      <div class="btn-group shadow-sm"><button class="btn btn-sm btn-outline-secondary px-3" onclick="applyStatusFilter('All')">All</button><button class="btn btn-sm btn-outline-secondary px-3" onclick="applyStatusFilter('Ordered')">Ordered</button><button class="btn btn-sm btn-outline-secondary px-3" onclick="applyStatusFilter('Delivered')">Delivered</button></div>
+      <div class="d-flex gap-2 w-50">
+        <input type="text" class="form-control form-control-sm" placeholder="Search by PO#, Vendor or Status..." oninput="handleAutoSearch(this.value)">
+        <button class="btn btn-sm btn-success px-3" onclick="exportCSV()">Export CSV</button>
       </div>
     </div>
+    <table class="table table-hover">
+      <thead><tr><th>Date</th><th>PO Number</th><th>Priority</th><th>Vendor</th><th>Total</th><th>Lead Time</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <div id="load-more-container" class="text-center d-none mt-3"><button class="btn btn-link text-decoration-none" onclick="loadMoreHistory()">View Older Orders...</button></div>
   </div>
 </div>
 
 <div class="modal fade" id="successModal" data-bs-backdrop="static" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg p-4">
-      <div class="modal-body text-center">
-        <div class="display-1 text-success mb-3">✅</div>
-        <h3 class="fw-bold">Order Saved</h3>
-        <p class="text-muted">The Purchase Order has been successfully inserted into the spreadsheet.</p>
-        <div class="bg-light p-3 rounded mb-4">
-          <span class="small text-uppercase text-muted d-block">PO Number</span>
-          <h4 class="mb-0" id="saved-po-num"></h4>
-        </div>
-        <div class="d-grid gap-2">
-          <button class="btn btn-primary py-2" onclick="printCurrentPO()">Print Purchase Order 🖨️</button>
-          <button class="btn btn-outline-secondary py-2" onclick="resetUI()">Create New Order</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content text-center p-5 border-0 shadow">
+    <div class="display-1 text-success mb-3">✅</div><h4 class="fw-bold">Order Saved Successfully</h4><p class="text-muted" id="saved-po-num"></p>
+    <div class="d-grid gap-2 mt-4"><button class="btn btn-primary py-2" onclick="printCurrentPO()">Print PO Now 🖨️</button><button class="btn btn-outline-secondary py-2" onclick="resetUI()">Create Another Order</button></div>
+  </div></div></div>
 </div>
 
 <script>
-  let allVendors = [], allAlerts = [], cart = [], selectedVendor = null, lastHeader = null;
+  let allVendors = [], allAlerts = [], cart = [], selectedVendor = null, lastHeader = null, fullHistory = [], offset = 0, currentFilt = 'All';
 
   window.onload = () => { generatePONumber(); refreshData(); };
-
   function showTab(t) {
     document.getElementById('tab-create').classList.toggle('d-none', t !== 'create');
     document.getElementById('tab-history').classList.toggle('d-none', t !== 'history');
     document.getElementById('btn-create').classList.toggle('active', t === 'create');
     document.getElementById('btn-history').classList.toggle('active', t === 'history');
-    if(t === 'history') loadHistory();
+    if(t === 'history' && !fullHistory.length) loadHistory();
   }
-
   function generatePONumber() { document.getElementById('po-num-display').innerText = "PO-" + Math.floor(Date.now()/1000); }
-
   function refreshData() {
     google.script.run.withSuccessHandler(v => { allVendors = v; renderVendors(v); }).getVendors();
     google.script.run.withSuccessHandler(a => { allAlerts = a; }).getStockAlerts();
   }
-
   function renderVendors(list) {
-    document.getElementById('vendor-list').innerHTML = list.map(v => `
-      <div class="card vendor-card p-2 shadow-sm" onclick="selectVendor('${v.vendorID}')">
-        <div class="fw-bold">${v.businessName}</div>
-        <div class="text-muted extra-small" style="font-size:11px">ID: ${v.vendorID}</div>
-      </div>`).join('');
+    document.getElementById('vendor-list').innerHTML = list.map(v => `<div class="card p-2 mb-2 vendor-card" style="cursor:pointer" onclick="selectVendor('${v.vendorID}')"><b>${v.businessName}</b><br><small class="text-muted">${v.vendorID}</small></div>`).join('');
   }
-
+  function filterVendors(q) { const f = allVendors.filter(v => v.businessName.toLowerCase().includes(q.toLowerCase())); renderVendors(f); }
   function selectVendor(id) {
     selectedVendor = allVendors.find(v => v.vendorID === id);
     document.getElementById('po-vendor-name').value = selectedVendor.businessName;
     const vendorAlerts = allAlerts.filter(a => String(a.vendorID) === id);
     document.getElementById('stock-alerts').innerHTML = vendorAlerts.map((a, i) => `
-      <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded bg-white">
-        <span>${a.itemName}</span>
-        <button class="btn btn-sm btn-outline-primary" onclick='addToCartByIdx(${allAlerts.indexOf(a)})'>Add</button>
-      </div>`).join('') || '<div class="text-muted small">No items low on stock for this vendor.</div>';
+      <div class="d-flex justify-content-between mb-2 p-2 border rounded bg-white small shadow-sm"><span>${a.itemName}</span><button class="btn btn-sm btn-primary py-0" onclick='addToCartByIdx(${allAlerts.indexOf(a)})'>Add</button></div>`).join('');
   }
-
   function addToCartByIdx(idx) {
     const item = allAlerts[idx];
-    if(!cart.find(c => c.itemId === item.itemId)) {
-      cart.push({...item, quantity: item.moq, subtotal: item.moq * item.unitPrice});
-      renderCart();
-    }
+    if(!cart.find(c => c.itemId === item.itemId)) { cart.push({...item, quantity: item.moq, subtotal: item.moq * item.unitPrice}); renderCart(); }
   }
-
   function renderCart() {
-    let total = 0;
-    document.getElementById('po-lines').innerHTML = cart.map((item, idx) => {
-      total += item.subtotal;
-      return `<tr>
-        <td>${item.itemName}</td>
-        <td><small class="text-muted">${item.sku}</small></td>
-        <td><input type="number" class="form-control form-control-sm" value="${item.quantity}" onchange="updateQty(${idx}, this.value)"></td>
-        <td>₹${item.unitPrice}</td>
-        <td class="fw-bold">₹${item.subtotal.toFixed(2)}</td>
-        <td><button class="btn btn-sm text-danger" onclick="cart.splice(${idx},1);renderCart()">×</button></td>
-      </tr>`;
+    let t = 0;
+    document.getElementById('po-lines').innerHTML = cart.map((item, i) => {
+      t += item.subtotal;
+      return `<tr><td>${item.itemName}</td><td><small class="text-muted">${item.sku}</small></td><td><input type="number" class="form-control form-control-sm" value="${item.quantity}" onchange="updateQty(${i}, this.value)"></td><td>${item.unitPrice}</td><td>${item.subtotal.toFixed(2)}</td><td><button class="btn btn-sm text-danger" onclick="cart.splice(${i},1);renderCart()">×</button></td></tr>`;
     }).join('');
-    document.getElementById('grand-total').innerText = total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById('grand-total').innerText = t.toFixed(2);
   }
-
-  function updateQty(idx, val) { 
-    cart[idx].quantity = val; 
-    cart[idx].subtotal = val * cart[idx].unitPrice; 
-    renderCart(); 
-  }
+  function updateQty(i, v) { cart[i].quantity = v; cart[i].subtotal = v * cart[i].unitPrice; renderCart(); }
 
   function submitPO() {
-    if(!selectedVendor || !cart.length) return alert("Please select a vendor and add at least one item.");
+    if(!selectedVendor || !cart.length) return alert("Please select a vendor and add items.");
     document.getElementById('overlay').style.display = 'flex';
-    const header = { 
-      poNumber: document.getElementById('po-num-display').innerText, 
-      priority: document.getElementById('po-priority').value, 
-      vendorID: selectedVendor.vendorID, 
-      arriveBy: document.getElementById('po-arrive').value, 
-      cost: document.getElementById('grand-total').innerText, 
-      poc: selectedVendor.poc, 
-      notes: "Auto-generated" 
-    };
-    lastHeader = header;
+    const h = { poNumber: document.getElementById('po-num-display').innerText, priority: document.getElementById('po-priority').value, vendorID: selectedVendor.vendorID, arriveBy: document.getElementById('po-arrive').value, cost: document.getElementById('grand-total').innerText, poc: selectedVendor.poc };
+    lastHeader = h;
     google.script.run.withSuccessHandler(res => {
       document.getElementById('overlay').style.display = 'none';
-      if(res.success) {
-        document.getElementById('saved-po-num').innerText = header.poNumber;
-        new bootstrap.Modal(document.getElementById('successModal')).show();
-      } else { alert("Error: " + res.error); }
-    }).finalizePurchaseOrder(header, cart);
+      document.getElementById('saved-po-num').innerText = h.poNumber;
+      new bootstrap.Modal(document.getElementById('successModal')).show();
+    }).finalizePurchaseOrder(h, cart);
+  }
+
+  function resetUI() {
+    const m = bootstrap.Modal.getInstance(document.getElementById('successModal')); if(m) m.hide();
+    cart = []; selectedVendor = null; lastHeader = null;
+    document.getElementById('po-vendor-name').value = "";
+    document.getElementById('po-arrive').value = "";
+    document.getElementById('stock-alerts').innerHTML = "";
+    document.getElementById('po-lines').innerHTML = "";
+    document.getElementById('grand-total').innerText = "0.00";
+    generatePONumber(); showTab('create');
   }
 
   function loadHistory() {
-    google.script.run.withSuccessHandler(data => {
-      document.getElementById('history-body').innerHTML = data.map(po => `
-        <tr>
-          <td>${po.date}</td>
-          <td><strong>${po.poNumber}</strong></td>
-          <td>${po.vendorID}</td>
-          <td>₹${po.cost}</td>
-          <td><span class="status-badge status-ordered">${po.status}</span></td>
-          <td><button class="btn btn-sm btn-outline-dark" onclick="reprintPO('${po.poNumber}')">Print</button></td>
-        </tr>`).join('');
-    }).getPOHistory();
+    document.getElementById('overlay').style.display = 'flex';
+    offset = 0; fullHistory = [];
+    google.script.run.withSuccessHandler(res => {
+      fullHistory = res.data;
+      filterAndRender();
+      document.getElementById('load-more-container').classList.toggle('d-none', !res.hasMore);
+      document.getElementById('overlay').style.display = 'none';
+    }).getPOHistory(offset);
   }
 
-  function printCurrentPO() {
-    google.script.run.withSuccessHandler(html => { 
-      const w = window.open(); 
-      w.document.write(html); 
-      w.document.close(); 
-      setTimeout(() => w.print(), 500); 
-    }).generatePOPreview(lastHeader, cart);
+  function loadMoreHistory() {
+    offset += 50; document.getElementById('overlay').style.display = 'flex';
+    google.script.run.withSuccessHandler(res => {
+      fullHistory = fullHistory.concat(res.data);
+      filterAndRender();
+      document.getElementById('load-more-container').classList.toggle('d-none', !res.hasMore);
+      document.getElementById('overlay').style.display = 'none';
+    }).getPOHistory(offset);
   }
 
-  function resetUI() { location.reload(); }
+  function handleAutoSearch(q) { const term = q.toLowerCase(); const f = fullHistory.filter(p => p.poNumber.toLowerCase().includes(term) || p.vendorID.toLowerCase().includes(term) || p.status.toLowerCase().includes(term)); renderTable(f); }
+  function applyStatusFilter(s) { currentFilt = s; filterAndRender(); }
+  function filterAndRender() {
+    const f = currentFilt === 'All' ? fullHistory : fullHistory.filter(p => p.status === currentFilt);
+    const del = fullHistory.filter(p => p.status === 'Delivered');
+    const avg = del.length ? (del.reduce((s, p) => s + parseInt(p.leadTime), 0) / del.length).toFixed(1) : 0;
+    const spend = del.reduce((s, p) => s + parseFloat(p.cost), 0);
+    document.getElementById('stat-avg-lead').innerText = avg + " Days";
+    document.getElementById('stat-total-spend').innerText = "₹" + spend.toLocaleString();
+    document.getElementById('stat-active-count').innerText = fullHistory.length - del.length;
+    renderTable(f);
+  }
+
+  function renderTable(data) {
+    document.getElementById('history-body').innerHTML = data.map(po => {
+      const isDel = po.status === 'Delivered';
+      const statusClass = "status-" + po.status.toLowerCase();
+      return `<tr>
+        <td>${po.date}</td><td><b>${po.poNumber}</b></td><td class="${po.priority === 'Urgent' ? 'text-danger fw-bold' : ''}">${po.priority}</td>
+        <td>${po.vendorID}</td><td>₹${po.cost}</td><td>${isDel ? `<b>${po.leadTime}</b>` : '<span class="text-muted">...</span>'}</td>
+        <td><span class="status-badge ${statusClass}">${po.status}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-action btn-print-outline me-1" onclick="reprintPO('${po.poNumber}')">Print 🖨️</button>
+          ${isDel ? '<button class="btn btn-action btn-receive" disabled>✅ Recieved</button>' : `<button class="btn btn-action btn-receive" onclick="changeStatus('${po.poNumber}','Delivered')">Mark Recieved</button>`}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function changeStatus(n, s) { 
+    document.getElementById('overlay').style.display = 'flex';
+    google.script.run.withSuccessHandler(() => loadHistory()).updatePOStatus(n, s); 
+  }
+
+  function reprintPO(n) { 
+    document.getElementById('overlay').style.display = 'flex';
+    google.script.run.withSuccessHandler(h => { 
+      document.getElementById('overlay').style.display = 'none';
+      const w = window.open('','_blank','width=900,height=700'); 
+      w.document.write(h); w.document.close(); 
+      setTimeout(()=>w.print(), 800); 
+    }).getSpecificPODetails(n); 
+  }
+
+  function printCurrentPO() { reprintPO(lastHeader.poNumber); }
+  
+  function exportCSV() {
+    const csv = [["Date","PO#","Vendor","Total","Status"], ...fullHistory.map(p => [p.date, p.poNumber, p.vendorID, p.cost, p.status])].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "PO_History_Export.csv"; a.click();
+  }
 </script>
 </body>
 </html>

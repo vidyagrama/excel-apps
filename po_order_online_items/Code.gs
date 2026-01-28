@@ -18,14 +18,12 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// FETCH VENDORS
 function getVendors() {
   const ss = SpreadsheetApp.openById(ID_VENDORS);
   const data = ss.getSheetByName(TAB_VENDORS).getDataRange().getValues().slice(1);
   return data.map(row => ({ vendorID: row[0], businessName: row[1], poc: row[7] }));
 }
 
-// FETCH STOCK ALERTS
 function getStockAlerts() {
   const ss = SpreadsheetApp.openById(ID_INVENTORY);
   const data = ss.getSheetByName(TAB_INVENTORY).getDataRange().getValues().slice(1);
@@ -36,22 +34,36 @@ function getStockAlerts() {
   })).filter(item => item.itemName && (item.status === "Sold out" || item.currentStock <= item.reorderPoint));
 }
 
-// FETCH HISTORY (Adaptive Range)
-function getPOHistory() {
+function getPOHistory(offset) {
+  offset = offset || 0;
+  const limit = 50; 
   const ss = SpreadsheetApp.openById(ID_PO_ORDERS);
   const sheet = ss.getSheetByName(TAB_ORDERS);
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+  if (lastRow < 2) return { data: [], hasMore: false };
 
-  const data = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
-  return data.map(row => ({
-    priority: row[0], poNumber: row[1], vendorID: row[2], status: row[3],
-    date: row[4] instanceof Date ? row[4].toLocaleDateString() : row[4],
-    cost: row[6]
-  })).filter(po => po.poNumber).reverse();
+  const endRow = Math.max(2, lastRow - offset);
+  const startRow = Math.max(2, endRow - limit + 1);
+  const numRows = endRow - startRow + 1;
+  if (numRows <= 0) return { data: [], hasMore: false };
+
+  const data = sheet.getRange(startRow, 1, numRows, 10).getValues();
+  const formattedData = data.map(row => {
+    if (!row[1]) return null;
+    let leadTime = "N/A";
+    if (row[4] instanceof Date && row[9] instanceof Date) {
+      const diff = Math.abs(row[9] - row[4]);
+      leadTime = Math.ceil(diff / (1000 * 60 * 60 * 24)) + " days";
+    }
+    return {
+      priority: String(row[0] || ""), poNumber: String(row[1] || ""), vendorID: String(row[2] || ""),
+      status: String(row[3] || "Ordered"), date: row[4] instanceof Date ? row[4].toLocaleDateString() : String(row[4]),
+      cost: row[6] || 0, leadTime: leadTime
+    };
+  }).filter(x => x !== null).reverse();
+  return { data: formattedData, hasMore: startRow > 2 };
 }
 
-// UPDATE STATUS
 function updatePOStatus(poNumber, newStatus) {
   const ss = SpreadsheetApp.openById(ID_PO_ORDERS);
   const sheet = ss.getSheetByName(TAB_ORDERS);
@@ -59,6 +71,7 @@ function updatePOStatus(poNumber, newStatus) {
   for (let i = 0; i < data.length; i++) {
     if (data[i][0] === poNumber) {
       sheet.getRange(i + 1, 4).setValue(newStatus);
+      if (newStatus === "Delivered") sheet.getRange(i + 1, 10).setValue(new Date());
       return true;
     }
   }
@@ -68,72 +81,56 @@ function updatePOStatus(poNumber, newStatus) {
 function finalizePurchaseOrder(poHeader, lineItems) {
   const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(30000); 
+    lock.waitLock(30000);
     const ssOrders = SpreadsheetApp.openById(ID_PO_ORDERS);
     const ssLines = SpreadsheetApp.openById(ID_PO_ORDERS_LINE_ITEMS);
     const sheetHeader = ssOrders.getSheetByName(TAB_ORDERS);
     const sheetLines = ssLines.getSheetByName(TAB_LINE_ITEMS);
 
-    // 1. DYNAMIC ROW FINDER: Find the first empty slot in Column B
     const colB = sheetHeader.getRange("B:B").getValues();
-    let targetRow = 2; // Default starting point after header
+    let targetRow = 2;
     for (let i = 1; i < colB.length; i++) {
-      if (colB[i][0] === "" || colB[i][0] === null) {
-        targetRow = i + 1;
-        break;
-      }
+      if (colB[i][0] === "" || colB[i][0] === null) { targetRow = i + 1; break; }
       if (i === colB.length - 1) targetRow = colB.length + 1;
     }
 
-    // 2. AUTO-INSERT ROW: This pushes the rest of the template down
-    // This maintains the "design" of your excel template
     sheetHeader.insertRowBefore(targetRow);
-
-    // 3. PREPARE DATA
-    const headerData = [
-      poHeader.priority, 
-      poHeader.poNumber, 
-      poHeader.vendorID, 
-      "Ordered",
-      new Date(), 
-      poHeader.arriveBy, 
-      poHeader.cost, 
-      poHeader.poc, 
-      poHeader.notes
-    ];
-
-    // 4. WRITE DATA to the newly inserted row
+    const headerData = [poHeader.priority, poHeader.poNumber, poHeader.vendorID, "Ordered", new Date(), poHeader.arriveBy, poHeader.cost, poHeader.poc, ""];
     sheetHeader.getRange(targetRow, 1, 1, headerData.length).setValues([headerData]);
     
-    // 5. SAVE LINE ITEMS (Standard append)
     lineItems.forEach((item, idx) => {
-      sheetLines.appendRow([
-        (idx + 1), 
-        poHeader.poNumber, 
-        item.itemName, 
-        item.quantity, 
-        item.uom, 
-        item.unitPrice, 
-        item.subtotal, 
-        item.sku, 
-        ""
-      ]);
+      sheetLines.appendRow([(idx + 1), poHeader.poNumber, item.itemName, item.quantity, item.uom, item.unitPrice, item.subtotal, item.sku, ""]);
     });
-    
-    SpreadsheetApp.flush(); 
     return { success: true };
-  } catch (e) { 
-    return { success: false, error: e.toString() }; 
-  } finally { 
-    lock.releaseLock(); 
-  }
+  } catch (e) { return { success: false, error: e.toString() }; }
+  finally { lock.releaseLock(); }
 }
 
-function generatePOPreview(poHeader, lineItems) {
-  let html = `<html><head><style>body{font-family:sans-serif;padding:30px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f4f4f4}.total{text-align:right;font-size:1.5em;color:#673ab7}</style></head><body>
-  <div style="display:flex;justify-content:space-between;border-bottom:2px solid #673ab7"><div><h1>PURCHASE ORDER</h1><p>Vendor: ${poHeader.vendorID}</p></div><div style="text-align:right"><h2>${poHeader.poNumber}</h2><p>Date: ${poHeader.date || new Date().toLocaleDateString()}</p></div></div>
-  <table><thead><tr><th>#</th><th>Item</th><th>SKU</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>
-  ${lineItems.map((item, i) => `<tr><td>${i+1}</td><td>${item.itemName}</td><td>${item.sku}</td><td>${item.quantity}</td><td>₹${item.unitPrice}</td><td>₹${item.subtotal}</td></tr>`).join('')}
-  </tbody></table><div class="total">Grand Total: ₹${poHeader.cost}</div></body></html>`;
-  return html;
+function getSpecificPODetails(poNumber) {
+  const ssOrders = SpreadsheetApp.openById(ID_PO_ORDERS);
+  const ssLines = SpreadsheetApp.openById(ID_PO_ORDERS_LINE_ITEMS);
+  const header = ssOrders.getSheetByName(TAB_ORDERS).getDataRange().getValues().find(r => r[1] === poNumber);
+  const lineRows = ssLines.getSheetByName(TAB_LINE_ITEMS).getDataRange().getValues();
+  const items = lineRows.filter(r => r[1] === poNumber).map(r => ({
+    itemName: r[2], quantity: r[3], unitPrice: r[5], subtotal: r[6], sku: r[7]
+  }));
+  
+  const h = { poNumber: header[1], vendorID: header[2], date: header[4] instanceof Date ? header[4].toLocaleDateString() : header[4], cost: header[6] };
+  return generatePOPreview(h, items);
+}
+
+function generatePOPreview(h, items) {
+  return `<html><body style="font-family:sans-serif;padding:30px">
+    <div style="border-bottom:2px solid #673ab7;padding-bottom:10px;margin-bottom:20px">
+      <h2 style="color:#673ab7;margin:0">PURCHASE ORDER</h2>
+      <p style="margin:5px 0"><b>PO#:</b> ${h.poNumber} | <b>Date:</b> ${h.date}</p>
+    </div>
+    <p><b>Vendor:</b> ${h.vendorID}</p>
+    <table border="1" style="width:100%;border-collapse:collapse;margin-top:20px">
+      <tr style="background:#f2f2f2"><th>Item Description</th><th>SKU</th><th width="80">Qty</th><th>Total</th></tr>
+      ${items.map(i => `<tr><td style="padding:8px">${i.itemName}</td><td style="padding:8px">${i.sku}</td><td style="padding:8px;text-align:center">${i.quantity}</td><td style="padding:8px;text-align:right">₹${i.subtotal}</td></tr>`).join('')}
+    </table>
+    <h3 style="text-align:right;margin-top:20px">Grand Total: ₹${h.cost}</h3>
+    <div style="margin-top:50px;font-size:12px;color:#666">Generated via Vidyagrama Procurement System</div>
+  </body></html>`;
 }
