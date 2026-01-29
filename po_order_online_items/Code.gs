@@ -46,7 +46,7 @@ function getPOHistory(offset) {
   const startRow = Math.max(2, endRow - limit + 1);
   const numRows = endRow - startRow + 1;
   if (numRows <= 0) return { data: [], hasMore: false };
-
+  
   const data = sheet.getRange(startRow, 1, numRows, 10).getValues();
   const formattedData = data.map(row => {
     if (!row[1]) return null;
@@ -78,6 +78,29 @@ function updatePOStatus(poNumber, newStatus) {
   return false;
 }
 
+/**
+ * UPDATED: Physically Deletes PO from Header and Line Item sheets
+ */
+function deletePurchaseOrder(poNumber) {
+  const ssOrders = SpreadsheetApp.openById(ID_PO_ORDERS);
+  const ssLines = SpreadsheetApp.openById(ID_PO_ORDERS_LINE_ITEMS);
+  const sheetHeader = ssOrders.getSheetByName(TAB_ORDERS);
+  const sheetLines = ssLines.getSheetByName(TAB_LINE_ITEMS);
+
+  // Delete from Orders Header
+  const headerData = sheetHeader.getRange("B:B").getValues();
+  for (let i = headerData.length - 1; i >= 0; i--) {
+    if (headerData[i][0] === poNumber) { sheetHeader.deleteRow(i + 1); break; }
+  }
+
+  // Delete all matching Line Items
+  const lineData = sheetLines.getRange("B:B").getValues();
+  for (let j = lineData.length - 1; j >= 0; j--) {
+    if (lineData[j][0] === poNumber) { sheetLines.deleteRow(j + 1); }
+  }
+  return { success: true };
+}
+
 function finalizePurchaseOrder(poHeader, lineItems) {
   const lock = LockService.getScriptLock();
   try {
@@ -106,31 +129,59 @@ function finalizePurchaseOrder(poHeader, lineItems) {
   finally { lock.releaseLock(); }
 }
 
+/**
+ * UPDATED: Includes UOM in the print preview
+ */
 function getSpecificPODetails(poNumber) {
   const ssOrders = SpreadsheetApp.openById(ID_PO_ORDERS);
   const ssLines = SpreadsheetApp.openById(ID_PO_ORDERS_LINE_ITEMS);
+  const ssVendors = SpreadsheetApp.openById(ID_VENDORS);
+  
   const header = ssOrders.getSheetByName(TAB_ORDERS).getDataRange().getValues().find(r => r[1] === poNumber);
   const lineRows = ssLines.getSheetByName(TAB_LINE_ITEMS).getDataRange().getValues();
-  const items = lineRows.filter(r => r[1] === poNumber).map(r => ({
-    itemName: r[2], quantity: r[3], unitPrice: r[5], subtotal: r[6], sku: r[7]
+  const vendorRows = ssVendors.getSheetByName(TAB_VENDORS).getDataRange().getValues();
+  
+  // Pulling UOM (Index 4) from Line Items sheet
+  const items = lineRows.filter(r => r[1] === poNumber).map(r => ({ 
+    itemName: r[2], 
+    quantity: r[3],
+    uom: r[4] 
   }));
   
-  const h = { poNumber: header[1], vendorID: header[2], date: header[4] instanceof Date ? header[4].toLocaleDateString() : header[4], cost: header[6] };
-  return generatePOPreview(h, items);
-}
+  const vendorID = header[2];
+  const vendorMatch = vendorRows.find(v => v[0] === vendorID);
+  const businessName = vendorMatch ? vendorMatch[1] : "N/A";
 
-function generatePOPreview(h, items) {
+  const h = { 
+    poNumber: header[1], 
+    vendorID: vendorID, 
+    businessName: businessName,
+    date: header[4] instanceof Date ? header[4].toLocaleDateString() : header[4]
+  };
+  
   return `<html><body style="font-family:sans-serif;padding:30px">
     <div style="border-bottom:2px solid #673ab7;padding-bottom:10px;margin-bottom:20px">
       <h2 style="color:#673ab7;margin:0">PURCHASE ORDER</h2>
       <p style="margin:5px 0"><b>PO#:</b> ${h.poNumber} | <b>Date:</b> ${h.date}</p>
     </div>
-    <p><b>Vendor:</b> ${h.vendorID}</p>
-    <table border="1" style="width:100%;border-collapse:collapse;margin-top:20px">
-      <tr style="background:#f2f2f2"><th>Item Description</th><th>SKU</th><th width="80">Qty</th><th>Total</th></tr>
-      ${items.map(i => `<tr><td style="padding:8px">${i.itemName}</td><td style="padding:8px">${i.sku}</td><td style="padding:8px;text-align:center">${i.quantity}</td><td style="padding:8px;text-align:right">₹${i.subtotal}</td></tr>`).join('')}
+    <div style="margin-bottom:20px; line-height: 1.5;">
+      <b>Vendor ID:</b> ${h.vendorID}<br>
+      <b>Business Name:</b> ${h.businessName}
+    </div>
+    <table border="1" style="width:100%;border-collapse:collapse">
+      <tr style="background:#f2f2f2">
+        <th width="50">S.No</th>
+        <th style="text-align:left;padding:8px">Item Description</th>
+        <th width="100" style="padding:8px">Quantity</th>
+        <th width="80" style="padding:8px">UOM</th>
+      </tr>
+      ${items.map((i, idx) => `<tr>
+        <td style="text-align:center;padding:8px">${idx + 1}</td>
+        <td style="padding:8px">${i.itemName}</td>
+        <td style="text-align:center;padding:8px">${i.quantity}</td>
+        <td style="text-align:center;padding:8px">${i.uom || ''}</td>
+      </tr>`).join('')}
     </table>
-    <h3 style="text-align:right;margin-top:20px">Grand Total: ₹${h.cost}</h3>
-    <div style="margin-top:50px;font-size:12px;color:#666">Generated via Vidyagrama Procurement System</div>
+    <div style="margin-top:50px;font-size:11px;color:#666">Generated via Vidyagrama Procurement System</div>
   </body></html>`;
 }
