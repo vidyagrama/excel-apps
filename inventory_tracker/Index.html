@@ -12,8 +12,20 @@
       --success-green: #2e7d32;
     }
 
-    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
-    body { padding: 15px; background-color: var(--bg-purple); display: flex; justify-content: center; }
+    body,
+    input,
+    textarea,
+    button,
+    select {
+      font-family: Verdana, Geneva, sans-serif;
+    }
+
+    body {
+      padding: 15px;
+      background-color: var(--bg-purple);
+      display: flex;
+      justify-content: center;
+    }
 
     .main-layout {
       display: flex;
@@ -23,7 +35,13 @@
       align-items: flex-start;
     }
 
-    .container { flex: 2; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
+    .container {
+      flex: 2;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
+    }
 
     .sidebar {
       flex: 1;
@@ -247,7 +265,8 @@
         </div>
 
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Search ID or SKU..." onkeypress="handleSearchKeyPress(event)">
+          <input type="text" id="searchInput" placeholder="Search ID or SKU..."
+            onkeypress="handleSearchKeyPress(event)">
           <button type="button" class="scan-btn" onclick="startScanner()">📸 Scan</button>
           <button type="button" class="search-btn" onclick="findItem()">Search</button>
           <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
@@ -317,12 +336,14 @@
 
             <div class="field">
               <label>Purchase Price</label>
-              <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
+              <input type="number" step="0.01" name="purchasePrice" id="pPrice" required
+                oninput="calculateAutoFields()">
             </div>
 
             <div class="field">
               <label>Markup %</label>
-              <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
+              <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20"
+                oninput="calculateAutoFields()">
             </div>
 
             <div class="field">
@@ -347,24 +368,6 @@
             <div class="field">
               <label>Min Order Qty (MOQ)</label>
               <input type="number" name="moq" value="1" step="any">
-            </div>
-            <div class="field">
-              <label>UOM</label>
-              <select name="uom">
-                <option value="kg">kg</option>
-                <option value="gms">gms</option>
-                <option value="ltr">ltr</option>
-                <option value="pc">pc</option>
-                <option value="Bx">Bx</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label>Status</label>
-              <select name="status">
-                <option value="In stock">In stock</option>
-                <option value="Sold out">Sold out</option>
-              </select>
             </div>
             <div class="field"><label>Mfg Date</label><input type="date" name="mfgDate"></div>
             <div class="field"><label>Expiry Date</label><input type="date" name="expiryDate"></div>
@@ -392,7 +395,9 @@
           </tr>
         </thead>
         <tbody id="recentItemsBody">
-          <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
+          <tr>
+            <td colspan="3" style="text-align:center;">Loading...</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -511,7 +516,7 @@
 
             updateImagePreview();
 
-            document.getElementById('submitBtn').innerHTML = "Update Item" ;
+            document.getElementById('submitBtn').innerHTML = "Update Item";
             document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
             showStatus("Item " + d[2] + " loaded successfully", "var(--success-green)");
           } else {
