@@ -1,8 +1,6 @@
 /** @OnlyCurrentDoc */
 
 function doGet() {
-  // .addMetaTag is essential for mobile responsiveness
-  // .setFaviconUrl adds a professional touch when saved as a mobile bookmark
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle("Vidyagrama Inventory Manager")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -10,26 +8,20 @@ function doGet() {
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
 
-/** * NEW FUNCTION: Fetches the last 10 items for the sidebar list
- */
 function getRecentItems() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
   var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return []; // Return empty if only header exists
+  if (lastRow <= 1) return []; 
+  var data = sheet.getRange(2, 1, lastRow - 1, 18).getValues(); 
 
-  // Get the last 10 rows (or fewer if the sheet is small)
-  var numItems = Math.min(10, lastRow - 1);
-  var startRow = lastRow - numItems + 1;
-  var data = sheet.getRange(startRow, 1, numItems, 17).getValues(); // Updated to 17 columns
-
-  // Map to a clean object for the HTML list, reversed so newest is on top
   return data.map(function(row) {
     return {
-      id: row[0],   // Column A
-      name: row[2], // Column C
-      sku: row[15]  // Column P is now index 15
+      id: row[0] ? row[0].toString() : "",      
+      name: row[2] || "Unnamed Item",    
+      sku: row[15] || "",    
+      updated: row[17] ? row[17].toString() : "" 
     };
-  }).reverse(); 
+  }).filter(item => item.id !== "").reverse(); 
 }
 
 // 1. SEARCH: Find item by ID (Col 1) or SKU (Col 16/Index 15)
@@ -39,27 +31,20 @@ function searchItem(searchText) {
   
   // Clean the incoming search text for mobile keyboard compatibility
   var cleanSearch = searchText.toString().trim().toLowerCase();
-
   for (var i = 1; i < data.length; i++) {
     var idInSheet = data[i][0].toString().trim().toLowerCase();
     
     // Column P is index 15 (SKU)
     var skuValue = data[i][15] || "";
     var skuInSheet = skuValue.toString().trim().toLowerCase();
-
     if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
-      // Convert Dates so mobile HTML5 date inputs can read them (yyyy-MM-dd)
       var cleanData = data[i].map(function (cellValue) {
         if (cellValue instanceof Date) {
           return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
         }
         return cellValue;
       });
-
-      return {
-        row: i + 1,
-        data: cleanData
-      };
+      return { row: i + 1, data: cleanData };
     }
   }
   return null;
@@ -80,30 +65,31 @@ function processForm(formObject) {
     // Automated Formulas (ensure these match your Column letters H and I)
     var salePriceFormula = "=F" + targetRow + "*(1 + (G" + targetRow + "/100))";
     var stockValueFormula = "=E" + targetRow + "*F" + targetRow;
+    var timestamp = new Date(); 
 
     var formData = [
-      formObject.itemId || "",
+      formObject.itemID || "",
       formObject.category,
       formObject.itemName,
       formObject.uom,
       formObject.stock,
       formObject.purchasePrice,
       formObject.priceMarkupPercentage,
-      salePriceFormula,   // Column H
-      stockValueFormula,  // Column I
+      salePriceFormula,   
+      stockValueFormula,  
       formObject.reorderPoint,
-      formObject.moq,        // Column K (Index 10)
+      formObject.moq,      
       formObject.vendorID,
       formObject.status,
       formObject.mfgDate,
       formObject.expiryDate,
       formObject.sku,
-      formObject.imageUrl    // Column Q (Index 16)
+      formObject.imageUrl,
+      timestamp            
     ];
 
     if (rowNumber) {
-      // UPDATE: Matches the 17 columns in your HTML form
-      sheet.getRange(rowNumber, 1, 1, 17).setValues([formData]);
+      sheet.getRange(rowNumber, 1, 1, 18).setValues([formData]);
       return "Item " + formObject.itemName + " updated successfully!";
     } else {
       // CREATE NEW: Auto-ID logic
