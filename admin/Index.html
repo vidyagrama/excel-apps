@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #5D4037; /* Logo Brown */
+      --secondary: #F57C00; /* Logo Orange */
+      --bg: #FDFBF9;
+      --text: #3E2723;
+      --white: #ffffff;
+    }
+    body { font-family: 'Poppins', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; }
+    
+    /* Login Screen */
+    #login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: var(--white); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid var(--secondary); }
+    .logo-text { font-weight: 600; color: var(--primary); font-size: 28px; letter-spacing: 1px; margin-bottom: 5px; }
+    .logo-sub { font-size: 12px; color: var(--secondary); margin-bottom: 25px; text-transform: uppercase; }
+    
+    input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+    button.btn-primary { background: var(--primary); color: white; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; margin-top: 10px; }
+    button.btn-primary:hover { background: #4e342e; }
+
+    /* Dashboard Layout */
+    #dashboard { display: none; }
+    header { background: var(--primary); color: white; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    
+    .nav-tabs { display: flex; background: #EFEBE9; overflow-x: auto; border-bottom: 3px solid var(--secondary); }
+    .tab { padding: 15px 25px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.3s; white-space: nowrap; border-right: 1px solid #ddd; }
+    .tab:hover { background: #D7CCC8; }
+    .tab.active { background: var(--secondary); color: white; }
+
+    .content-area { padding: 30px; }
+    .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
+    
+    .logout-btn { background: #d32f2f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <div id="login-container">
+    <div class="logo-text">VIDYAGRAMA</div>
+    <div class="logo-sub">Organic & Desi Supplies</div>
+    <input type="text" id="userid" placeholder="User ID">
+    <input type="password" id="mobile" placeholder="Mobile Number">
+    <button class="btn-primary" id="loginBtn" onclick="login()">Login to Admin</button>
+    <p id="login-msg" style="color: #d32f2f; font-size: 14px; margin-top: 15px;"></p>
+  </div>
+
+  <div id="dashboard">
+    <header>
+      <div><span style="color: var(--secondary)">●</span> <strong>Vidyagrama Portal</strong></div>
+      <div id="user-display" style="font-size: 14px;"></div>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </header>
+
+    <div class="nav-tabs">
+      <div class="tab active" onclick="openTab(event, 'Inventory')">Inventory</div>
+      <div class="tab" onclick="openTab(event, 'Orders')">Orders & Invoices</div>
+      <div class="tab" onclick="openTab(event, 'Purchase')">Purchase Orders</div>
+      <div class="tab" onclick="openTab(event, 'Balance')">Balance Sheet</div>
+      <div class="tab" onclick="openTab(event, 'Reports')">Reports</div>
+      <div class="tab" onclick="openTab(event, 'Settings')">Backup & Restore</div>
+    </div>
+
+    <div class="content-area">
+      <div id="tab-content" class="card">
+        </div>
+    </div>
+  </div>
+
+  <script>
+    function login() {
+      const id = document.getElementById('userid').value;
+      const mob = document.getElementById('mobile').value;
+      const btn = document.getElementById('loginBtn');
+      const msg = document.getElementById('login-msg');
+      
+      if(!id || !mob) {
+        msg.innerText = "Please fill in all fields.";
+        return;
+      }
+
+      btn.innerText = "Authenticating...";
+      btn.disabled = true;
+      
+      google.script.run.withSuccessHandler(function(res) {
+        if(res.success) {
+          document.getElementById('login-container').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          document.getElementById('user-display').innerText = "Logged in: " + res.userName;
+          openTab(null, 'Inventory'); // Default tab
+        } else {
+          msg.innerText = res.message;
+          btn.innerText = "Login to Admin";
+          btn.disabled = false;
+        }
+      }).checkLogin(id, mob);
+    }
+
+    function logout() {
+      // 1. Clear input fields
+      document.getElementById('userid').value = "";
+      document.getElementById('mobile').value = "";
+      document.getElementById('login-msg').innerText = "";
+      
+      // 2. Reset button state
+      const btn = document.getElementById('loginBtn');
+      btn.innerText = "Login to Admin";
+      btn.disabled = false;
+
+      // 3. Switch views
+      document.getElementById('dashboard').style.display = 'none';
+      document.getElementById('login-container').style.display = 'block';
+    }
+
+    function openTab(evt, tabName) {
+      const tabs = document.getElementsByClassName("tab");
+      for (let i = 0; i < tabs.length; i++) {
+        tabs[i].classList.remove("active");
+      }
+      
+      if(evt) {
+        evt.currentTarget.classList.add("active");
+      } else {
+        document.querySelector('.tab').classList.add("active");
+      }
+      
+      document.getElementById('tab-content').innerHTML = `
+        <h2 style="color:var(--primary)">${tabName} Control</h2>
+        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
+        <p>This module allows you to manage <strong>${tabName}</strong> for the Vidyagrama initiative.</p>
+        <div style="padding: 50px; text-align: center; color: #999; border: 2px dashed #eee;">
+           Data table for ${tabName} will be displayed here.
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
