@@ -12,20 +12,8 @@
       --success-green: #2e7d32;
     }
 
-    body,
-    input,
-    textarea,
-    button,
-    select {
-      font-family: Verdana, Geneva, sans-serif;
-    }
-
-    body {
-      padding: 15px;
-      background-color: var(--bg-purple);
-      display: flex;
-      justify-content: center;
-    }
+    body, input, textarea, button, select { font-family: Verdana, Geneva, sans-serif; }
+    body { padding: 15px; background-color: var(--bg-purple); display: flex; justify-content: center; }
 
     .main-layout {
       display: flex;
@@ -35,13 +23,7 @@
       align-items: flex-start;
     }
 
-    .container {
-      flex: 2;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15);
-    }
+    .container { flex: 2; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 8px 20px rgba(103, 58, 183, 0.15); }
 
     .sidebar {
       flex: 1;
@@ -265,8 +247,7 @@
         </div>
 
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Search ID or SKU..."
-            onkeypress="handleSearchKeyPress(event)">
+          <input type="text" id="searchInput" placeholder="Search ID or SKU..." onkeypress="handleSearchKeyPress(event)">
           <button type="button" class="scan-btn" onclick="startScanner()">📸 Scan</button>
           <button type="button" class="search-btn" onclick="findItem()">Search</button>
           <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
@@ -274,7 +255,7 @@
 
         <form id="entryForm">
           <input type="hidden" id="rowNumber" name="rowNumber">
-          <input type="hidden" id="itemId" name="itemId">
+          <input type="hidden" id="itemID" name="itemID">
 
           <div class="grid-container">
             <div class="field full-width">
@@ -336,14 +317,12 @@
 
             <div class="field">
               <label>Purchase Price</label>
-              <input type="number" step="0.01" name="purchasePrice" id="pPrice" required
-                oninput="calculateAutoFields()">
+              <input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
             </div>
 
             <div class="field">
               <label>Markup %</label>
-              <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20"
-                oninput="calculateAutoFields()">
+              <input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
             </div>
 
             <div class="field">
@@ -395,9 +374,7 @@
           </tr>
         </thead>
         <tbody id="recentItemsBody">
-          <tr>
-            <td colspan="3" style="text-align:center;">Loading...</td>
-          </tr>
+          <tr><td colspan="3" style="text-align:center;">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -496,7 +473,7 @@
             const d = res.data;
             const f = document.getElementById('entryForm');
             document.getElementById('rowNumber').value = res.row;
-            document.getElementById('itemId').value = d[0];
+            document.getElementById('itemID').value = d[0];
             f.category.value = d[1];
             f.itemName.value = d[2];
             f.uom.value = d[3];
@@ -516,7 +493,7 @@
 
             updateImagePreview();
 
-            document.getElementById('submitBtn').innerHTML = "Update Item";
+            document.getElementById('submitBtn').innerHTML = "Update Item" ;
             document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
             showStatus("Item " + d[2] + " loaded successfully", "var(--success-green)");
           } else {
@@ -531,7 +508,7 @@
     function clearFormToDefault(clearSearch) {
       document.getElementById('entryForm').reset();
       document.getElementById('rowNumber').value = "";
-      document.getElementById('itemId').value = "";
+      document.getElementById('itemID').value = "";
       document.getElementById('item-preview').style.display = 'none';
       if (clearSearch) document.getElementById('searchInput').value = "";
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
