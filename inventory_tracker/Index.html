@@ -144,7 +144,12 @@
           <div class="field"><label>Min Order Qty (MOQ)</label><input type="number" name="moq" value="1" step="any"></div>
           <div class="field"><label>Mfg Date</label><input type="date" name="mfgDate"></div>
           <div class="field"><label>Expiry Date</label><input type="date" name="expiryDate"></div>
-          <div class="field full-width"><label>Vendor ID / Name</label><input type="text" name="vendorID"></div>
+          <div class="field full-width">
+            <label>Vendor (Select Business Name)</label>
+            <select name="vendorID" id="vendorSelect">
+              <option value="">Loading vendors...</option>
+            </select>
+          </div>
           <div class="field full-width">
             <label>Image URL</label>
             <input type="text" name="imageUrl" id="imageUrl" oninput="updateImagePreview()">
@@ -323,6 +328,44 @@
       document.getElementById('item-preview').style.display = 'none';
       document.getElementById('markup').value = "20";
     }
+
+    // Call this inside your <script> tag
+    function loadVendors() {
+      const select = document.getElementById('vendorSelect');
+      
+      google.script.run
+        .withSuccessHandler(vendors => {
+          if (!vendors || vendors.length === 0) {
+            select.innerHTML = '<option value="">No Vendors Found in Sheet</option>';
+            return;
+          }
+          
+          select.innerHTML = '<option value="">-- Select Vendor --</option>'; 
+          vendors.forEach(vendor => {
+            const opt = document.createElement('option');
+            opt.value = vendor.id;      // Stores vendorID in the background
+            opt.innerHTML = vendor.name; // Shows buissnessName to user
+            select.appendChild(opt);
+          });
+        })
+        .withFailureHandler(err => {
+          alert("Failed to load vendors: " + err);
+          select.innerHTML = '<option value="">Error Loading Vendors</option>';
+        })
+        .getVendorList();
+    }
+
+    // This ensures everything fires when the page opens
+    window.onload = function() {
+      if (typeof loadRecentItems === "function") loadRecentItems();
+      loadVendors();
+    };
+    
+    // Update window.onload to trigger it
+    window.onload = function() {
+      loadRecentItems();
+      loadVendors();
+    };
 
     function handleSearchKeyPress(e) { if (e.keyCode === 13) { e.preventDefault(); findItem(); } }
   </script>

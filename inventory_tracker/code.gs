@@ -1,5 +1,8 @@
 /** @OnlyCurrentDoc */
 
+// --- CONFIGURATION ---
+var ID_VENDORS = "188U_8Catanggeycs_VY2kisIaZl1uUi4KYpOC2qyh8g";
+
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle("Vidyagrama Inventory Manager")
@@ -110,6 +113,49 @@ function processForm(formObject) {
     return "Error: " + e.toString();
   } finally {
     lock.releaseLock();
+  }
+}
+
+/** @OnlyCurrentDoc */
+
+
+// --- EXISTING FUNCTIONS (doGet, getRecentItems, searchItem, processForm) REMAIN SAME ---
+
+/**
+ * Fetches vendor data from the external 'vendors_list' spreadsheet.
+ * Mapping: Column A (0) = vendorID, Column B (1) = buissnessName
+ */
+function getVendorList() {
+  try {
+
+    const ss = SpreadsheetApp.openById(ID_VENDORS);
+    const sheet = ss.getSheetByName('main');
+
+    if (!sheet) {
+      console.error("Sheet 'main' not found.");
+      return [];
+    }
+    
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return [];
+    
+    // Fetch columns A and B
+    const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+    console.log("Raw Data from Sheet:", data); // Check this in Apps Script 'Executions'
+
+    const vendors = data.map(function(row) {
+      return {
+        id: row[0] ? row[0].toString().trim() : "",
+        name: row[1] ? row[1].toString().trim() : ""
+      };
+    }).filter(v => v.id !== ""); // Only require an ID to count as a vendor
+
+    console.log("Filtered Vendors:", vendors);
+    return vendors;
+    
+  } catch (e) {
+    console.error("Critical Vendor Load Error: " + e.toString());
+    return []; 
   }
 }
 
