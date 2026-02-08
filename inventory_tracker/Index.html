@@ -85,32 +85,28 @@
 
         <div class="grid-container">
           <div class="field full-width"><label>Item Name</label><input type="text" name="itemName" required></div>
+          
           <div class="field">
-            <label>Category</label>
-            <select name="category">
-                <option value="Rice">Rice</option>
-                <option value="Millets">Millets</option>
-                <option value="Dals">Dals</option>
-                <option value="Pulses">Pulses</option>
-                <option value="Cereals">Cereals</option>
-                <option value="Flours">Flours</option>
-                <option value="Oil Seeds">Oil Seeds</option>
-                <option value="Spices & Herbs">Spices & Herbs</option>
-                <option value="Sweetners">Sweetners</option>
-                <option value="Dry Fruits">Dry Fruits</option>
-                <option value="Salts">Salts</option>
-                <option value="Oils & Ghee">Oils & Ghee</option>
-                <option value="Homemade Powders">Homemade Powders</option>
-                <option value="Soaps">Soaps</option>
-                <option value="Dhoop">Dhoop</option>
-                <option value="Ecofriendly Products">Ecofriendly Products</option>
+            <label>Main Category (Sheet Name)</label>
+            <select name="mainCategory" id="mainCategory" onchange="updateSubCategories(); loadRecentItems();" required>
+              <option value="dhanyam">dhanyam</option>
+              <option value="varnam">varnam</option>
+              <option value="vastram">vastram</option>
+              <option value="gavya">gavya</option>
+              <option value="soaps">soaps</option>
             </select>
           </div>
 
-            <div class="field">
-              <label>SKU / Barcode</label>
-              <input type="text" name="sku">
-            </div>
+          <div class="field">
+            <label>Sub Category</label>
+            <select name="category" id="subCategory" required>
+                </select>
+          </div>
+
+          <div class="field">
+            <label>SKU / Barcode</label>
+            <input type="text" name="sku">
+          </div>
 
           <div class="field">
             <label>Unit of Measure</label>
@@ -180,7 +176,29 @@
   <script>
     let html5QrCode;
     let fullInventoryData = [];
-    window.onload = loadRecentItems;
+
+    const subCategoryMap = {
+      "dhanyam": ["Rice", "Millets", "Dals", "Pulses", "Cereals", "Flours", "Oil Seeds", "Spices & Herbs", "Sweetners", "Dry Fruits", "Salts", "Oils & Ghee"],
+      "gavya": ["Dhoop"],
+      "soaps": ["Soaps"],
+      "varnam": ["Ecofriendly Products"],
+      "vastram": ["Vastram"]
+    };
+
+    function updateSubCategories(selectedSub) {
+      const main = document.getElementById('mainCategory').value;
+      const subSelect = document.getElementById('subCategory');
+      subSelect.innerHTML = "";
+      
+      if (subCategoryMap[main]) {
+        subCategoryMap[main].forEach(opt => {
+          let el = document.createElement("option");
+          el.value = opt; el.textContent = opt;
+          subSelect.appendChild(el);
+        });
+        if (selectedSub) subSelect.value = selectedSub;
+      }
+    }
 
     function renderTable(data) {
       const tbody = document.getElementById('recentItemsBody');
@@ -197,7 +215,6 @@
         if (item.updated) {
           const d = new Date(item.updated);
           if (!isNaN(d)) {
-            // Format: DD/MM, HH:MM AM/PM
             const datePart = d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
             const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             dateTimeDisplay = `${datePart}, ${timePart}`;
@@ -214,10 +231,11 @@
     }
 
     function loadRecentItems() {
+      const sheetName = document.getElementById('mainCategory').value;
       google.script.run.withSuccessHandler(items => {
         fullInventoryData = items;
         renderTable(items);
-      }).getRecentItems();
+      }).getRecentItems(sheetName);
     }
 
     function filterSidebarList() {
@@ -226,7 +244,6 @@
       renderTable(filtered);
     }
 
-    // --- SCANNER LOGIC ---
     function startScanner() {
       document.getElementById('scanner-wrapper').style.display = 'block';
       html5QrCode = new Html5Qrcode("reader");
@@ -246,7 +263,6 @@
       }
     }
 
-    // --- SEARCH LOGIC WITH FEEDBACK ---
     function findItem() {
       const term = document.getElementById('searchInput').value;
       if (!term) return;
@@ -261,7 +277,11 @@
           const d = res.data; const f = document.getElementById('entryForm');
           document.getElementById('rowNumber').value = res.row;
           document.getElementById('itemID').value = d[0];
-          f.category.value = d[1]; f.itemName.value = d[2]; f.uom.value = d[3];
+          
+          f.mainCategory.value = res.sheetName;
+          updateSubCategories(d[1]);
+          
+          f.itemName.value = d[2]; f.uom.value = d[3];
           f.stock.value = d[4]; f.purchasePrice.value = d[5]; f.priceMarkupPercentage.value = d[6];
           f.salePrice.value = d[7]; f.stockValue.value = d[8]; f.reorderPoint.value = d[9];
           f.moq.value = d[10]; f.vendorID.value = d[11]; f.status.value = d[12];
@@ -269,7 +289,7 @@
           f.imageUrl.value = d[16]; updateImagePreview();
           document.getElementById('submitBtn').innerHTML = "Update Item";
           document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
-          showStatus("Item " + d[2] + " loaded", "var(--success-green)");
+          showStatus("Item found in " + res.sheetName, "var(--success-green)");
         } else {
           showStatus("Item not found", "#dc3545");
           clearFormToDefault(false);
@@ -297,7 +317,6 @@
       setTimeout(() => { s.style.display = 'none'; }, 3000);
     }
 
-    // --- SUBMIT LOGIC WITH FEEDBACK ---
     document.getElementById('entryForm').addEventListener('submit', function (e) {
       e.preventDefault();
       const subBtn = document.getElementById('submitBtn');
@@ -322,6 +341,7 @@
 
     function clearFormToDefault(c) {
       document.getElementById('entryForm').reset();
+      updateSubCategories(); // Reset to default main cat's subs
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
       document.getElementById('submitBtn').style.backgroundColor = "var(--vg-brown)";
       if(c) document.getElementById('searchInput').value = "";
@@ -329,40 +349,27 @@
       document.getElementById('markup').value = "20";
     }
 
-    // Call this inside your <script> tag
     function loadVendors() {
       const select = document.getElementById('vendorSelect');
-      
       google.script.run
         .withSuccessHandler(vendors => {
           if (!vendors || vendors.length === 0) {
-            select.innerHTML = '<option value="">No Vendors Found in Sheet</option>';
+            select.innerHTML = '<option value="">No Vendors Found</option>';
             return;
           }
-          
           select.innerHTML = '<option value="">-- Select Vendor --</option>'; 
           vendors.forEach(vendor => {
             const opt = document.createElement('option');
-            opt.value = vendor.id;      // Stores vendorID in the background
-            opt.innerHTML = vendor.name; // Shows buissnessName to user
+            opt.value = vendor.id;
+            opt.innerHTML = vendor.name;
             select.appendChild(opt);
           });
-        })
-        .withFailureHandler(err => {
-          alert("Failed to load vendors: " + err);
-          select.innerHTML = '<option value="">Error Loading Vendors</option>';
         })
         .getVendorList();
     }
 
-    // This ensures everything fires when the page opens
     window.onload = function() {
-      if (typeof loadRecentItems === "function") loadRecentItems();
-      loadVendors();
-    };
-    
-    // Update window.onload to trigger it
-    window.onload = function() {
+      updateSubCategories();
       loadRecentItems();
       loadVendors();
     };

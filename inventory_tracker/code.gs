@@ -11,8 +11,12 @@ function doGet() {
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
 
-function getRecentItems() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
+// Dynamically fetch items based on the selected sheet
+function getRecentItems(sheetName) {
+  var targetSheet = sheetName || "dhanyam";
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
+  if (!sheet) return [];
+  
   var lastRow = sheet.getLastRow();
   if (lastRow <= 1) return []; 
   var data = sheet.getRange(2, 1, lastRow - 1, 18).getValues(); 
@@ -27,52 +31,54 @@ function getRecentItems() {
   }).filter(item => item.id !== "").reverse(); 
 }
 
-// 1. SEARCH: Find item by ID (Col 1) or SKU (Col 16/Index 15)
+// Search across ALL defined sheets to find the item
 function searchItem(searchText) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
-  var data = sheet.getDataRange().getValues();
-  
-  // Clean the incoming search text for mobile keyboard compatibility
+  var sheets = ["dhanyam", "varnam", "vastram", "gavya", "soaps"];
   var cleanSearch = searchText.toString().trim().toLowerCase();
-  for (var i = 1; i < data.length; i++) {
-    var idInSheet = data[i][0].toString().trim().toLowerCase();
+  
+  for (var s = 0; s < sheets.length; s++) {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
+    if (!sheet) continue;
+    var data = sheet.getDataRange().getValues();
     
-    // Column P is index 15 (SKU)
-    var skuValue = data[i][15] || "";
-    var skuInSheet = skuValue.toString().trim().toLowerCase();
-    if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
-      var cleanData = data[i].map(function (cellValue) {
-        if (cellValue instanceof Date) {
-          return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
-        }
-        return cellValue;
-      });
-      return { row: i + 1, data: cleanData };
+    for (var i = 1; i < data.length; i++) {
+      var idInSheet = data[i][0].toString().trim().toLowerCase();
+      var skuInSheet = (data[i][15] || "").toString().trim().toLowerCase();
+      
+      if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
+        var cleanData = data[i].map(function (cellValue) {
+          if (cellValue instanceof Date) {
+            return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
+          }
+          return cellValue;
+        });
+        return { row: i + 1, data: cleanData, sheetName: sheets[s] };
+      }
     }
   }
   return null;
 }
 
-// 2. CREATE or UPDATE: Decision logic with LockService for multi-user mobile safety
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
   try {
-    // Mobile connections can be flaky; 15 seconds wait is safer than 10
     lock.waitLock(15000); 
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('main');
-    var rowNumber = formObject.rowNumber;
+    
+    // USES SELECTED CATEGORY AS SHEET NAME
+    var sheetName = formObject.mainCategory; 
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) throw new Error("Sheet '" + sheetName + "' not found.");
 
-    // We need to know the target row for the formula logic
+    var rowNumber = formObject.rowNumber;
     var targetRow = rowNumber ? Number(rowNumber) : sheet.getLastRow() + 1;
 
-    // Automated Formulas (ensure these match your Column letters H and I)
     var salePriceFormula = "=F" + targetRow + "*(1 + (G" + targetRow + "/100))";
     var stockValueFormula = "=E" + targetRow + "*F" + targetRow;
     var timestamp = new Date(); 
 
     var formData = [
       formObject.itemID || "",
-      formObject.category,
+      formObject.category, // Sub-category
       formObject.itemName,
       formObject.uom,
       formObject.stock,
@@ -93,21 +99,18 @@ function processForm(formObject) {
 
     if (rowNumber) {
       sheet.getRange(rowNumber, 1, 1, 18).setValues([formData]);
-      return "Item " + formObject.itemName + " updated successfully!";
+      return "Updated in " + sheetName + " successfully!";
     } else {
-      // CREATE NEW: Auto-ID logic
       var lastRow = sheet.getLastRow();
       var nextId = 1001;
       if (lastRow > 1) {
         var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        var maxId = Math.max(...idValues.map(function(r) { 
-          return isNaN(r[0]) || r[0] === "" ? 0 : Number(r[0]); 
-        }));
+        var maxId = Math.max(...idValues.map(r => isNaN(r[0]) || r[0] === "" ? 0 : Number(r[0])));
         if (maxId >= 1001) nextId = maxId + 1;
       }
       formData[0] = nextId;
       sheet.appendRow(formData);
-      return "New Item " + formObject.itemName + " added successfully!";
+      return "Added to " + sheetName + " successfully!";
     }
   } catch (e) {
     return "Error: " + e.toString();
@@ -116,50 +119,15 @@ function processForm(formObject) {
   }
 }
 
-/** @OnlyCurrentDoc */
-
-
-// --- EXISTING FUNCTIONS (doGet, getRecentItems, searchItem, processForm) REMAIN SAME ---
-
-/**
- * Fetches vendor data from the external 'vendors_list' spreadsheet.
- * Mapping: Column A (0) = vendorID, Column B (1) = buissnessName
- */
 function getVendorList() {
   try {
-
     const ss = SpreadsheetApp.openById(ID_VENDORS);
     const sheet = ss.getSheetByName('main');
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+    return data.map(row => ({ id: row[0].toString(), name: row[1].toString() })).filter(v => v.id !== "");
+  } catch (e) { return []; }
 
-    if (!sheet) {
-      console.error("Sheet 'main' not found.");
-      return [];
-    }
-    
-    const lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return [];
-    
-    // Fetch columns A and B
-    const data = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
-    console.log("Raw Data from Sheet:", data); // Check this in Apps Script 'Executions'
-
-    const vendors = data.map(function(row) {
-      return {
-        id: row[0] ? row[0].toString().trim() : "",
-        name: row[1] ? row[1].toString().trim() : ""
-      };
-    }).filter(v => v.id !== ""); // Only require an ID to count as a vendor
-
-    console.log("Filtered Vendors:", vendors);
-    return vendors;
-    
-  } catch (e) {
-    console.error("Critical Vendor Load Error: " + e.toString());
-    return []; 
-  }
-}
-
-// 3. Auto-ID for Manual Spreadsheet Entries (Optional for Mobile App, but good for Sheet)
+  / 3. Auto-ID for Manual Spreadsheet Entries (Optional for Mobile App, but good for Sheet)
 function onEdit(e) {
   var range = e.range;
   var sheet = range.getSheet();
@@ -180,4 +148,5 @@ function onEdit(e) {
       idCell.setValue(maxId + 1);
     }
   }
+}
 }
