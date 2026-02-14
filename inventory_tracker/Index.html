@@ -152,24 +152,53 @@
       cursor: pointer;
     }
 
+    /* Container to allow horizontal scroll if columns are too wide */
+    .sidebar-table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .item-list-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 11px;
     }
 
-    .item-list-table th {
-      text-align: left;
-      padding: 10px 5px;
-      background: #fdfaf5;
-      color: var(--vg-brown);
-      border-bottom: 2px solid var(--vg-amber);
+    /* Added: Make rows interactive */
+    .item-list-table tbody tr {
+      cursor: pointer; /* Changes mouse to 'hand' icon */
+      transition: background-color 0.2s ease; /* Smooth hover transition */
     }
 
+    /* Added: Highlight row on hover */
+    .item-list-table tbody tr:hover {
+      background-color: #f8f9fa; /* Light grey highlight */
+    }
+
+    /* Added: Stronger highlight for active/clicked row */
+    .item-list-table tbody tr:active {
+      background-color: #e8f0fe;
+    }
+
+    .item-list-table th, 
     .item-list-table td {
-      padding: 10px 5px;
-      border-bottom: 1px solid #f1ece4;
-      cursor: pointer;
+      padding: 8px 4px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      white-space: nowrap;
+    }
+
+    /* Specific column control */
+    .item-list-table th:nth-child(2), 
+    .item-list-table td:nth-child(2) {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* If a row has low stock, give it a subtle red tint on hover */
+    .item-list-table tbody tr.low-stock-row:hover {
+      background-color: #fff0f0;
     }
 
     #status-bar {
@@ -356,7 +385,7 @@
             <div style="display: flex; gap: 10px; align-items: center;">
               <input type="hidden" name="image_url" id="image_url_hidden">
               <input type="hidden" name="delete_url" id="delete_url_hidden">
-              <input type="file" id="imageFileSelector" accept="image/*" style="flex-grow: 1;">
+              <input type="file" id="imageFileSelector" accept="image/*" style="flex-grow: 1;" onchange="clearImageWarning()" ...>
               <button type="button" onclick="uploadToImgBB()" id="uploadBtn" style="width: 100px; background: #2196F3;">Upload</button>
               <button type="button" onclick="handleImageDeletion()" id="deleteBtn" style="width: 100px; background: var(--danger-red); display: none;">Remove</button>
             </div>
@@ -365,7 +394,13 @@
             </div>
           </div>
         </div>
-        <button type="submit" id="submitBtn" style="margin-top: 15px;">Add to Inventory</button>
+
+        <div class="field full-width" style="display: flex; gap: 10px; margin-top: 15px;">
+          <button type="submit" id="submitBtn" style="flex: 2;">Add to Inventory</button>
+          <button type="button" id="deleteInventoryBtn" onclick="handleInventoryDelete()" 
+                  style="flex: 1; background: var(--danger-red); display: none;">Delete Item</button>
+        </div>
+
       </form>
     </div>
 
@@ -375,37 +410,40 @@
         <input type="text" id="listFilter" placeholder="Filter list..." onkeyup="filterSidebarList()">
         <button type="button" onclick="loadRecentItems()" class="refresh-btn">↻</button>
       </div>
-      <table class="item-list-table">
-        <thead>
-          <tr>
-            <th>SlNo</th>
-            <th>Name</th>
-            <th>SKU</th>
-            <th>Stock</th>
-            <th>Updated</th>
-          </tr>
-        </thead>
-        <tbody id="recentItemsBody">
-          <tr>
-            <td colspan="5" style="text-align:center;">Loading...</td>
-          </tr>
-        </tbody>
-      </table>
+      
+      <div class="table-wrapper">
+        <table class="item-list-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th style="text-align:center;">Img</th>
+              <th>SKU</th>
+              <th>Stock</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recentItemsBody">
+            <tr>
+              <td colspan="6" style="text-align:center;">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
     </div>
 
-    <div id="customModal"
-      style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
-      <div class="modal-content"
-        style="background:white; padding:30px; border-radius:15px; max-width:320px; width:90%; text-align:center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
-        <div style="font-size: 40px; margin-bottom: 10px;">🗑️</div>
-        <h3 style="border:none; color:var(--vg-brown); margin:0 0 10px 0;">Remove Image?</h3>
-        <p style="font-size:13px; color:#777; line-height:1.5; margin-bottom:25px;">
-          This will unbind the image from <strong><span id="modalItemName"></span></strong>.
-          Remember to click 'Update' to save changes.
-        </p>
+    <div id="customModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+      <div class="modal-content" style="background:white; padding:30px; border-radius:15px; max-width:320px; width:90%; text-align:center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+        <div id="modalIcon" style="font-size: 40px; margin-bottom: 10px;">🗑️</div>
+        <h3 id="modalTitle" style="border:none; color:var(--vg-brown); margin:0 0 10px 0;">Confirm Action</h3>
+        <p id="modalBody" style="font-size:13px; color:#777; line-height:1.5; margin-bottom:25px;"></p>
+        
+        <input type="hidden" id="modalActionType">
+
         <div style="display:flex; gap:12px;">
-          <button onclick="closeModal()" style="background:#eee; color:#333; flex:1;">Cancel</button>
-          <button onclick="confirmDelete()" style="background:var(--danger-red); color:white; flex:1;">Remove</button>
+          <button onclick="closeModal()" style="background:#eee; color:#333; flex:1; border:none; padding:10px; border-radius:8px; cursor:pointer;">Cancel</button>
+          <button id="modalConfirmBtn" onclick="executeModalAction()" style="color:white; flex:1; border:none; padding:10px; border-radius:8px; cursor:pointer;">Confirm</button>
         </div>
       </div>
     </div>
@@ -423,6 +461,22 @@
       "varnam": ["Ecofriendly Products"],
       "vastram": ["Vastram"]
     };
+
+    function handleInventoryDelete() {
+      const itemName = document.getElementsByName('itemName')[0].value || "this item";
+      const sheet = document.getElementById('mainCategory').value;
+      
+      document.getElementById('modalTitle').innerText = "Delete Product?";
+      document.getElementById('modalBody').innerHTML = `Are you sure you want to PERMANENTLY delete <b>${itemName}</b> from <b>${sheet}</b>? This cannot be undone.`;
+      document.getElementById('modalIcon').innerText = "⚠️";
+      document.getElementById('modalActionType').value = "INVENTORY";
+      
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      confirmBtn.innerText = "Delete Forever";
+      confirmBtn.style.background = "var(--danger-red)"; // Danger color
+      
+      document.getElementById('customModal').style.display = 'flex';
+    }
 
     function playBeep() {
       try {
@@ -454,52 +508,53 @@
     }
 
     function renderTable(data) {
-	  const tbody = document.getElementById('recentItemsBody');
-	  tbody.innerHTML = '';
+      const tbody = document.getElementById('recentItemsBody');
+      tbody.innerHTML = '';
 
-	  if (!data || data.length === 0) {
-	    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No items found</td></tr>';
-	    return;
-	  }
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No items found</td></tr>';
+        return;
+      }
 
-	  data.forEach(item => {
-	    const row = tbody.insertRow();
-    
-	    // --- Logic from Latest Version (Low Stock Styling) ---
-	    const isLow = item.stock <= item.reorder;
-	    if (isLow) row.classList.add('low-stock-row');
+      data.forEach(item => {
+        const row = tbody.insertRow();
+        const isLow = item.stock <= item.reorder;
+        if (isLow) row.classList.add('low-stock-row');
 
-	    // --- Logic from Latest Version (Click to Find & Sync Category) ---
-	    row.onclick = () => {
-	      if (item.sheetOrigin) {
-	        document.getElementById('mainCategory').value = item.sheetOrigin;
-	        updateSubCategories();
-	      }
-	      document.getElementById('searchInput').value = item.sku || item.slNo;
-	      findItem();
-	    };
+        row.onclick = () => {
+          if (item.sheetOrigin) {
+            document.getElementById('mainCategory').value = item.sheetOrigin;
+            updateSubCategories();
+          }
+          document.getElementById('searchInput').value = item.sku || item.slNo;
+          findItem();
+        };
 
-	    // --- Logic from Old Version (Date Formatting) ---
-	    let dateTimeDisplay = "--";
-	    if (item.updated) {
-	      const d = new Date(item.updated);
-	      if (!isNaN(d)) {
-	        const datePart = d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
-	        const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-	        dateTimeDisplay = `${datePart}, ${timePart}`;
-	      }
-	    }
+        // --- Logic for Image Tick Mark ---
+        // Check if image_url exists and is not an empty string
+        const hasImage = item.image_url && item.image_url.trim() !== "";
+        const imageStatus = hasImage ? '<span style="color:var(--success-green); font-weight:bold;">✔</span>' : '<span style="color:#ccc;">-</span>';
 
-	    // --- Merged Table Row Construction ---
-	    row.innerHTML = `
-	      <td style="color:var(--vg-brown); font-weight:bold;">${item.slNo || item.id}</td>
-	      <td>${item.name}${isLow ? '<span class="warning-icon"> ⚠️</span>' : ''}</td>
-	      <td>${item.sku || '-'}</td>
-	      <td style="font-weight:bold; color:${isLow ? 'var(--danger-red)' : 'inherit'}">${item.stock}</td>
-	      <td style="color:#666; font-size:9px; white-space: nowrap;">${dateTimeDisplay}</td>
-	    `;
-	  });
-	}
+        // Formatting Date
+        let dateTimeDisplay = "--";
+        if (item.updated) {
+          const d = new Date(item.updated);
+          if (!isNaN(d)) {
+            const datePart = d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+            const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            dateTimeDisplay = `${datePart}, ${timePart}`;
+          }
+        }
+
+        row.innerHTML = `
+          <td style="color:var(--vg-brown); font-weight:bold;">${item.slNo || item.id}</td>
+          <td>${item.name}${isLow ? '<span class="warning-icon"> ⚠️</span>' : ''}</td>
+          <td style="text-align:center;">${imageStatus}</td> <td>${item.sku || '-'}</td>
+          <td style="font-weight:bold; color:${isLow ? 'var(--danger-red)' : 'inherit'}">${item.stock}</td>
+          <td style="color:#666; font-size:9px; white-space: nowrap;">${dateTimeDisplay}</td>
+        `;
+      });
+    }
 
     function loadRecentItems() {
       const sheetName = document.getElementById('mainCategory').value;
@@ -599,6 +654,7 @@
                     statusColor = "var(--vg-amber)"; // Use amber/orange for warning
                 }
 
+                document.getElementById('deleteInventoryBtn').style.display = 'block';
                 showStatus(statusMsg, statusColor);
 
             } else {
@@ -608,6 +664,14 @@
         }).searchItem(term);
     }
 
+    function clearImageWarning() {
+      const fileInput = document.getElementById('imageFileSelector');
+      // Remove the red border as soon as the user selects a file
+      fileInput.style.border = "1px solid var(--border-light)";
+      fileInput.style.outline = "none";
+    }
+
+
     async function uploadToImgBB() {
       const fileInput = document.getElementById('imageFileSelector');
       const sku = document.getElementById('skuField').value;
@@ -615,8 +679,21 @@
       const itemName = document.getElementsByName('itemName')[0].value;
       const btn = document.getElementById('uploadBtn');
       
-      if (!fileInput.files[0] || !sku) return showStatus("SKU and File required!", "#dc3545");
+      // VALIDATION: Check if file is selected
+      if (!fileInput.files || fileInput.files.length === 0) {
+        showStatus("❌ Please select a product image first!", "#dc3545");
+        fileInput.style.outline = "2px solid red";
+        return;
+      }
+      
+      if (!sku) {
+        showStatus("❌ SKU is required for naming the image!", "#dc3545");
+        return;
+      }
 
+      clearImageWarning();
+
+      fileInput.style.outline = "none";
       btn.innerHTML = "Uploading...";
       
       // Create an organized filename: e.g., "dhanyam_VG-RICE-123.png"
@@ -647,14 +724,69 @@
       btn.innerHTML = "Upload";
     }
 
+    // 1. TRIGGER FOR IMAGE REMOVAL
     function handleImageDeletion() {
-      const itemName = document.getElementsByName('itemName')[0].value;
-      document.getElementById('modalItemName').innerText = itemName;
+      const itemName = document.getElementsByName('itemName')[0].value || "this item";
+      
+      document.getElementById('modalTitle').innerText = "Remove Image?";
+      document.getElementById('modalBody').innerHTML = `This will unlink the photo from <b>${itemName}</b>. <br><small>Click Update afterward to save changes.</small>`;
+      document.getElementById('modalIcon').innerText = "🖼️";
+      document.getElementById('modalActionType').value = "IMAGE";
+      
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      confirmBtn.innerText = "Remove";
+      confirmBtn.style.background = "var(--vg-amber)"; // Warning color
+      
       document.getElementById('customModal').style.display = 'flex';
     }
 
     function closeModal() {
       document.getElementById('customModal').style.display = 'none';
+    }
+
+    // THE "YES" BUTTON HANDLER
+    function executeModalAction() {
+      const mode = document.getElementById('modalActionType').value;
+      closeModal();
+
+      if (mode === "IMAGE") {
+        // Process Image Removal (UI only until 'Update' is clicked)
+        document.getElementById('image_url_hidden').value = "";
+        document.getElementById('delete_url_hidden').value = "";
+        document.getElementById('imgPreview').src = "";
+        document.getElementById('imagePreviewContainer').style.display = 'none';
+        document.getElementById('deleteBtn').style.display = 'none';
+        showStatus("Image unlinked. Click Update to save.", "var(--vg-amber)");
+        
+      } else if (mode === "INVENTORY") {
+        // Process Full Row Deletion (Actually hits the Spreadsheet)
+        const itemName = document.getElementsByName('itemName')[0].value;
+        const row = document.getElementById('rowNumber').value;
+        const sheet = document.getElementById('mainCategory').value;
+        const delBtn = document.getElementById('deleteInventoryBtn');
+
+        if (!row) return showStatus("Error: No item selected to delete", "red");
+
+        // UI Feedback: Show user something is happening
+        delBtn.disabled = true;
+        delBtn.innerHTML = "Deleting...";
+
+        google.script.run
+          .withSuccessHandler(res => {
+            // RESET SCREEN AFTER SUCCESS
+            showStatus(`🗑️ ${itemName}: ${res}`, "var(--danger-red)");
+            clearFormToDefault(true); // Resets form and search input
+            loadRecentItems();        // Refreshes sidebar list
+            delBtn.disabled = false;
+            delBtn.innerHTML = "Delete Item";
+          })
+          .withFailureHandler(err => {
+            showStatus("Error deleting: " + err, "red");
+            delBtn.disabled = false;
+            delBtn.innerHTML = "Delete Item";
+          })
+          .deleteItemRecord(sheet, row); // This must match your function in code.gs
+      }
     }
 
     function confirmDelete() {
@@ -709,6 +841,18 @@
       const isUpdate = subBtn.innerHTML.includes("Update");
       
       subBtn.disabled = true;
+
+      // Function to handle shared success logic for both Add and Update
+      const onSuccess = () => {
+        // BUG FIX 1: Refresh the inventory list so the Tick Mark (✔) appears
+        loadRecentItems(currentSheet);
+        
+        // BUG FIX 2: Clear any lingering red warning from the image upload
+        if (imageInput) {
+          imageInput.style.outline = "none";
+          imageInput.style.borderColor = "var(--border-light)";
+        }
+      };
 
       if (!isUpdate) {
         // FLOW FOR NEW ITEMS
@@ -768,6 +912,14 @@
       document.getElementById('deleteBtn').style.display = 'none';
       document.getElementById('rowNumber').value = "";
       document.getElementById('slNo').value = "";
+      document.getElementById('deleteInventoryBtn').style.display = 'none';
+
+      const fileInput = document.getElementById('imageFileSelector');
+      if (fileInput) {
+        fileInput.style.outline = "none";
+        fileInput.style.border = "1px solid var(--border-light)";
+        fileInput.value = ""; // Clear the actual file selection
+      }
     }
 
     function loadVendors() {

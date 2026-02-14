@@ -63,13 +63,14 @@ function getRecentItems(sheetName) {
       slNo: row[0] ? row[0].toString() : "",
       name: row[2] || "Unnamed Item",
       sku: row[15] || "",
-      // Check if the column index exists before accessing to avoid 'undefined' errors
+      // Capture Column Q (Index 16) for the image URL
+      image_url: row[16] || "", 
       updated: (row.length >= 19 && row[18]) ? row[18].toString() : "No Date",
       stock: Number(row[4]) || 0,
       reorder: Number(row[9]) || 0,
       sheetOrigin: targetSheet
     };
-  }).filter(item => item.slNo !== "").reverse();
+  }).filter(item => item.slNo !== "");
 }
 
 // Search across ALL defined sheets to find the item
@@ -252,6 +253,40 @@ function getPrintQueue() {
     printItems.push("data:image/png;base64," + base64);
   }
   return printItems;
+}
+
+function deleteItemRecord(sheetName, rowNumber) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(sheetName);
+    
+    if (!sheet) throw new Error("Category sheet not found.");
+    
+    var rowIdx = Number(rowNumber);
+    if (rowIdx <= 1) throw new Error("Cannot delete header row.");
+
+    // 1. Delete the actual row
+    sheet.deleteRow(rowIdx);
+
+    // 2. Re-index the Serial Numbers (Column A)
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) { // Only if there are items left
+      var range = sheet.getRange(2, 1, lastRow - 1, 1); // Get Column A starting from row 2
+      var newSlNos = [];
+      for (var i = 1; i <= (lastRow - 1); i++) {
+        newSlNos.push([i]); // Create a 2D array [[1], [2], [3]...]
+      }
+      range.setValues(newSlNos);
+    }
+
+    return "Item deleted and serial numbers reset.";
+  } catch (e) {
+    return "Error: " + e.message;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
