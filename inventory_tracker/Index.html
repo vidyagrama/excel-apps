@@ -327,7 +327,6 @@
               <label>SKU / Barcode</label>
               <div style="display: flex; gap: 5px;">
                 <input type="text" name="sku" id="skuField" oninput="validateSkuLive()" placeholder="Auto-gen">
-                <button type="button" onclick="generateAndSaveBarcode()" style="width: 80px; background: #2196F3; padding: 0; font-size: 10px;">Save Barcode</button>
               </div>
             </div>
           </div>
@@ -495,48 +494,80 @@
     }
 
     function findItem() {
-      const term = document.getElementById('searchInput').value;
-      if (!term) return;
-      const searchBtn = document.getElementById('mainSearchBtn');
-      searchBtn.innerHTML = "Searching...";
-      searchBtn.disabled = true;
+        const term = document.getElementById('searchInput').value;
+        if (!term) return;
+        const searchBtn = document.getElementById('mainSearchBtn');
+        searchBtn.innerHTML = "Searching...";
+        searchBtn.disabled = true;
 
-      google.script.run.withSuccessHandler(res => {
-        searchBtn.innerHTML = "Search";
-        searchBtn.disabled = false;
-        if (res) {
-          const d = res.data; const f = document.getElementById('entryForm');
-          document.getElementById('rowNumber').value = res.row;
-          document.getElementById('slNo').value = d[0];
-          f.mainCategory.value = res.sheetName;
-          updateSubCategories(d[1]);
-          
-          f.itemName.value = d[2]; f.uom.value = d[3];
-          f.stock.value = d[4]; f.purchasePrice.value = d[5]; f.priceMarkupPercentage.value = d[6];
-          f.salePrice.value = d[7]; f.stockValue.value = d[8]; f.reorderPoint.value = d[9];
-          f.moq.value = d[10]; f.vendorID.value = d[11]; f.status.value = d[12];
-          f.mfgDate.value = d[13]; f.expiryDate.value = d[14]; f.sku.value = d[15];
-          
-          // Image loading logic
-          f.image_url.value = d[16] || "";
-          f.delete_url.value = d[17] || "";
-          if (d[16]) {
-            document.getElementById('imgPreview').src = d[16];
-            document.getElementById('imagePreviewContainer').style.display = 'block';
-            document.getElementById('deleteBtn').style.display = 'block';
-          } else {
-            document.getElementById('imagePreviewContainer').style.display = 'none';
-            document.getElementById('deleteBtn').style.display = 'none';
-          }
+        google.script.run.withSuccessHandler(res => {
+            searchBtn.innerHTML = "Search";
+            searchBtn.disabled = false;
+            
+            if (res) {
+                const d = res.data; 
+                const f = document.getElementById('entryForm');
+                
+                // Extract meaningful data for the message
+                const itemName = d[2];
+                const currentStock = d[4];
+                const reorderPoint = d[9];
+                const category = res.sheetName;
 
-          document.getElementById('submitBtn').innerHTML = "Update Item";
-          document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
-          showStatus("Item found in " + res.sheetName, "var(--success-green)");
-        } else {
-          showStatus("Item not found", "#dc3545");
-          clearFormToDefault(false);
-        }
-      }).searchItem(term);
+                // Fill the form fields
+                document.getElementById('rowNumber').value = res.row;
+                document.getElementById('slNo').value = d[0];
+                f.mainCategory.value = category;
+                updateSubCategories(d[1]);
+                
+                f.itemName.value = itemName; 
+                f.uom.value = d[3];
+                f.stock.value = currentStock; 
+                f.purchasePrice.value = d[5]; 
+                f.priceMarkupPercentage.value = d[6];
+                f.salePrice.value = d[7]; 
+                f.stockValue.value = d[8]; 
+                f.reorderPoint.value = reorderPoint;
+                f.moq.value = d[10]; 
+                f.vendorID.value = d[11]; 
+                f.status.value = d[12];
+                f.mfgDate.value = d[13]; 
+                f.expiryDate.value = d[14]; 
+                f.sku.value = d[15];
+                
+                // Image loading logic
+                f.image_url.value = d[16] || "";
+                f.delete_url.value = d[17] || "";
+                if (d[16]) {
+                    document.getElementById('imgPreview').src = d[16];
+                    document.getElementById('imagePreviewContainer').style.display = 'block';
+                    document.getElementById('deleteBtn').style.display = 'block';
+                } else {
+                    document.getElementById('imagePreviewContainer').style.display = 'none';
+                    document.getElementById('deleteBtn').style.display = 'none';
+                }
+
+                // Update UI Button
+                document.getElementById('submitBtn').innerHTML = `Update ${itemName}`;
+                document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
+                
+                // --- Intuitive Success Message ---
+                let statusMsg = `✅ Found: ${itemName} in ${category}`;
+                let statusColor = "var(--success-green)";
+
+                // Add stock warning to the message if necessary
+                if (Number(currentStock) <= Number(reorderPoint)) {
+                    statusMsg = `⚠️ Found: ${itemName} (Low Stock: ${currentStock})`;
+                    statusColor = "var(--vg-amber)"; // Use amber/orange for warning
+                }
+
+                showStatus(statusMsg, statusColor);
+
+            } else {
+                showStatus(`❌ No item found matching "${term}"`, "#dc3545");
+                clearFormToDefault(false);
+            }
+        }).searchItem(term);
     }
 
     async function uploadToImgBB() {
@@ -587,31 +618,78 @@
 
     function showStatus(msg, color) {
       const s = document.getElementById('status-bar');
-      s.innerHTML = msg; s.style.color = color; s.style.display = 'block';
-      setTimeout(() => { s.style.display = 'none'; }, 3000);
+      s.innerHTML = msg; 
+      s.style.color = color; 
+      s.style.display = 'block';
+      // 5 seconds gives more time to read the item name
+      setTimeout(() => { s.style.display = 'none'; }, 5000); 
     }
 
     document.getElementById('entryForm').addEventListener('submit', function (e) {
       e.preventDefault();
+
+      // 1. Mandatory Vendor Check
+      const vendorSelect = document.getElementById('vendorSelect');
+      const itemName = document.getElementsByName('itemName')[0].value;
+      
+      if (!vendorSelect.value) {
+        showStatus("⚠️ Please select a Vendor before saving!", "#dc3545");
+        vendorSelect.style.borderColor = "red";
+        vendorSelect.focus();
+        return; // Stop the submission
+      } else {
+        vendorSelect.style.borderColor = "var(--border-light)";
+      }
+
       const subBtn = document.getElementById('submitBtn');
       const isUpdate = subBtn.innerHTML.includes("Update");
-      const originalText = subBtn.innerHTML;
       
       subBtn.disabled = true;
-      subBtn.innerHTML = isUpdate ? "Updating..." : "Adding...";
 
-      google.script.run.withSuccessHandler((res) => {
-        showStatus(res, "var(--success-green)");
-        clearFormToDefault(true);
-        loadRecentItems();
-        subBtn.disabled = false;
-        subBtn.innerHTML = "Add to Inventory";
-      }).withFailureHandler((err) => {
-        showStatus("Error: " + err, "#dc3545");
-        subBtn.disabled = false;
-        subBtn.innerHTML = originalText;
-      }).processForm(this);
+      if (!isUpdate) {
+        // FLOW FOR NEW ITEMS
+        subBtn.innerHTML = `Saving Barcode for ${itemName}...`;
+        const sku = document.getElementById('skuField').value;
+
+        google.script.run
+          .withSuccessHandler(() => {
+            subBtn.innerHTML = `Adding ${itemName} to Inventory...`;
+            // Pass itemName to the next step
+            submitFormData(this, itemName);
+          })
+          .withFailureHandler((err) => {
+            showStatus(`Failed to save barcode for ${itemName}: ` + err.message, "#dc3545");
+            subBtn.disabled = false;
+            subBtn.innerHTML = "Add to Inventory";
+          })
+          .saveBarcodeToDrive(sku, itemName);
+      } else {
+        // FLOW FOR UPDATES
+        subBtn.innerHTML = `Updating ${itemName}...`;
+        submitFormData(this, itemName);
+      }
     });
+
+    function submitFormData(formElement, itemName) {
+      const subBtn = document.getElementById('submitBtn');
+      google.script.run
+        .withSuccessHandler((res) => {
+          // res is the string "Added successfully!" or "Updated successfully!" from GS
+          const fullMsg = `${itemName}: ${res}`; 
+          showStatus(fullMsg, "var(--success-green)");
+          
+          clearFormToDefault(true);
+          loadRecentItems();
+          subBtn.disabled = false;
+          subBtn.innerHTML = "Add to Inventory";
+        })
+        .withFailureHandler((err) => {
+          showStatus(`Error processing ${itemName}: ` + err, "#dc3545");
+          subBtn.disabled = false;
+          subBtn.innerHTML = "Add to Inventory";
+        })
+        .processForm(formElement);
+    }
 
     function clearFormToDefault(c) {
       const currentSheet = document.getElementById('mainCategory').value;
