@@ -2,6 +2,7 @@
 
 // --- CONFIGURATION ---
 var ID_VENDORS = "188U_8Catanggeycs_VY2kisIaZl1uUi4KYpOC2qyh8g";
+var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps"];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -11,48 +12,107 @@ function doGet() {
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
 
-// Dynamically fetch items based on the selected sheet
+/**
+ * TRIGGER: Auto-Serial No for Manual Spreadsheet Entries
+ */
+function onEdit(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
+  var sheetName = sheet.getName();
+
+  if (VALID_SHEETS.indexOf(sheetName) === -1) return;
+
+  var row = range.getRow();
+  var col = range.getColumn();
+
+  if (row > 1 && col > 1) {
+    var slNoCell = sheet.getRange(row, 1);
+    if (slNoCell.getValue() === "") {
+      var lastRow = sheet.getLastRow();
+      var slNoValues = sheet.getRange(2, 1, lastRow, 1).getValues();
+      var maxNo = 0;
+      for (var i = 0; i < slNoValues.length; i++) {
+        var val = Number(slNoValues[i][0]);
+        if (!isNaN(val) && val > maxNo) maxNo = val;
+      }
+      slNoCell.setValue(maxNo + 1);
+    }
+  }
+}
+
 function getRecentItems(sheetName) {
   var targetSheet = sheetName || "dhanyam";
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(targetSheet);
   if (!sheet) return [];
-  
-  var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return []; 
-  var data = sheet.getRange(2, 1, lastRow - 1, 18).getValues(); 
 
-  return data.map(function(row) {
+  SpreadsheetApp.flush();
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  // SAFE CHECK: Get the actual number of columns available
+  var actualCols = sheet.getLastColumn();
+  // Ensure we don't try to pull 19 columns if only 17 exist
+  var columnsToPull = Math.min(actualCols, 19);
+
+  var data = sheet.getRange(2, 1, lastRow - 1, columnsToPull).getValues();
+
+  return data.map(function (row) {
     return {
-      id: row[0] ? row[0].toString() : "",      
-      name: row[2] || "Unnamed Item",    
-      sku: row[15] || "",    
-      updated: row[17] ? row[17].toString() : "" 
+      slNo: row[0] ? row[0].toString() : "",
+      name: row[2] || "Unnamed Item",
+      sku: row[15] || "",
+      // Check if the column index exists before accessing to avoid 'undefined' errors
+      updated: (row.length >= 19 && row[18]) ? row[18].toString() : "No Date",
+      stock: Number(row[4]) || 0,
+      reorder: Number(row[9]) || 0,
+      sheetOrigin: targetSheet
     };
-  }).filter(item => item.id !== "").reverse(); 
+  }).filter(item => item.slNo !== "").reverse();
 }
 
 // Search across ALL defined sheets to find the item
 function searchItem(searchText) {
-  var sheets = ["dhanyam", "varnam", "vastram", "gavya", "soaps"];
   var cleanSearch = searchText.toString().trim().toLowerCase();
-  
-  for (var s = 0; s < sheets.length; s++) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
+
+  for (var s = 0; s < VALID_SHEETS.length; s++) {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VALID_SHEETS[s]);
     if (!sheet) continue;
     var data = sheet.getDataRange().getValues();
-    
+
     for (var i = 1; i < data.length; i++) {
-      var idInSheet = data[i][0].toString().trim().toLowerCase();
       var skuInSheet = (data[i][15] || "").toString().trim().toLowerCase();
-      
-      if (idInSheet === cleanSearch || skuInSheet === cleanSearch) {
+
+      if (skuInSheet === cleanSearch) {
         var cleanData = data[i].map(function (cellValue) {
           if (cellValue instanceof Date) {
             return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
           }
           return cellValue;
         });
-        return { row: i + 1, data: cleanData, sheetName: sheets[s] };
+        return { row: i + 1, data: cleanData, sheetName: VALID_SHEETS[s] };
+      }
+    }
+  }
+  return null;
+}
+
+function checkSkuExists(sku, currentSlNo) {
+  if (!sku) return null;
+  var cleanSku = sku.toString().trim().toLowerCase();
+
+  for (var s = 0; s < VALID_SHEETS.length; s++) {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VALID_SHEETS[s]);
+    if (!sheet) continue;
+    var data = sheet.getDataRange().getValues();
+
+    for (var i = 1; i < data.length; i++) {
+      var skuInSheet = (data[i][15] || "").toString().trim().toLowerCase();
+      var slNoInSheet = data[i][0].toString();
+
+      if (skuInSheet === cleanSku && slNoInSheet !== currentSlNo) {
+        return { name: data[i][2], sheet: VALID_SHEETS[s] };
       }
     }
   }
@@ -62,58 +122,64 @@ function searchItem(searchText) {
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
   try {
-    lock.waitLock(15000); 
-    
-    // USES SELECTED CATEGORY AS SHEET NAME
-    var sheetName = formObject.mainCategory; 
+    lock.waitLock(15000);
+
+    var duplicate = checkSkuExists(formObject.sku, formObject.slNo);
+    if (duplicate) {
+      throw new Error("Duplicate SKU! This SKU is already assigned to '" + duplicate.name + "' in " + duplicate.sheet);
+    }
+
+    var sheetName = formObject.mainCategory;
     var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-    if (!sheet) throw new Error("Sheet '" + sheetName + "' not found.");
+    if (!sheet) throw new Error("Sheet not found.");
 
     var rowNumber = formObject.rowNumber;
     var targetRow = rowNumber ? Number(rowNumber) : sheet.getLastRow() + 1;
 
     var salePriceFormula = "=F" + targetRow + "*(1 + (G" + targetRow + "/100))";
     var stockValueFormula = "=E" + targetRow + "*F" + targetRow;
-    var timestamp = new Date(); 
 
+    // Updated formData structure: 
+    // image_url in Column Q (16), delete_url in Column R (17), Timestamp in Column S (18)
     var formData = [
-      formObject.itemID || "",
-      formObject.category, // Sub-category
+      formObject.slNo || "",
+      formObject.category,
       formObject.itemName,
       formObject.uom,
       formObject.stock,
       formObject.purchasePrice,
       formObject.priceMarkupPercentage,
-      salePriceFormula,   
-      stockValueFormula,  
+      salePriceFormula,
+      stockValueFormula,
       formObject.reorderPoint,
-      formObject.moq,      
+      formObject.moq,
       formObject.vendorID,
       formObject.status,
       formObject.mfgDate,
       formObject.expiryDate,
       formObject.sku,
-      formObject.imageUrl,
-      timestamp            
+      formObject.image_url, // Column Q
+      formObject.delete_url, // Column R (New)
+      new Date()           // Column S
     ];
 
     if (rowNumber) {
-      sheet.getRange(rowNumber, 1, 1, 18).setValues([formData]);
-      return "Updated in " + sheetName + " successfully!";
+      sheet.getRange(rowNumber, 1, 1, 19).setValues([formData]);
+      return "Updated successfully!";
     } else {
       var lastRow = sheet.getLastRow();
-      var nextId = 1001;
+      var nextSlNo = 1;
       if (lastRow > 1) {
-        var idValues = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        var maxId = Math.max(...idValues.map(r => isNaN(r[0]) || r[0] === "" ? 0 : Number(r[0])));
-        if (maxId >= 1001) nextId = maxId + 1;
+        var values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        var maxNo = Math.max(...values.map(r => isNaN(r[0]) || r[0] === "" ? 0 : Number(r[0])));
+        nextSlNo = maxNo + 1;
       }
-      formData[0] = nextId;
+      formData[0] = nextSlNo;
       sheet.appendRow(formData);
-      return "Added to " + sheetName + " successfully!";
+      return "Added successfully!";
     }
   } catch (e) {
-    return "Error: " + e.toString();
+    return "Error: " + e.message;
   } finally {
     lock.releaseLock();
   }
@@ -126,27 +192,111 @@ function getVendorList() {
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
     return data.map(row => ({ id: row[0].toString(), name: row[1].toString() })).filter(v => v.id !== "");
   } catch (e) { return []; }
+}
 
-  / 3. Auto-ID for Manual Spreadsheet Entries (Optional for Mobile App, but good for Sheet)
-function onEdit(e) {
-  var range = e.range;
-  var sheet = range.getSheet();
-  if (sheet.getName() !== "main") return;
-  var row = range.getRow();
-  var col = range.getColumn();
-  if (row > 1 && col > 1) {
-    var idCell = sheet.getRange(row, 1);
-    if (idCell.getValue() === "") {
-      var lastRow = sheet.getLastRow();
-      if (lastRow <= 1) { idCell.setValue(1001); return; }
-      var idValues = sheet.getRange(2, 1, lastRow, 1).getValues();
-      var maxId = 1000;
-      for (var i = 0; i < idValues.length; i++) {
-        var val = Number(idValues[i][0]);
-        if (!isNaN(val) && val > maxId) maxId = val;
-      }
-      idCell.setValue(maxId + 1);
+function getSheetSummary(sheetName) {
+  var targetSheet = sheetName || "dhanyam";
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
+  if (!sheet) return { totalValue: 0, lowStockCount: 0 };
+
+  var data = sheet.getDataRange().getValues();
+  var totalValue = 0;
+  var lowStockCount = 0;
+
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0] === "") continue;
+
+    var stock = Number(data[i][4]) || 0;
+    var purchasePrice = Number(data[i][5]) || 0;
+    var reorderPoint = Number(data[i][9]) || 0;
+
+    totalValue += (stock * purchasePrice);
+    if (stock <= reorderPoint) {
+      lowStockCount++;
     }
   }
+
+  return {
+    totalValue: totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    lowStockCount: lowStockCount
+  };
 }
+
+function saveBarcodeToDrive(sku, itemName) {
+  const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
+  try {
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+    const barcodeUrl = "https://bwipjs-api.metafloor.com/?bcid=code128" +
+      "&text=" + encodeURIComponent(sku) +
+      "&scale=3&rotate=N&includetext&textsize=10" +
+      "&textxalign=center" +
+      "&alttext=" + encodeURIComponent("vidyagrama | " + itemName + "\n*" + sku + "*");
+    const response = UrlFetchApp.fetch(barcodeUrl);
+    const blob = response.getBlob().setName(sku + "_" + itemName.replace(/\s+/g, '_') + ".png");
+    const file = folder.createFile(blob);
+    return file.getUrl();
+  } catch (e) {
+    throw new Error("Label Generation Failed: " + e.message);
+  }
+}
+
+function getPrintQueue() {
+  const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
+  const folder = DriveApp.getFolderById(FOLDER_ID);
+  const files = folder.getFiles();
+  const printItems = [];
+  while (files.hasNext() && printItems.length < 30) {
+    const file = files.next();
+    const bytes = file.getBlob().getBytes();
+    const base64 = Utilities.base64Encode(bytes);
+    printItems.push("data:image/png;base64," + base64);
+  }
+  return printItems;
+}
+
+/**
+ * TEST FUNCTION: debugGetRecentItems
+ * Run this to check if your data is being pulled correctly from the sheet.
+ */
+function debugGetRecentItems() {
+  // 1. Set the sheet you want to test
+  var testSheet = "dhanyam";
+
+  try {
+    console.log("--- Starting Test for: " + testSheet + " ---");
+
+    var items = getRecentItems(testSheet);
+
+    if (items.length === 0) {
+      console.warn("No items found. Check if the sheet exists or if it's empty.");
+      return;
+    }
+
+    // 2. Log the first item found to check mapping
+    var firstItem = items[0];
+    console.log("Total Items Found: " + items.length);
+    console.log("First Item Details:");
+    console.log("- SL No: " + firstItem.slNo);
+    console.log("- Name: " + firstItem.name);
+    console.log("- SKU: " + firstItem.sku);
+    console.log("- Stock: " + firstItem.stock);
+    console.log("- Last Updated (Col S): " + firstItem.updated);
+
+    // 3. Range Verification
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(testSheet);
+    console.log("Actual Sheet Column Count: " + sheet.getLastColumn());
+
+    if (sheet.getLastColumn() < 19) {
+      console.error("CRITICAL: Your sheet only has " + sheet.getLastColumn() +
+        " columns. getRecentItems needs 19 (up to Column S) to work!");
+    } else {
+      console.log("✅ Column count is correct (19 or more).");
+    }
+
+    console.log("--- Test Complete ---");
+
+  } catch (e) {
+    console.error("Test Failed with Error: " + e.toString());
+  }
 }
