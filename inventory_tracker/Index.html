@@ -166,13 +166,16 @@
 
     /* Added: Make rows interactive */
     .item-list-table tbody tr {
-      cursor: pointer; /* Changes mouse to 'hand' icon */
-      transition: background-color 0.2s ease; /* Smooth hover transition */
+      cursor: pointer;
+      /* Changes mouse to 'hand' icon */
+      transition: background-color 0.2s ease;
+      /* Smooth hover transition */
     }
 
     /* Added: Highlight row on hover */
     .item-list-table tbody tr:hover {
-      background-color: #f8f9fa; /* Light grey highlight */
+      background-color: #f8f9fa;
+      /* Light grey highlight */
     }
 
     /* Added: Stronger highlight for active/clicked row */
@@ -180,7 +183,7 @@
       background-color: #e8f0fe;
     }
 
-    .item-list-table th, 
+    .item-list-table th,
     .item-list-table td {
       padding: 8px 4px;
       text-align: left;
@@ -189,7 +192,7 @@
     }
 
     /* Specific column control */
-    .item-list-table th:nth-child(2), 
+    .item-list-table th:nth-child(2),
     .item-list-table td:nth-child(2) {
       max-width: 120px;
       overflow: hidden;
@@ -282,6 +285,21 @@
         opacity: 1;
       }
     }
+
+    .print-btn {
+      background: var(--vg-brown);
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .print-btn:hover {
+      opacity: 0.9;
+    }
   </style>
 </head>
 
@@ -299,9 +317,9 @@
 
       <div class="search-box">
         <input type="text" id="searchInput" placeholder="Scan or Enter SKU..." onkeypress="handleSearchKeyPress(event)">
-        <button type="button" class="scan-btn" onclick="startScanner()">📸</button>
-        <button type="button" class="search-btn" id="mainSearchBtn" onclick="findItem()">Search</button>
-        <button type="button" class="reset-btn" onclick="clearFormToDefault(true)">Reset</button>
+        <button type="button" class="scan-btn" onclick="startScanner()" title="Activate camera to scan item barcode">📷</button>
+        <button type="button" class="search-btn" id="mainSearchBtn" onclick="findItem()" title="Search using SKU No">Search</button>
+        <button type="button" class="reset-btn" onclick="clearFormToDefault(true)" title="Reset to default values">Reset</button>
       </div>
 
       <form id="entryForm">
@@ -397,7 +415,7 @@
 
         <div class="field full-width" style="display: flex; gap: 10px; margin-top: 15px;">
           <button type="submit" id="submitBtn" style="flex: 2;">Add to Inventory</button>
-          <button type="button" id="deleteInventoryBtn" onclick="handleInventoryDelete()" 
+          <button type="button" id="deleteInventoryBtn" onclick="handleInventoryDelete()"
                   style="flex: 1; background: var(--danger-red); display: none;">Delete Item</button>
         </div>
 
@@ -406,11 +424,14 @@
 
     <div class="sidebar">
       <h3>Inventory Items</h3>
+      <button type="button" onclick="printAllBarcodes()" class="print-btn" title="Print all barcodes in this category">
+        Print All 🖨️
+      </button>
       <div class="sidebar-header">
         <input type="text" id="listFilter" placeholder="Filter list..." onkeyup="filterSidebarList()">
         <button type="button" onclick="loadRecentItems()" class="refresh-btn">↻</button>
       </div>
-      
+
       <div class="table-wrapper">
         <table class="item-list-table">
           <thead>
@@ -433,12 +454,14 @@
 
     </div>
 
-    <div id="customModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
-      <div class="modal-content" style="background:white; padding:30px; border-radius:15px; max-width:320px; width:90%; text-align:center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+    <div id="customModal"
+      style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+      <div class="modal-content"
+        style="background:white; padding:30px; border-radius:15px; max-width:320px; width:90%; text-align:center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
         <div id="modalIcon" style="font-size: 40px; margin-bottom: 10px;">🗑️</div>
         <h3 id="modalTitle" style="border:none; color:var(--vg-brown); margin:0 0 10px 0;">Confirm Action</h3>
         <p id="modalBody" style="font-size:13px; color:#777; line-height:1.5; margin-bottom:25px;"></p>
-        
+
         <input type="hidden" id="modalActionType">
 
         <div style="display:flex; gap:12px;">
@@ -982,6 +1005,42 @@
           btn.disabled = false;
         })
         .saveBarcodeToDrive(sku, itemName);
+    }
+
+    function printAllBarcodes() {
+      const sheetName = document.getElementById('mainCategory').value;
+      showStatus(`⏳ Generating PDF for ${sheetName}... Please wait.`, "var(--vg-amber)");
+      
+      const printBtn = document.querySelector('.print-btn');
+      printBtn.disabled = true;
+      printBtn.innerHTML = "Processing...";
+
+      google.script.run
+        .withSuccessHandler(url => {
+          printBtn.disabled = false;
+          printBtn.innerHTML = "Print All 🖨️";
+          
+          if (url) {
+            showStatus("✅ PDF Ready!", "var(--success-green)");
+            
+            // Try to open automatically
+            const newWindow = window.open(url, '_blank');
+            
+            // If popup is blocked, provide a manual link in the status area
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+              const statusDiv = document.getElementById('statusMessage'); // Use your status ID
+              statusDiv.innerHTML = `✅ PDF Generated. <a href="${url}" target="_blank" style="color:white; text-decoration:underline; font-weight:bold;">Click here to Open/Print</a>`;
+            }
+          } else {
+            showStatus("❌ No barcodes found in this category.", "#dc3545");
+          }
+        })
+        .withFailureHandler(err => {
+          printBtn.disabled = false;
+          printBtn.innerHTML = "Print All 🖨️";
+          showStatus("❌ Error: " + err, "#dc3545");
+        })
+        .generateBulkBarcodePDF(sheetName);
     }
 
     function handleSearchKeyPress(e) { if (e.keyCode === 13) { e.preventDefault(); findItem(); } }

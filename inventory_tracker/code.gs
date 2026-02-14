@@ -64,7 +64,7 @@ function getRecentItems(sheetName) {
       name: row[2] || "Unnamed Item",
       sku: row[15] || "",
       // Capture Column Q (Index 16) for the image URL
-      image_url: row[16] || "", 
+      image_url: row[16] || "",
       updated: (row.length >= 19 && row[18]) ? row[18].toString() : "No Date",
       stock: Number(row[4]) || 0,
       reorder: Number(row[9]) || 0,
@@ -241,18 +241,95 @@ function saveBarcodeToDrive(sku, itemName) {
   }
 }
 
-function getPrintQueue() {
-  const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
-  const folder = DriveApp.getFolderById(FOLDER_ID);
-  const files = folder.getFiles();
-  const printItems = [];
-  while (files.hasNext() && printItems.length < 30) {
-    const file = files.next();
-    const bytes = file.getBlob().getBytes();
-    const base64 = Utilities.base64Encode(bytes);
-    printItems.push("data:image/png;base64," + base64);
+/**
+ * GENERATE BULK PDF: Prints all barcodes in the current sheet
+ */
+function generateBulkBarcodePDF(sheetName) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) throw new Error("Sheet '" + sheetName + "' not found.");
+
+    const data = sheet.getDataRange().getValues();
+
+    // 1. Process items and filter out anything without a SKU
+    const items = data.slice(1).map(row => ({
+      name: row[2] ? row[2].toString().trim() : "Unknown",
+      sku: row[15] ? row[15].toString().trim() : ""
+    })).filter(item => item.sku !== "");
+
+    if (items.length === 0) return null;
+
+    const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+
+    const tempDoc = DocumentApp.create('Print_Sheet_' + sheetName);
+    const body = tempDoc.getBody();
+    body.setMarginTop(30).setMarginBottom(30).setMarginLeft(30).setMarginRight(30);
+
+    const table = body.appendTable();
+    const columns = 3;
+    let currentRow;
+    let addedCount = 0; // Track how many we actually add
+
+    items.forEach((item) => {
+      // Reconstruct the exact filename format you use: SKU_ItemName.png
+      // Replacing spaces with underscores as per your saveBarcodeToDrive function
+      const expectedFileName = item.sku + "_" + item.name.replace(/\s+/g, '_') + ".png";
+      const files = folder.getFilesByName(expectedFileName);
+
+      // SKIP LOGIC: Only proceed if the file actually exists
+      if (files.hasNext()) {
+        // Create a new row every 3 items that we ACTUALLY add
+        if (addedCount % columns === 0) {
+          currentRow = table.appendTableRow();
+        }
+
+        const cell = currentRow.appendTableCell();
+        const blob = files.next().getBlob();
+
+        // Add Name
+        cell.appendParagraph(item.name.substring(0, 25))
+          .setAlignment(DocumentApp.HorizontalAlignment.CENTER)
+          .setFontSize(9).setBold(true);
+
+        // Add Barcode Image
+        const img = cell.appendImage(blob);
+        img.setWidth(140).setHeight(55);
+
+        // Add SKU text
+        cell.appendParagraph(item.sku)
+          .setAlignment(DocumentApp.HorizontalAlignment.CENTER)
+          .setFontSize(8);
+
+        cell.setPaddingBottom(10).setPaddingTop(10);
+
+        addedCount++;
+      }
+      // If file doesn't exist, we do nothing (item is skipped)
+    });
+
+    // If no barcodes were found at all, don't generate an empty PDF
+    if (addedCount === 0) {
+      DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+      return null;
+    }
+
+    tempDoc.saveAndClose();
+
+    const pdfBlob = tempDoc.getAs('application/pdf');
+    const pdfFile = DriveApp.createFile(pdfBlob).setName("Print_" + sheetName + ".pdf");
+
+    // Cleanup
+    DriveApp.getFileById(tempDoc.getId()).setTrashed(true);
+    pdfFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    return pdfFile.getUrl();
+
+  } catch (e) {
+    console.error("PDF Error: " + e.toString());
+    throw new Error("Could not generate PDF. Please check folder permissions.");
   }
-  return printItems;
 }
 
 function deleteItemRecord(sheetName, rowNumber) {
@@ -267,22 +344,45 @@ function deleteItemRecord(sheetName, rowNumber) {
     var rowIdx = Number(rowNumber);
     if (rowIdx <= 1) throw new Error("Cannot delete header row.");
 
-    // 1. Delete the actual row
+    // --- NEW: BARCODE DELETION LOGIC ---
+    // 1. Get SKU and Name from the row before deleting it
+    // Based on your structure: Name is Col 3 (Index 2), SKU is Col 16 (Index 15)
+    var rowData = sheet.getRange(rowIdx, 1, 1, 16).getValues()[0];
+    var itemName = rowData[2];
+    var sku = rowData[15];
+
+    if (sku) {
+      const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
+      const folder = DriveApp.getFolderById(FOLDER_ID);
+      
+      // Reconstruct the filename to match your saving convention
+      const fileNameToDelete = sku + "_" + itemName.toString().replace(/\s+/g, '_') + ".png";
+      const files = folder.getFilesByName(fileNameToDelete);
+      
+      while (files.hasNext()) {
+        var file = files.next();
+        file.setTrashed(true); // Moves the barcode to Google Drive trash
+      }
+    }
+    // -----------------------------------
+
+    // 2. Delete the actual row from the sheet
     sheet.deleteRow(rowIdx);
 
-    // 2. Re-index the Serial Numbers (Column A)
+    // 3. Re-index the Serial Numbers (Column A)
     var lastRow = sheet.getLastRow();
-    if (lastRow > 1) { // Only if there are items left
-      var range = sheet.getRange(2, 1, lastRow - 1, 1); // Get Column A starting from row 2
+    if (lastRow > 1) {
+      var range = sheet.getRange(2, 1, lastRow - 1, 1);
       var newSlNos = [];
       for (var i = 1; i <= (lastRow - 1); i++) {
-        newSlNos.push([i]); // Create a 2D array [[1], [2], [3]...]
+        newSlNos.push([i]);
       }
       range.setValues(newSlNos);
     }
 
-    return "Item deleted and serial numbers reset.";
+    return "Item and associated barcode deleted successfully.";
   } catch (e) {
+    console.error("Delete Error: " + e.toString());
     return "Error: " + e.message;
   } finally {
     lock.releaseLock();
