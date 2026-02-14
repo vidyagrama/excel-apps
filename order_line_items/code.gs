@@ -5,9 +5,10 @@ var ID_ORDERS_LINE_ITEMS = "1j5ma5hH1vKaoNW0O3JrYL19FZvPLBXMOyN5_0efP0e8";
 var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
 
 var TAB_PARENTS = "main";
-var TAB_INVENTORY = "main";
 var TAB_LINE_ITEMS = "main";
 var TAB_ORDERS = "main";
+
+var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps", "snacks"];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -38,84 +39,104 @@ function validateLogin(varga, name, mobile) {
 
 function getInventoryData() {
   const ss = SpreadsheetApp.openById(ID_INVENTORY);
-  const data = ss.getSheetByName(TAB_INVENTORY).getDataRange().getValues().slice(1);
-  return data.map(row => ({
-    itemId: row[0], 
-    category: row[1], 
-    itemName: row[2], 
-    uom: row[3], 
-    salePrice: row[7],
-    moq: parseFloat(row[10]) || 0.5,
-    imageUrl: row[16] || "https://via.placeholder.com/150" 
-  }));
+  let allItems = [];
+
+  VALID_SHEETS.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return;
+
+    const items = data.slice(1).map(row => ({
+      sku: String(row[15]),   // Column P
+      mainCategory: sheetName,
+      subCategory: row[1],
+      itemName: row[2],
+      uom: row[3],
+      stock: parseFloat(row[4]) || 0,
+      salePrice: parseFloat(row[7]) || 0, // Ensure this is a number
+      moq: parseFloat(row[10]) || 0.5,
+      imageUrl: row[16] || "https://via.placeholder.com/150"
+    })).filter(item => item.sku && item.sku !== "undefined" && item.stock > 0);
+
+    allItems = allItems.concat(items);
+  });
+  return allItems;
 }
 
 function finalizeOrderBulk(summary, fullCart) {
   try {
     const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS);
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
-    const invSheet = SpreadsheetApp.openById(ID_INVENTORY).getSheetByName(TAB_INVENTORY);
+    const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // 1. Save Line Items (Mapping preserved from your working code)
+    // 1. Save Line Items
     const lineRows = fullCart.map((item, index) => [
-      index + 1,            // Column A: Sr No
-      summary.orderId,      // Column B: Order ID
-      item.category,        // Column C: Category
-      item.itemId,          // Column D: Item ID
-      item.itemName,        // Column E: Name
-      item.quantity,        // Column F: Qty
-      item.uom,             // Column G: UOM
-      item.salePrice,       // Column H: Unit Price
-      item.fullSubtotal,    // Column I: Subtotal
-      ""                    // Column J: Notes
+      index + 1,
+      summary.orderId,
+      item.mainCategory,     // Fixed: Use mainCategory instead of category
+      item.sku,              // Fixed: Use sku instead of itemId
+      item.itemName,
+      item.quantity,
+      item.uom,
+      item.salePrice,
+      item.fullSubtotal,
+      ""
     ]);
-    // For Line Items
-    const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2); // Reference Column B
+
+    const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
     liSheet.getRange(nextLiRow, 1, lineRows.length, 10).setValues(lineRows);
 
-    // 2. Save Order Summary (Mapping preserved from your working code)
+    // 2. Save Order Summary
     const ordRow = [[
-      "P0",                 // Column A: Priority
-      summary.orderId,      // Column B: Order ID
-      summary.customerId,   // Column C: Customer ID
-      summary.customerName, // Column D: Name
-      new Date(),           // Column E: Date
-      "Received",           // Column F: Status
-      summary.finalTotal,   // Column G: Total
-      "Not Recieved",       // Column H: Payment
-      summary.notes         // Column I: Notes
+      "P0",
+      summary.orderId,
+      summary.customerId,
+      summary.customerName,
+      new Date(),
+      "Received",
+      summary.finalTotal,
+      "Not Received",
+      summary.notes
     ]];
-    // For Order Summary
-    const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2); // Reference Column B
+
+    const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
     ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
 
-    // 3. INVENTORY SYNC (Fixed Column Mappings)
-    const invData = invSheet.getDataRange().getValues();
-    
+    // 3. INVENTORY SYNC (Searching by SKU in Column P)
     fullCart.forEach(cartItem => {
-      for (let i = 1; i < invData.length; i++) {
-        if (invData[i][0] == cartItem.itemId) {
-          let currentStock = parseFloat(invData[i][4]) || 0; 
-          let reorderPoint = parseFloat(invData[i][9]) || 0; 
+      if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
+
+      const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
+      if (!targetSheet) return;
+
+      const data = targetSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        // Look for SKU in Column P (index 15)
+        if (String(data[i][15]) === String(cartItem.sku)) {
+          let currentStock = parseFloat(data[i][4]) || 0;
+          let reorderPoint = parseFloat(data[i][9]) || 0;
           let newStock = currentStock - cartItem.quantity;
-          invSheet.getRange(i + 1, 5).setValue(newStock);
-          
-          let status = "In stock";
-          if (newStock <= 0) status = "Sold out";
-          else if (newStock <= reorderPoint) status = "Repurchase needed";
-          invSheet.getRange(i + 1, 12).setValue(status);
+
+          // Update Stock (Col E - Index 5)
+          targetSheet.getRange(i + 1, 5).setValue(newStock);
+
+          // Update Status (Col M - Index 13)
+          let status = newStock <= 0 ? "Sold out" : (newStock <= reorderPoint ? "Repurchase needed" : "In stock");
+          targetSheet.getRange(i + 1, 13).setValue(status);
           break;
         }
       }
     });
 
-    // 4. EMAIL INVOICE (Newly Integrated Format)
+    // 4. EMAIL INVOICE
     sendReceiptEmail(summary, fullCart);
 
-    SpreadsheetApp.flush(); 
+    SpreadsheetApp.flush();
     return true;
-  } catch (e) { 
-    return e.toString(); 
+  } catch (e) {
+    return e.toString();
   }
 }
 
@@ -134,7 +155,7 @@ function sendReceiptEmail(summary, cart) {
     // --- Configuration for Invoice ---
     const logoUrl = "https://i.ibb.co/3mk7ddzj/vidyagrama-logo.png";
     const upiId = "9035734752@icici";
-    
+
     let tableRows = "";
     let overallTotal = 0;
 
@@ -164,7 +185,7 @@ function sendReceiptEmail(summary, cart) {
     const discountRate = parseFloat(user[7] || 0);
     const discountAmount = overallTotal * (discountRate / 100);
     const finalAmount = overallTotal - discountAmount;
-    
+
     const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
 
@@ -236,9 +257,9 @@ function getFirstEmptyRowInColumn(sheet, col) {
   const range = sheet.getRange(1, col, sheet.getMaxRows()).getValues();
   
   // Loop from top to bottom to find the first truly empty cell
-  for (let i = 0; i < range.length; i++) { 
+  for (let i = 0; i < range.length; i++) {
     if (range[i][0] === "" || range[i][0] === null || range[i][0] === undefined) {
-      return i + 1; 
+      return i + 1;
     }
   }
   return sheet.getLastRow() + 1;
