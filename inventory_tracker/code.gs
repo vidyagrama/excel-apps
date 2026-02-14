@@ -2,7 +2,7 @@
 
 // --- CONFIGURATION ---
 var ID_VENDORS = "188U_8Catanggeycs_VY2kisIaZl1uUi4KYpOC2qyh8g";
-var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps"];
+var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps","snacks"];
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')

@@ -300,6 +300,35 @@
     .print-btn:hover {
       opacity: 0.9;
     }
+
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 300px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .modal-header h3 { margin: 10px 0; color: #333; }
+    .modal-icon { font-size: 30px; }
+    .modal-btn {
+      background: var(--vg-brown);
+      color: white; border: none;
+      padding: 8px 20px; border-radius: 4px;
+      cursor: pointer; margin-top: 15px;
+    }
+
   </style>
 </head>
 
@@ -334,6 +363,7 @@
               <option value="vastram">vastram</option>
               <option value="gavya">gavya</option>
               <option value="soaps">soaps</option>
+              <option value="snacks">snacks</option>
             </select>
           </div>
 
@@ -471,6 +501,21 @@
       </div>
     </div>
 
+    <div id="customAlertModal" class="modal-overlay" style="display:none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="modal-icon">⚠️</span>
+          <h3>Missing Barcodes</h3>
+        </div>
+        <div class="modal-body">
+          <p id="alertMessage">No barcodes were found for the items in this category.</p>
+        </div>
+        <div class="modal-footer">
+          <button onclick="closeCustomAlert()" class="modal-btn">Got it</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
@@ -482,7 +527,8 @@
       "gavya": ["Dhoop"],
       "soaps": ["Soaps"],
       "varnam": ["Ecofriendly Products"],
-      "vastram": ["Vastram"]
+      "vastram": ["Vastram"],
+      "snacks": ["Sweets","Mixture","Tokku","Pickle"]
     };
 
     function handleInventoryDelete() {
@@ -1007,42 +1053,41 @@
         .saveBarcodeToDrive(sku, itemName);
     }
 
+    function showCustomAlert(msg) {
+      document.getElementById('alertMessage').innerText = msg;
+      document.getElementById('customAlertModal').style.display = 'flex';
+    }
+
+    function closeCustomAlert() {
+      document.getElementById('customAlertModal').style.display = 'none';
+    }
+
     function printAllBarcodes() {
       const sheetName = document.getElementById('mainCategory').value;
-      showStatus(`⏳ Generating PDF for ${sheetName}... Please wait.`, "var(--vg-amber)");
+      showStatus(`⏳ Generating PDF for ${sheetName}...`, "var(--vg-amber)");
       
       const printBtn = document.querySelector('.print-btn');
       printBtn.disabled = true;
-      printBtn.innerHTML = "Processing...";
 
       google.script.run
         .withSuccessHandler(url => {
           printBtn.disabled = false;
-          printBtn.innerHTML = "Print All 🖨️";
-          
           if (url) {
-            showStatus("✅ PDF Ready!", "var(--success-green)");
-            
-            // Try to open automatically
-            const newWindow = window.open(url, '_blank');
-            
-            // If popup is blocked, provide a manual link in the status area
-            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
-              const statusDiv = document.getElementById('statusMessage'); // Use your status ID
-              statusDiv.innerHTML = `✅ PDF Generated. <a href="${url}" target="_blank" style="color:white; text-decoration:underline; font-weight:bold;">Click here to Open/Print</a>`;
-            }
+            showStatus("✅ PDF Generated!", "var(--success-green)");
+            window.open(url, '_blank');
           } else {
-            showStatus("❌ No barcodes found in this category.", "#dc3545");
+            // BUG FIX: Hide the yellow loading status
+            showStatus("", ""); 
+            // TRIGGER CUSTOM POPUP
+            showCustomAlert(`No barcode images were found in Drive for items in "${sheetName}". Please generate labels first.`);
           }
         })
         .withFailureHandler(err => {
           printBtn.disabled = false;
-          printBtn.innerHTML = "Print All 🖨️";
-          showStatus("❌ Error: " + err, "#dc3545");
+          showStatus("❌ Error: " + err, "red");
         })
         .generateBulkBarcodePDF(sheetName);
     }
-
     function handleSearchKeyPress(e) { if (e.keyCode === 13) { e.preventDefault(); findItem(); } }
     window.onload = function () { updateSubCategories(); loadRecentItems(); loadVendors(); };
   </script>
