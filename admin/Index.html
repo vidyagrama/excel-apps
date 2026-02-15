@@ -1,57 +1,220 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <base target="_top">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
     :root {
-      --primary: #5D4037; /* Logo Brown */
-      --secondary: #F57C00; /* Logo Orange */
-      --bg: #FDFBF9;
-      --text: #3E2723;
-      --white: #ffffff;
+      --vg-brown: #634121;
+      --vg-amber: #E89F22;
+      --vg-cream: #FAF9F6;
+      --border-light: #e0d7c6;
+      --disabled-tan: #d2b48c;
+      --text: #333;
     }
-    body { font-family: 'Poppins', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; }
-    
-    /* Login Screen */
-    #login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: var(--white); border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid var(--secondary); }
-    .logo-text { font-weight: 600; color: var(--primary); font-size: 28px; letter-spacing: 1px; margin-bottom: 5px; }
-    .logo-sub { font-size: 12px; color: var(--secondary); margin-bottom: 25px; text-transform: uppercase; }
-    
-    input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-    button.btn-primary { background: var(--primary); color: white; border: none; width: 100%; padding: 14px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; margin-top: 10px; }
-    button.btn-primary:hover { background: #4e342e; }
 
-    /* Dashboard Layout */
-    #dashboard { display: none; }
-    header { background: var(--primary); color: white; padding: 10px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-    
-    .nav-tabs { display: flex; background: #EFEBE9; overflow-x: auto; border-bottom: 3px solid var(--secondary); }
-    .tab { padding: 15px 25px; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.3s; white-space: nowrap; border-right: 1px solid #ddd; }
-    .tab:hover { background: #D7CCC8; }
-    .tab.active { background: var(--secondary); color: white; }
+    /* Global Typography: Verdana to match Order/Inventory pages */
+    body {
+      font-family: Verdana, Geneva, sans-serif;
+      background-color: var(--vg-cream);
+      color: var(--text);
+      margin: 0;
+    }
 
-    .content-area { padding: 30px; }
-    .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 15px rgba(0,0,0,0.05); border-left: 5px solid var(--primary); }
-    
-    .logout-btn { background: #d32f2f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    /* Login Screen Container */
+    #login-container {
+      max-width: 400px;
+      margin: 100px auto;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(99, 65, 33, 0.1);
+      text-align: center;
+      border-top: 5px solid var(--vg-amber);
+    }
+
+    .logo-text {
+      font-weight: bold;
+      color: var(--vg-brown);
+      font-size: 26px;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--vg-amber);
+      margin-bottom: 25px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    /* Input field styling with Verdana and Amber focus */
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid var(--border-light);
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-family: Verdana, Geneva, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--vg-amber);
+      box-shadow: 0 0 5px rgba(232, 159, 34, 0.2);
+    }
+
+    /* Button Themed States */
+    button.btn-primary {
+      background: var(--vg-brown);
+      color: white;
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 10px;
+      transition: 0.3s;
+      font-family: Verdana, Geneva, sans-serif;
+    }
+
+    button.btn-primary:hover {
+      background: #4e342e;
+    }
+
+    button.btn-primary:disabled {
+      background-color: var(--disabled-tan) !important;
+      cursor: not-allowed;
+      opacity: 0.8;
+    }
+
+    /* Dashboard Header */
+    header {
+      background: var(--vg-brown);
+      color: white;
+      padding: 12px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #user-display {
+      font-family: Verdana, Geneva, sans-serif;
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--vg-cream);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #user-display i {
+      font-size: 18px;
+      color: var(--vg-amber);
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      background: #EFEBE9;
+      overflow-x: auto;
+      border-bottom: 3px solid var(--vg-amber);
+    }
+
+    .tab {
+      padding: 15px 25px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 13px;
+      transition: 0.3s;
+      white-space: nowrap;
+      border-right: 1px solid var(--border-light);
+      color: var(--vg-brown);
+    }
+
+    .tab:hover {
+      background: #D7CCC8;
+    }
+
+    .tab.active {
+      background: var(--vg-amber);
+      color: white;
+    }
+
+    /* Content Area */
+    .content-area {
+      padding: 30px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(99, 65, 33, 0.05);
+      border-left: 5px solid var(--vg-brown);
+    }
+
+    .logout-btn {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* Animated Loading Spinner */
+    .loader {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #FFF;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      animation: rotation 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
+
 <body>
 
   <div id="login-container">
     <div class="logo-text">VIDYAGRAMA</div>
     <div class="logo-sub">Organic & Desi Supplies</div>
-    <input type="text" id="userid" placeholder="User ID">
-    <input type="password" id="mobile" placeholder="Mobile Number">
-    <button class="btn-primary" id="loginBtn" onclick="login()">Login to Admin</button>
-    <p id="login-msg" style="color: #d32f2f; font-size: 14px; margin-top: 15px;"></p>
+    <div id="login-fields">
+      <input type="text" id="userid" placeholder="Admin ID">
+      <input type="password" id="mobile" placeholder="Mobile Number">
+      <button class="btn-primary" id="loginBtn" onclick="login()">Login to Admin</button>
+    </div>
+    <p id="login-msg" style="color: #d32f2f; font-size: 13px; margin-top: 15px;"></p>
   </div>
 
-  <div id="dashboard">
+  <div id="dashboard" style="display: none;">
     <header>
-      <div><span style="color: var(--secondary)">●</span> <strong>Vidyagrama Portal</strong></div>
-      <div id="user-display" style="font-size: 14px;"></div>
+      <div><span style="color: var(--vg-amber)">●</span> <strong>Admin Portal</strong></div>
+      <div id="user-display" style="font-size: 13px;"></div>
       <button class="logout-btn" onclick="logout()">Logout</button>
     </header>
 
@@ -65,12 +228,23 @@
     </div>
 
     <div class="content-area">
-      <div id="tab-content" class="card">
-        </div>
+      <div id="tab-content" class="card"></div>
     </div>
   </div>
 
   <script>
+    // Handle "Enter" key on input fields
+    window.onload = function() {
+      const inputs = document.querySelectorAll('#login-container input');
+      inputs.forEach(input => {
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            login();
+          }
+        });
+      });
+    };
+
     function login() {
       const id = document.getElementById('userid').value;
       const mob = document.getElementById('mobile').value;
@@ -82,15 +256,17 @@
         return;
       }
 
-      btn.innerText = "Authenticating...";
+      btn.innerHTML = '<span class="loader"></span> Authenticating...';
       btn.disabled = true;
+      msg.innerText = "";
       
       google.script.run.withSuccessHandler(function(res) {
         if(res.success) {
           document.getElementById('login-container').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
-          document.getElementById('user-display').innerText = "Logged in: " + res.userName;
-          openTab(null, 'Inventory'); // Default tab
+          // User Display updated with Icon and Verdana Bold font
+          document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
+          openTab(null, 'Inventory'); 
         } else {
           msg.innerText = res.message;
           btn.innerText = "Login to Admin";
@@ -100,17 +276,14 @@
     }
 
     function logout() {
-      // 1. Clear input fields
       document.getElementById('userid').value = "";
       document.getElementById('mobile').value = "";
       document.getElementById('login-msg').innerText = "";
       
-      // 2. Reset button state
       const btn = document.getElementById('loginBtn');
       btn.innerText = "Login to Admin";
       btn.disabled = false;
 
-      // 3. Switch views
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('login-container').style.display = 'block';
     }
@@ -128,14 +301,15 @@
       }
       
       document.getElementById('tab-content').innerHTML = `
-        <h2 style="color:var(--primary)">${tabName} Control</h2>
-        <hr style="border: 0; border-top: 1px solid #eee; margin-bottom: 20px;">
-        <p>This module allows you to manage <strong>${tabName}</strong> for the Vidyagrama initiative.</p>
-        <div style="padding: 50px; text-align: center; color: #999; border: 2px dashed #eee;">
-           Data table for ${tabName} will be displayed here.
+        <h2 style="color:var(--vg-brown); font-size: 20px;">${tabName} Control</h2>
+        <hr style="border: 0; border-top: 1px solid var(--border-light); margin-bottom: 20px;">
+        <p style="font-size: 14px;">This module allows you to manage <strong>${tabName}</strong> for the Vidyagrama initiative.</p>
+        <div style="padding: 50px; text-align: center; color: #999; border: 2px dashed var(--border-light); margin-top: 20px;">
+            Data table for ${tabName} will be displayed here.
         </div>
       `;
     }
   </script>
 </body>
+
 </html>
