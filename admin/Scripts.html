@@ -1,0 +1,110 @@
+<script>
+  window.onload = function() {
+    const inputs = document.querySelectorAll('#login-container input');
+    inputs.forEach(input => {
+      input.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') login();
+      });
+    });
+  };
+
+  function login() {
+    const id = document.getElementById('userid').value;
+    const mob = document.getElementById('mobile').value;
+    const btn = document.getElementById('loginBtn');
+    const msg = document.getElementById('login-msg');
+    
+    if(!id || !mob) { msg.innerText = "Please fill in all fields."; return; }
+
+    btn.innerHTML = '<span class="loader"></span> Authenticating...';
+    btn.disabled = true;
+    msg.innerText = "";
+    
+    google.script.run.withSuccessHandler(function(res) {
+      if(res.success) {
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
+        openTab(null, 'Inventory'); 
+      } else {
+        msg.innerText = res.message;
+        btn.innerText = "Login to Admin";
+        btn.disabled = false;
+      }
+    }).checkLogin(id, mob);
+  }
+
+  function logout() {
+    location.reload(); 
+  }
+
+  function openTab(evt, tabName) {
+    const tabs = document.getElementsByClassName("tab");
+    for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
+    
+    if(evt) evt.currentTarget.classList.add("active");
+    else document.querySelector('.tab').classList.add("active");
+    
+    const content = document.getElementById('tab-content');
+    content.innerHTML = `<div style="text-align:center; padding:40px;"><span class="loader" style="border-color:var(--vg-brown); border-bottom-color:transparent;"></span> Fetching ${tabName} Data...</div>`;
+
+    if(tabName === 'Inventory') {
+      loadInventory();
+    } else {
+      content.innerHTML = `
+        <h2 style="color:var(--vg-brown); font-size: 20px;">${tabName} Control</h2>
+        <hr style="border: 0; border-top: 1px solid var(--border-light); margin-bottom: 20px;">
+        <p style="font-size: 14px;">Module for <strong>${tabName}</strong> is under development.</p>
+      `;
+    }
+  }
+
+  function loadInventory() {
+    google.script.run.withSuccessHandler(function(data) {
+      let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h2 style="color:var(--vg-brown); margin:0; font-size:20px;">Inventory Master</h2>
+          <button class="btn-primary" style="width:auto; margin:0; padding:8px 15px; font-size:12px;" onclick="loadInventory()">Refresh</button>
+        </div>
+        <div class="admin-table-wrapper">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Stock</th>
+                <th>Price</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+      data.forEach(item => {
+        let badgeClass = 'badge-ok';
+        let badgeText = 'In Stock';
+        
+        if (item.stock <= 0) {
+          badgeClass = 'badge-out';
+          badgeText = 'Out';
+        } else if (item.stock <= item.reorderPoint) {
+          badgeClass = 'badge-low';
+          badgeText = 'Low';
+        }
+
+        html += `
+          <tr>
+            <td><strong>${item.sku}</strong></td>
+            <td>${item.itemName}</td>
+            <td><small>${item.mainCategory} > ${item.subCategory}</small></td>
+            <td>${item.stock} ${item.uom}</td>
+            <td>₹${item.salePrice.toFixed(2)}</td>
+            <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+          </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+      document.getElementById('tab-content').innerHTML = html;
+    }).getInventoryData();
+  }
+</script>

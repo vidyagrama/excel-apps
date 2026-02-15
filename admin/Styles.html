@@ -1,0 +1,235 @@
+<style>
+  :root {
+    --vg-brown: #634121;
+    --vg-amber: #E89F22;
+    --vg-cream: #FAF9F6;
+    --border-light: #e0d7c6;
+    --disabled-tan: #d2b48c;
+    --text: #333;
+  }
+
+  body {
+    font-family: Verdana, Geneva, sans-serif;
+    background-color: var(--vg-cream);
+    color: var(--text);
+    margin: 0;
+  }
+
+  #login-container {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 40px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(99, 65, 33, 0.1);
+    text-align: center;
+    border-top: 5px solid var(--vg-amber);
+  }
+
+  .logo-text {
+    font-weight: bold;
+    color: var(--vg-brown);
+    font-size: 26px;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--vg-amber);
+    margin-bottom: 25px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: Verdana, Geneva, sans-serif;
+    font-size: 14px;
+    color: var(--text);
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--vg-amber);
+    box-shadow: 0 0 5px rgba(232, 159, 34, 0.2);
+  }
+
+  button.btn-primary {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+    width: 100%;
+    padding: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 10px;
+    transition: 0.3s;
+    font-family: Verdana, Geneva, sans-serif;
+  }
+
+  button.btn-primary:hover {
+    background: #4e342e;
+  }
+
+  button.btn-primary:disabled {
+    background-color: var(--disabled-tan) !important;
+    cursor: not-allowed;
+    opacity: 0.8;
+  }
+
+  header {
+    background: var(--vg-brown);
+    color: white;
+    padding: 12px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  #user-display {
+    font-family: Verdana, Geneva, sans-serif;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--vg-cream);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #user-display i {
+    font-size: 18px;
+    color: var(--vg-amber);
+  }
+
+  .nav-tabs {
+    display: flex;
+    background: #EFEBE9;
+    overflow-x: auto;
+    border-bottom: 3px solid var(--vg-amber);
+  }
+
+  .tab {
+    padding: 15px 25px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 13px;
+    transition: 0.3s;
+    white-space: nowrap;
+    border-right: 1px solid var(--border-light);
+    color: var(--vg-brown);
+  }
+
+  .tab:hover {
+    background: #D7CCC8;
+  }
+
+  .tab.active {
+    background: var(--vg-amber);
+    color: white;
+  }
+
+  .content-area {
+    padding: 30px;
+  }
+
+  .card {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(99, 65, 33, 0.05);
+    border-left: 5px solid var(--vg-brown);
+  }
+
+  .admin-table-wrapper {
+    overflow-x: auto;
+    margin-top: 20px;
+  }
+
+  .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .admin-table th {
+    background: #f8f5f2;
+    color: var(--vg-brown);
+    text-align: left;
+    padding: 12px;
+    border-bottom: 2px solid var(--border-light);
+  }
+
+  .admin-table td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .admin-table tr:hover {
+    background-color: #fffaf5;
+  }
+
+  .badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+
+  .badge-ok {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .badge-low {
+    background: #fff3e0;
+    color: #ef6c00;
+  }
+
+  .badge-out {
+    background: #ffebee;
+    color: #c62828;
+  }
+
+  .logout-btn {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .loader {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #FFF;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+</style>
