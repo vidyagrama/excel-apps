@@ -14,7 +14,6 @@
       --text: #333;
     }
 
-    /* Global Typography: Verdana to match Order/Inventory pages */
     body {
       font-family: Verdana, Geneva, sans-serif;
       background-color: var(--vg-cream);
@@ -34,167 +33,81 @@
       border-top: 5px solid var(--vg-amber);
     }
 
-    .logo-text {
-      font-weight: bold;
-      color: var(--vg-brown);
-      font-size: 26px;
-      letter-spacing: 1px;
-      margin-bottom: 5px;
-    }
+    .logo-text { font-weight: bold; color: var(--vg-brown); font-size: 26px; letter-spacing: 1px; margin-bottom: 5px; }
+    .logo-sub { font-size: 11px; color: var(--vg-amber); margin-bottom: 25px; text-transform: uppercase; font-weight: bold; }
 
-    .logo-sub {
-      font-size: 11px;
-      color: var(--vg-amber);
-      margin-bottom: 25px;
-      text-transform: uppercase;
-      font-weight: bold;
-    }
-
-    /* Input field styling with Verdana and Amber focus */
     input {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border: 1px solid var(--border-light);
-      border-radius: 6px;
-      box-sizing: border-box;
-      font-family: Verdana, Geneva, sans-serif;
-      font-size: 14px;
-      color: var(--text);
+      width: 100%; padding: 12px; margin: 10px 0;
+      border: 1px solid var(--border-light); border-radius: 6px;
+      box-sizing: border-box; font-family: Verdana, Geneva, sans-serif;
+      font-size: 14px; color: var(--text);
     }
 
-    input:focus {
-      outline: none;
-      border-color: var(--vg-amber);
-      box-shadow: 0 0 5px rgba(232, 159, 34, 0.2);
-    }
+    input:focus { outline: none; border-color: var(--vg-amber); box-shadow: 0 0 5px rgba(232, 159, 34, 0.2); }
 
-    /* Button Themed States */
     button.btn-primary {
-      background: var(--vg-brown);
-      color: white;
-      border: none;
-      width: 100%;
-      padding: 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-      margin-top: 10px;
-      transition: 0.3s;
-      font-family: Verdana, Geneva, sans-serif;
+      background: var(--vg-brown); color: white; border: none; width: 100%;
+      padding: 14px; border-radius: 6px; cursor: pointer;
+      font-size: 16px; font-weight: bold; margin-top: 10px;
+      transition: 0.3s; font-family: Verdana, Geneva, sans-serif;
     }
 
-    button.btn-primary:hover {
-      background: #4e342e;
-    }
+    button.btn-primary:hover { background: #4e342e; }
+    button.btn-primary:disabled { background-color: var(--disabled-tan) !important; cursor: not-allowed; opacity: 0.8; }
 
-    button.btn-primary:disabled {
-      background-color: var(--disabled-tan) !important;
-      cursor: not-allowed;
-      opacity: 0.8;
-    }
-
-    /* Dashboard Header */
     header {
-      background: var(--vg-brown);
-      color: white;
-      padding: 12px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background: var(--vg-brown); color: white; padding: 12px 30px;
+      display: flex; justify-content: space-between; align-items: center;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
     #user-display {
-      font-family: Verdana, Geneva, sans-serif;
-      font-size: 13px;
-      font-weight: bold;
-      color: var(--vg-cream);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-family: Verdana, Geneva, sans-serif; font-size: 13px;
+      font-weight: bold; color: var(--vg-cream);
+      display: flex; align-items: center; gap: 8px;
     }
 
-    #user-display i {
-      font-size: 18px;
-      color: var(--vg-amber);
-    }
+    #user-display i { font-size: 18px; color: var(--vg-amber); }
 
-    /* Navigation Tabs */
-    .nav-tabs {
-      display: flex;
-      background: #EFEBE9;
-      overflow-x: auto;
-      border-bottom: 3px solid var(--vg-amber);
-    }
+    .nav-tabs { display: flex; background: #EFEBE9; overflow-x: auto; border-bottom: 3px solid var(--vg-amber); }
 
     .tab {
-      padding: 15px 25px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 13px;
-      transition: 0.3s;
-      white-space: nowrap;
-      border-right: 1px solid var(--border-light);
+      padding: 15px 25px; cursor: pointer; font-weight: bold; font-size: 13px;
+      transition: 0.3s; white-space: nowrap; border-right: 1px solid var(--border-light);
       color: var(--vg-brown);
     }
 
-    .tab:hover {
-      background: #D7CCC8;
-    }
+    .tab:hover { background: #D7CCC8; }
+    .tab.active { background: var(--vg-amber); color: white; }
 
-    .tab.active {
-      background: var(--vg-amber);
-      color: white;
-    }
-
-    /* Content Area */
-    .content-area {
-      padding: 30px;
-    }
-
+    .content-area { padding: 30px; }
     .card {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(99, 65, 33, 0.05);
-      border-left: 5px solid var(--vg-brown);
+      background: white; padding: 30px; border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(99, 65, 33, 0.05); border-left: 5px solid var(--vg-brown);
     }
 
-    .logout-btn {
-      background: #d32f2f;
-      color: white;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: bold;
-    }
+    /* --- TABLE STYLING --- */
+    .admin-table-wrapper { overflow-x: auto; margin-top: 20px; }
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .admin-table th { background: #f8f5f2; color: var(--vg-brown); text-align: left; padding: 12px; border-bottom: 2px solid var(--border-light); }
+    .admin-table td { padding: 12px; border-bottom: 1px solid #eee; }
+    .admin-table tr:hover { background-color: #fffaf5; }
 
-    /* Animated Loading Spinner */
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+    .badge-ok { background: #e8f5e9; color: #2e7d32; }
+    .badge-low { background: #fff3e0; color: #ef6c00; }
+    .badge-out { background: #ffebee; color: #c62828; }
+
+    .logout-btn { background: #d32f2f; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+
     .loader {
-      width: 16px;
-      height: 16px;
-      border: 2px solid #FFF;
-      border-bottom-color: transparent;
-      border-radius: 50%;
-      display: inline-block;
-      animation: rotation 1s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
+      width: 16px; height: 16px; border: 2px solid #FFF;
+      border-bottom-color: transparent; border-radius: 50%;
+      display: inline-block; animation: rotation 1s linear infinite;
+      vertical-align: middle; margin-right: 8px;
     }
 
-    @keyframes rotation {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
-    }
+    @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
 
@@ -214,7 +127,7 @@
   <div id="dashboard" style="display: none;">
     <header>
       <div><span style="color: var(--vg-amber)">●</span> <strong>Admin Portal</strong></div>
-      <div id="user-display" style="font-size: 13px;"></div>
+      <div id="user-display"></div>
       <button class="logout-btn" onclick="logout()">Logout</button>
     </header>
 
@@ -233,14 +146,11 @@
   </div>
 
   <script>
-    // Handle "Enter" key on input fields
     window.onload = function() {
       const inputs = document.querySelectorAll('#login-container input');
       inputs.forEach(input => {
         input.addEventListener('keypress', function(e) {
-          if (e.key === 'Enter') {
-            login();
-          }
+          if (e.key === 'Enter') login();
         });
       });
     };
@@ -251,10 +161,7 @@
       const btn = document.getElementById('loginBtn');
       const msg = document.getElementById('login-msg');
       
-      if(!id || !mob) {
-        msg.innerText = "Please fill in all fields.";
-        return;
-      }
+      if(!id || !mob) { msg.innerText = "Please fill in all fields."; return; }
 
       btn.innerHTML = '<span class="loader"></span> Authenticating...';
       btn.disabled = true;
@@ -264,7 +171,6 @@
         if(res.success) {
           document.getElementById('login-container').style.display = 'none';
           document.getElementById('dashboard').style.display = 'block';
-          // User Display updated with Icon and Verdana Bold font
           document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
           openTab(null, 'Inventory'); 
         } else {
@@ -276,40 +182,79 @@
     }
 
     function logout() {
-      document.getElementById('userid').value = "";
-      document.getElementById('mobile').value = "";
-      document.getElementById('login-msg').innerText = "";
-      
-      const btn = document.getElementById('loginBtn');
-      btn.innerText = "Login to Admin";
-      btn.disabled = false;
-
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('login-container').style.display = 'block';
+      location.reload(); 
     }
 
     function openTab(evt, tabName) {
       const tabs = document.getElementsByClassName("tab");
-      for (let i = 0; i < tabs.length; i++) {
-        tabs[i].classList.remove("active");
-      }
+      for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
       
-      if(evt) {
-        evt.currentTarget.classList.add("active");
+      if(evt) evt.currentTarget.classList.add("active");
+      else document.querySelector('.tab').classList.add("active");
+      
+      const content = document.getElementById('tab-content');
+      content.innerHTML = `<div style="text-align:center; padding:40px;"><span class="loader" style="border-color:var(--vg-brown); border-bottom-color:transparent;"></span> Fetching ${tabName} Data...</div>`;
+
+      // Routing logic
+      if(tabName === 'Inventory') {
+        loadInventory();
       } else {
-        document.querySelector('.tab').classList.add("active");
+        content.innerHTML = `
+          <h2 style="color:var(--vg-brown); font-size: 20px;">${tabName} Control</h2>
+          <hr style="border: 0; border-top: 1px solid var(--border-light); margin-bottom: 20px;">
+          <p style="font-size: 14px;">Module for <strong>${tabName}</strong> is under development.</p>
+        `;
       }
-      
-      document.getElementById('tab-content').innerHTML = `
-        <h2 style="color:var(--vg-brown); font-size: 20px;">${tabName} Control</h2>
-        <hr style="border: 0; border-top: 1px solid var(--border-light); margin-bottom: 20px;">
-        <p style="font-size: 14px;">This module allows you to manage <strong>${tabName}</strong> for the Vidyagrama initiative.</p>
-        <div style="padding: 50px; text-align: center; color: #999; border: 2px dashed var(--border-light); margin-top: 20px;">
-            Data table for ${tabName} will be displayed here.
-        </div>
-      `;
+    }
+
+    function loadInventory() {
+      google.script.run.withSuccessHandler(function(data) {
+        let html = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="color:var(--vg-brown); margin:0; font-size:20px;">Inventory Master</h2>
+            <button class="btn-primary" style="width:auto; margin:0; padding:8px 15px; font-size:12px;" onclick="loadInventory()">Refresh</button>
+          </div>
+          <div class="admin-table-wrapper">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Item Name</th>
+                  <th>Category</th>
+                  <th>Stock</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>`;
+
+        data.forEach(item => {
+          let badgeClass = 'badge-ok';
+          let badgeText = 'In Stock';
+          
+          if (item.stock <= 0) {
+            badgeClass = 'badge-out';
+            badgeText = 'Out';
+          } else if (item.stock <= item.reorderPoint) {
+            badgeClass = 'badge-low';
+            badgeText = 'Low';
+          }
+
+          html += `
+            <tr>
+              <td><strong>${item.sku}</strong></td>
+              <td>${item.itemName}</td>
+              <td><small>${item.mainCategory} > ${item.subCategory}</small></td>
+              <td>${item.stock} ${item.uom}</td>
+              <td>₹${item.salePrice.toFixed(2)}</td>
+              <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        document.getElementById('tab-content').innerHTML = html;
+      }).getInventoryData();
     }
   </script>
 </body>
-
 </html>
