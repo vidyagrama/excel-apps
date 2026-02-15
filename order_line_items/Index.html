@@ -9,24 +9,29 @@
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
     :root {
-      --primary: #2e7d32;
-      --bg: #f4f7f6;
+      --vg-brown: #634121;
+      --vg-amber: #E89F22;
+      --vg-cream: #FAF9F6;
+      --border-light: #e0d7c6;
+      --disabled-tan: #d2b48c;
     }
 
     body {
-      background: var(--bg);
-      font-family: 'Segoe UI', sans-serif;
+      background: var(--vg-cream);
+      font-family: Verdana, Geneva, sans-serif;
+      color: #333;
     }
 
     .hidden {
       display: none !important;
     }
 
+    /* CARDS */
     .item-card {
       background: white;
       border-radius: 12px;
-      border: none;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-light);
+      box-shadow: 0 4px 12px rgba(99, 65, 33, 0.05);
       overflow: hidden;
       height: 100%;
       transition: 0.2s;
@@ -40,22 +45,74 @@
       height: 120px;
       width: 100%;
       object-fit: cover;
-      background: #eee;
+      background: #f9f9f9;
     }
 
     #cart-sidebar {
       background: white;
       border-radius: 15px;
       padding: 20px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
+      border: 1px solid var(--border-light);
       position: sticky;
       top: 20px;
     }
 
-    .cart-item {
-      font-size: 0.85rem;
-      padding: 8px 0;
-      border-bottom: 1px solid #f1f1f1;
+    /* THEMED BUTTONS & STATES */
+
+    /* Login Button (Brown) */
+    #login-btn {
+      background-color: var(--vg-brown) !important;
+      border: none !important;
+      color: white !important;
+    }
+
+    #login-btn:disabled {
+      background-color: var(--disabled-tan) !important;
+      opacity: 0.8;
+      cursor: not-allowed;
+    }
+
+    /* Place Order Button (Amber) */
+    #place-order-btn {
+      background-color: var(--vg-amber) !important;
+      border: none !important;
+      color: white !important;
+      font-weight: bold;
+    }
+
+    #place-order-btn.disabled,
+    #place-order-btn:disabled {
+      background-color: var(--disabled-tan) !important;
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Inventory 'Add' Buttons (Brown by default) */
+    .btn-success {
+      background-color: var(--vg-brown) !important;
+      border: none !important;
+      color: white !important;
+    }
+
+    /* 'Added!' Feedback State (Amber) */
+    .btn-clicked {
+      transform: scale(0.9) !important;
+      background-color: var(--vg-amber) !important;
+      color: white !important;
+      transition: 0.1s;
+    }
+
+    #login-section {
+      border: none;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+      background-color: var(--vg-brown) !important;
+      border-bottom: 3px solid var(--vg-amber);
     }
 
     .remove-btn {
@@ -63,6 +120,7 @@
       cursor: pointer;
     }
 
+    /* HELPERS */
     #custom-toast {
       position: fixed;
       bottom: 20px;
@@ -94,25 +152,16 @@
       }
     }
 
-    /* Animation for the Add button feedback */
-    .btn-clicked {
-      transform: scale(0.9) !important;
-      background-color: #1b5e20 !important;
-      transition: 0.1s;
-    }
-
-    /* MOQ Label styling */
     .moq-label {
-      font-size: 0.72rem;
-      color: #6c757d;
+      font-size: 0.68rem;
+      color: #888;
       display: block;
       margin-top: 4px;
     }
 
-    /* Cart highlight animation */
     @keyframes highlight-cart {
       0% {
-        background-color: #e8f5e9;
+        background-color: #fff9e6;
       }
 
       100% {
@@ -122,6 +171,17 @@
 
     .cart-updated {
       animation: highlight-cart 0.8s ease-out;
+    }
+
+    h5,
+    h6,
+    .fw-bold {
+      color: var(--vg-brown);
+    }
+
+    /* Fix for badge green */
+    .badge.text-success {
+      color: var(--vg-brown) !important;
     }
   </style>
 </head>
@@ -134,10 +194,10 @@
 
   <div class="container py-4">
     <div id="login-section" class="card shadow mx-auto" style="max-width: 400px;">
-      <div class="card-header bg-success text-white text-center py-3">
-        <h5>Vidyagrama Online Order</h5>
+      <div class="card-header text-white text-center py-3">
+        <h5 class="mb-0" style="color:white;">Vidyagrama Online Order</h5>
       </div>
-      <div id="login-form-container" class="card-body p-4">
+      <div id="login-form-container" class="card-body p-4 bg-white">
         <div class="mb-3">
           <label class="fw-bold small">Varga</label>
           <select id="varga" class="form-select" onchange="fetchNames()" disabled>
@@ -154,13 +214,13 @@
           <label class="fw-bold small">Mobile</label>
           <input type="tel" id="mobile" class="form-control" placeholder="10 Digit Number">
         </div>
-        <button id="login-btn" class="btn btn-success w-100" onclick="doLogin()">Login</button>
+        <button id="login-btn" class="btn w-100" onclick="doLogin()">Login</button>
       </div>
     </div>
 
     <div id="shop-section" class="hidden">
-      <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
-        <h6 id="welcome-msg" class="text-success mb-0 fw-bold"></h6>
+      <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
+        <h6 id="welcome-msg" class="mb-0 fw-bold"></h6>
         <button class="btn btn-outline-danger btn-sm" onclick="hardReset()">Logout</button>
       </div>
 
@@ -186,7 +246,7 @@
 
         <div class="col-lg-4">
           <div id="cart-sidebar">
-            <h6 class="fw-bold mb-3">Your Cart</h6>
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Your Cart</h6>
             <div id="cart-list" class="mb-3" style="max-height: 300px; overflow-y: auto;">Empty</div>
 
             <div class="border-top pt-2">
@@ -194,12 +254,12 @@
                 <span>Gross Total:</span><span id="gross-val">₹0</span></div>
               <div class="d-flex justify-content-between small text-danger">
                 <span id="disc-label">Discount:</span><span id="disc-val">-₹0</span></div>
-              <div class="d-flex justify-content-between h5 mt-2 text-success fw-bold">
+              <div class="d-flex justify-content-between h5 mt-2 fw-bold" style="color:var(--vg-brown)">
                 <span>Final Total:</span><span id="final-val">₹0</span></div>
             </div>
 
             <textarea id="order-notes" class="form-control form-control-sm mt-3" placeholder="Add delivery notes..."></textarea>
-            <button id="place-order-btn" class="btn btn-success w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
+            <button id="place-order-btn" class="btn w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
           </div>
         </div>
       </div>
@@ -208,12 +268,12 @@
 
   <div class="modal fade" id="successModal" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content text-center p-4">
-        <div class="text-success"><i class="material-icons" style="font-size: 60px;">verified</i></div>
-        <h4 class="mt-2">Order Successful!</h4>
+      <div class="modal-content text-center p-4 border-0 shadow">
+        <div style="color: var(--vg-amber);"><i class="material-icons" style="font-size: 60px;">check_circle</i></div>
+        <h4 class="mt-2 fw-bold">Order Successful!</h4>
         <div class="bg-light p-3 rounded my-3">
           <div class="small text-muted" id="modal-id"></div>
-          <div class="fw-bold text-success" id="modal-saving"></div>
+          <div class="fw-bold" style="color: var(--vg-brown);" id="modal-saving"></div>
         </div>
         <button class="btn btn-success w-100" onclick="closeSuccessModal()">Finish</button>
       </div>
@@ -244,7 +304,6 @@
       v.innerHTML = '<option value="">Loading Varga...</option>';
       n.disabled = true;
       n.innerHTML = '<option value="">Select Varga first</option>';
-
       google.script.run.withSuccessHandler(vargas => {
         v.innerHTML = '<option value="">Select Varga</option>';
         vargas.forEach(item => v.add(new Option(item, item)));
@@ -255,11 +314,7 @@
     function fetchNames() {
       const v = document.getElementById('varga').value;
       const n = document.getElementById('name');
-      if (!v) {
-        n.innerHTML = '<option value="">Select Varga first</option>';
-        n.disabled = true;
-        return;
-      }
+      if (!v) { n.innerHTML = '<option value="">Select Varga first</option>'; n.disabled = true; return; }
       n.disabled = true;
       n.innerHTML = '<option value="">Loading names...</option>';
       google.script.run.withSuccessHandler(names => {
@@ -272,11 +327,9 @@
     function doLogin() {
       const v = document.getElementById('varga').value, n = document.getElementById('name').value, m = document.getElementById('mobile').value;
       if (!v || !n || !m) return showAlert("Fill all fields");
-
       const loginBtn = document.getElementById('login-btn');
       loginBtn.disabled = true;
       loginBtn.innerHTML = '<span class="loader"></span> Authenticating...';
-
       google.script.run.withSuccessHandler(res => {
         if (res.success) { currentUser = res; startShop(); }
         else {
@@ -292,15 +345,12 @@
       document.getElementById('shop-section').classList.remove('hidden');
       document.getElementById('welcome-msg').innerText = "Namaste, " + currentUser.name;
       document.getElementById('disc-label').innerText = `Discount (${currentUser.discount}%):`;
-      
       google.script.run.withSuccessHandler(data => {
         fullInventory = data;
-        
         const mainCatFilter = document.getElementById('main-cat-filter');
         mainCatFilter.innerHTML = '<option value="All">All Inventories</option>';
         const mainCats = [...new Set(data.map(i => i.mainCategory))].sort();
         mainCats.forEach(c => mainCatFilter.add(new Option(c.toUpperCase(), c)));
-
         updateSubCategoryDropdown();
       }).getInventoryData();
     }
@@ -308,16 +358,10 @@
     function updateSubCategoryDropdown() {
       const selectedMain = document.getElementById('main-cat-filter').value;
       const subCatFilter = document.getElementById('sub-cat-filter');
-      
       subCatFilter.innerHTML = '<option value="All">All Sub-Categories</option>';
-      
-      const relevantItems = selectedMain === "All" 
-        ? fullInventory 
-        : fullInventory.filter(i => i.mainCategory === selectedMain);
-        
+      const relevantItems = selectedMain === "All" ? fullInventory : fullInventory.filter(i => i.mainCategory === selectedMain);
       const subCats = [...new Set(relevantItems.map(i => i.subCategory))].filter(c => c).sort();
       subCats.forEach(sc => subCatFilter.add(new Option(sc, sc)));
-      
       filterItems();
     }
 
@@ -325,36 +369,28 @@
       const q = document.getElementById('search-bar').value.toLowerCase();
       const mainC = document.getElementById('main-cat-filter').value;
       const subC = document.getElementById('sub-cat-filter').value;
-      
       const filtered = fullInventory.filter(i => {
-        // Search by Item Name OR SKU
         const matchSearch = i.itemName.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q));
         const matchMain = (mainC === "All" || i.mainCategory === mainC);
         const matchSub = (subC === "All" || i.subCategory === subC);
         return matchSearch && matchMain && matchSub;
       });
-      
       renderInventory(filtered);
     }
 
     function renderInventory(items) {
       const grid = document.getElementById('inventory-grid');
-      if (items.length === 0) {
-        grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found.</div>';
-        return;
-      }
-
+      if (items.length === 0) { grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found.</div>'; return; }
       grid.innerHTML = items.map(i => {
         const itemMoq = i.moq || 0.5;
         return `
     <div class="col-6 col-md-4">
       <div class="item-card p-2 text-center d-flex flex-column shadow-sm">
-        <div class="text-end"><span class="badge bg-light text-success border" style="font-size:0.6rem">${i.mainCategory}</span></div>
+        <div class="text-end"><span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">${i.mainCategory}</span></div>
         <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
         <div class="small fw-bold text-truncate">${i.itemName}</div>
         <div class="text-muted" style="font-size: 0.65rem;">SKU: ${i.sku}</div>
-        <div class="text-success small mb-1">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
-        
+        <div class="small mb-1" style="color:var(--vg-brown)">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
         <div class="mt-auto">
           <div class="d-flex gap-1">
             <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
@@ -371,17 +407,11 @@
       const item = fullInventory.find(i => i.sku === sku);
       const qtyInput = document.getElementById('qty-' + sku);
       const addBtn = document.getElementById('btn-' + sku);
-      
       if (!item) return showAlert("Item not found");
-
       const qty = parseFloat(qtyInput.value);
       const minAllowed = item.moq || 0.5;
-
-      if (isNaN(qty) || qty < minAllowed) {
-        showAlert(`Minimum order is ${minAllowed} ${item.uom}`);
-        return;
-      }
-
+      if (isNaN(qty) || qty < minAllowed) { showAlert(`Minimum order is ${minAllowed} ${item.uom}`); return; }
+      
       addBtn.classList.add('btn-clicked');
       addBtn.innerText = "Added!";
       
@@ -389,24 +419,18 @@
       cartSidebar.classList.remove('cart-updated');
       void cartSidebar.offsetWidth; 
       cartSidebar.classList.add('cart-updated');
-
+      
       setTimeout(() => { 
-        addBtn.classList.remove('btn-clicked');
+        addBtn.classList.remove('btn-clicked'); 
         addBtn.innerText = "Add"; 
-      }, 500);
-
+      }, 600);
+      
       const existingItem = cart.find(cartItem => cartItem.sku === sku);
-
       if (existingItem) {
         existingItem.quantity = parseFloat((existingItem.quantity + qty).toFixed(2));
         existingItem.fullSubtotal = (existingItem.quantity * parseFloat(existingItem.salePrice)).toFixed(2);
       } else {
-        cart.push({
-          ...item,
-          cartId: Date.now() + Math.random(), 
-          quantity: qty,
-          fullSubtotal: (qty * parseFloat(item.salePrice)).toFixed(2)
-        });
+        cart.push({ ...item, cartId: Date.now() + Math.random(), quantity: qty, fullSubtotal: (qty * parseFloat(item.salePrice)).toFixed(2) });
       }
       updateCartUI();
     }
@@ -414,10 +438,8 @@
     function removeFromCart(id) { cart = cart.filter(i => i.cartId !== id); updateCartUI(); }
 
     function updateCartUI() {
-      const list = document.getElementById('cart-list');
-      const btn = document.getElementById('place-order-btn');
+      const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
       let gross = 0;
-
       if (cart.length === 0) {
         list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
         document.getElementById('gross-val').innerText = "₹0";
@@ -426,32 +448,22 @@
         btn.classList.add('disabled');
         return;
       }
-
       list.innerHTML = cart.map(i => {
-        // Ensure we are working with numbers for the calculation
-        const subtotalNum = parseFloat(i.fullSubtotal);
-        gross += subtotalNum;
-
+        const subtotalNum = parseFloat(i.fullSubtotal); gross += subtotalNum;
         return `
           <div class="cart-item d-flex justify-content-between align-items-center py-2">
-            <div style="flex: 1; min-width: 0;">
-              <div class="fw-bold text-truncate" style="font-size:0.85rem">${i.itemName}</div>
-              <small class="text-muted">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom} (${i.mainCategory})</small>
-            </div>
+            <div style="flex: 1; min-width: 0;"><div class="fw-bold text-truncate" style="font-size:0.85rem">${i.itemName}</div><small class="text-muted">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small></div>
             <div class="d-flex align-items-center">
               <div class="input-group input-group-sm me-2" style="width: 90px;">
                 <button class="btn btn-outline-secondary px-1" onclick="changeCartQty('${i.sku}', -1)">-</button>
                 <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.75rem;">${i.quantity}</span>
                 <button class="btn btn-outline-secondary px-1" onclick="changeCartQty('${i.sku}', 1)">+</button>
               </div>
-              <div class="text-end" style="min-width: 60px;">
-                <span class="fw-bold" style="font-size:0.85rem">₹${subtotalNum.toFixed(2)}</span>
-              </div>
+              <div class="text-end" style="min-width: 60px;"><span class="fw-bold" style="font-size:0.85rem">₹${subtotalNum.toFixed(2)}</span></div>
               <i class="material-icons ms-2 remove-btn" style="font-size:18px;" onclick="removeFromCart(${i.cartId})">cancel</i>
             </div>
           </div>`;
       }).join('');
-
       const discAmt = (gross * (currentUser.discount / 100));
       document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
       document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
@@ -460,52 +472,28 @@
     }
 
     function changeCartQty(sku, direction) {
-      const itemInCart = cart.find(i => i.sku === sku);
-      if (!itemInCart) return;
-
-      const step = 1;
-      const minAllowed = itemInCart.moq || 0.5;
-
-      if (direction === 1) {
-        itemInCart.quantity = parseFloat((itemInCart.quantity + step).toFixed(2));
-      } else {
-        if (itemInCart.quantity - step < minAllowed) {
-          showAlert(`Minimum order for ${itemInCart.itemName} is ${minAllowed} ${itemInCart.uom}`);
-          itemInCart.quantity = minAllowed;
-        } else {
-          itemInCart.quantity = parseFloat((itemInCart.quantity - step).toFixed(2));
-        }
+      const itemInCart = cart.find(i => i.sku === sku); if (!itemInCart) return;
+      const step = 1, minAllowed = itemInCart.moq || 0.5;
+      if (direction === 1) { itemInCart.quantity = parseFloat((itemInCart.quantity + step).toFixed(2)); } 
+      else {
+        if (itemInCart.quantity - step < minAllowed) { showAlert(`Min order is ${minAllowed} ${itemInCart.uom}`); itemInCart.quantity = minAllowed; } 
+        else { itemInCart.quantity = parseFloat((itemInCart.quantity - step).toFixed(2)); }
       }
       itemInCart.fullSubtotal = (itemInCart.quantity * parseFloat(itemInCart.salePrice)).toFixed(2);
       updateCartUI();
     }
 
     function placeOrder() {
-      const btn = document.getElementById('place-order-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="loader"></span> Saving...';
-
+      const btn = document.getElementById('place-order-btn'); btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
       const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
       const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
-
-      const summary = {
-        orderId: currentOrderId,
-        customerId: currentUser.id,
-        customerName: currentUser.name,
-        finalTotal: parseFloat(finalTotalStr),
-        notes: document.getElementById('order-notes').value
-      };
-
+      const summary = { orderId: currentOrderId, customerId: currentUser.id, customerName: currentUser.name, finalTotal: parseFloat(finalTotalStr), notes: document.getElementById('order-notes').value };
       google.script.run.withSuccessHandler(res => {
         if (res === true) {
           document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
           document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
           successModal.show();
-        } else {
-          showAlert("Error: " + res);
-          btn.disabled = false;
-          btn.innerHTML = "Place Order";
-        }
+        } else { showAlert("Error: " + res); btn.disabled = false; btn.innerHTML = "Place Order"; }
       }).finalizeOrderBulk(summary, cart);
     }
 
@@ -513,20 +501,16 @@
     function generateOrderId() { currentOrderId = "ORD-" + Date.now(); }
 
     function hardReset() {
-      cart = [];
-      currentUser = null;
-      generateOrderId();
+      cart = []; currentUser = null; generateOrderId();
       document.getElementById('mobile').value = "";
       document.getElementById('order-notes').value = "";
       document.getElementById('search-bar').value = "";
       updateCartUI();
       const placeBtn = document.getElementById('place-order-btn');
-      placeBtn.disabled = false;
-      placeBtn.classList.add('disabled');
+      placeBtn.disabled = false; placeBtn.classList.add('disabled');
       placeBtn.innerHTML = "Place Order";
       const loginBtn = document.getElementById('login-btn');
-      loginBtn.disabled = false;
-      loginBtn.innerText = "Login";
+      loginBtn.disabled = false; loginBtn.innerText = "Login";
       document.getElementById('shop-section').classList.add('hidden');
       document.getElementById('login-section').classList.remove('hidden');
       loadInitialData();

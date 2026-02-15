@@ -51,11 +51,11 @@ function getInventoryData() {
     const items = data.slice(1).map(row => ({
       sku: String(row[15]),   // Column P
       mainCategory: sheetName,
-      subCategory: row[1],
+      subCategory: row[1],    // Ensure this is captured
       itemName: row[2],
       uom: row[3],
       stock: parseFloat(row[4]) || 0,
-      salePrice: parseFloat(row[7]) || 0, // Ensure this is a number
+      salePrice: parseFloat(row[7]) || 0,
       moq: parseFloat(row[10]) || 0.5,
       imageUrl: row[16] || "https://via.placeholder.com/150"
     })).filter(item => item.sku && item.sku !== "undefined" && item.stock > 0);
@@ -71,22 +71,24 @@ function finalizeOrderBulk(summary, fullCart) {
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // 1. Save Line Items
+    // 1. Save Line Items (Corrected Column Mapping)
     const lineRows = fullCart.map((item, index) => [
-      index + 1,
-      summary.orderId,
-      item.mainCategory,     // Fixed: Use mainCategory instead of category
-      item.sku,              // Fixed: Use sku instead of itemId
-      item.itemName,
-      item.quantity,
-      item.uom,
-      item.salePrice,
-      item.fullSubtotal,
-      ""
+      index + 1,             // Col A: Serial
+      summary.orderId,       // Col B: Order ID
+      item.mainCategory,     // Col C: Main Category
+      item.subCategory || "",// Col D: Sub Category (ADDED THIS TO PREVENT SHIFTING)
+      item.sku,              // Col E: SKU
+      item.itemName,         // Col F: Item Name
+      item.quantity,         // Col G: Quantity
+      item.uom,              // Col H: UOM
+      item.salePrice,        // Col I: Sale Price
+      item.fullSubtotal,     // Col J: Subtotal
+      ""                     // Col K: Empty/Notes
     ]);
 
     const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
-    liSheet.getRange(nextLiRow, 1, lineRows.length, 10).setValues(lineRows);
+    // Note: Column count increased to 11 to accommodate the Sub-Category column
+    liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
     // 2. Save Order Summary
     const ordRow = [[
@@ -104,25 +106,19 @@ function finalizeOrderBulk(summary, fullCart) {
     const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
     ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
 
-    // 3. INVENTORY SYNC (Searching by SKU in Column P)
+    // 3. INVENTORY SYNC
     fullCart.forEach(cartItem => {
       if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
-
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
       if (!targetSheet) return;
 
       const data = targetSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
-        // Look for SKU in Column P (index 15)
         if (String(data[i][15]) === String(cartItem.sku)) {
           let currentStock = parseFloat(data[i][4]) || 0;
           let reorderPoint = parseFloat(data[i][9]) || 0;
           let newStock = currentStock - cartItem.quantity;
-
-          // Update Stock (Col E - Index 5)
           targetSheet.getRange(i + 1, 5).setValue(newStock);
-
-          // Update Status (Col M - Index 13)
           let status = newStock <= 0 ? "Sold out" : (newStock <= reorderPoint ? "Repurchase needed" : "In stock");
           targetSheet.getRange(i + 1, 13).setValue(status);
           break;
@@ -163,8 +159,7 @@ function sendReceiptEmail(summary, cart) {
       let qty = parseFloat(item.quantity);
       let price = parseFloat(item.salePrice);
       let unit = item.uom;
-      
-      // Unit conversion
+
       if (unit.toLowerCase() === 'gms') {
         qty = qty / 1000;
         unit = 'kg';
@@ -253,10 +248,7 @@ function sendReceiptEmail(summary, cart) {
 }
 
 function getFirstEmptyRowInColumn(sheet, col) {
-  // Get all values in the specific column (e.g., Column B for Order ID)
   const range = sheet.getRange(1, col, sheet.getMaxRows()).getValues();
-  
-  // Loop from top to bottom to find the first truly empty cell
   for (let i = 0; i < range.length; i++) {
     if (range[i][0] === "" || range[i][0] === null || range[i][0] === undefined) {
       return i + 1;
