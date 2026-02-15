@@ -15,6 +15,7 @@
     margin: 0;
   }
 
+  /* --- LOGIN SCREEN --- */
   #login-container {
     max-width: 400px;
     margin: 100px auto;
@@ -42,7 +43,8 @@
     font-weight: bold;
   }
 
-  input {
+  input,
+  select {
     width: 100%;
     padding: 12px;
     margin: 10px 0;
@@ -54,7 +56,8 @@
     color: var(--text);
   }
 
-  input:focus {
+  input:focus,
+  select:focus {
     outline: none;
     border-color: var(--vg-amber);
     box-shadow: 0 0 5px rgba(232, 159, 34, 0.2);
@@ -75,16 +78,38 @@
     font-family: Verdana, Geneva, sans-serif;
   }
 
-  button.btn-primary:hover {
-    background: #4e342e;
+  /* --- BUTTONS: ENSURE VIBRANT COLORS --- */
+  button.btn-save,
+  .btn-primary {
+    background-color: var(--vg-amber) !important;
+    /* Force Amber color */
+    color: white !important;
+    opacity: 1 !important;
+    cursor: pointer !important;
+    transition: 0.2s;
   }
 
-  button.btn-primary:disabled {
-    background-color: var(--disabled-tan) !important;
-    cursor: not-allowed;
-    opacity: 0.8;
+  /* --- THE DISABLED STATE (ONLY when saving) --- */
+  button:disabled {
+    background-color: #ccc !important;
+    /* Grey only when actually disabled */
+    color: #888 !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
   }
 
+  /* --- CANCEL BUTTON --- */
+  .btn-cancel {
+    background-color: #eee !important;
+    color: #333 !important;
+    cursor: pointer !important;
+  }
+
+  .btn-cancel:hover {
+    background-color: #ddd !important;
+  }
+
+  /* --- HEADER & NAVIGATION --- */
   header {
     background: var(--vg-brown);
     color: white;
@@ -96,7 +121,6 @@
   }
 
   #user-display {
-    font-family: Verdana, Geneva, sans-serif;
     font-size: 13px;
     font-weight: bold;
     color: var(--vg-cream);
@@ -118,7 +142,7 @@
   }
 
   .tab {
-    padding: 15px 25px;
+    padding: 12px 20px;
     cursor: pointer;
     font-weight: bold;
     font-size: 13px;
@@ -137,50 +161,147 @@
     color: white;
   }
 
+  /* --- CONTENT AREA & CARDS (Adjusted for "Zoom" issue) --- */
   .content-area {
-    padding: 30px;
+    padding: 15px 25px;
   }
 
+  /* Slightly more compact */
   .card {
     background: white;
-    padding: 30px;
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(99, 65, 33, 0.05);
     border-left: 5px solid var(--vg-brown);
   }
 
+  /* --- INVENTORY SUMMARY CARDS --- */
+  .summary-container {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+  }
+
+  .summary-card {
+    min-width: 140px;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+    flex-shrink: 0;
+  }
+
+  .summary-card.total {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+  }
+
+  .summary-card .label {
+    font-size: 9px;
+    text-transform: uppercase;
+    font-weight: bold;
+    opacity: 0.7;
+  }
+
+  .summary-card .value {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 3px 0;
+    color: inherit;
+  }
+
+  .summary-card .sub-label {
+    font-size: 10px;
+    font-weight: bold;
+    opacity: 0.8;
+    color: var(--vg-amber);
+  }
+
+  /* --- CONTROLS & SEARCH --- */
+  .inventory-controls {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 15px;
+    align-items: center;
+  }
+
+  .search-group {
+    display: flex;
+    flex: 1;
+    gap: 10px;
+  }
+
+  .search-box {
+    flex: 3;
+    position: relative;
+  }
+
+  .search-box input {
+    padding-left: 40px !important;
+    margin: 0;
+  }
+
+  #catFilter {
+    flex: 1;
+    margin: 0;
+    min-width: 130px;
+  }
+
+  /* --- REFRESH BUTTON --- */
+  .btn-refresh {
+    width: auto !important;
+    padding: 0 20px !important;
+    margin: 0 !important;
+    transition: all 0.2s ease;
+  }
+
+  .btn-refresh-active {
+    background-color: var(--vg-amber) !important;
+    color: white !important;
+  }
+
+  /* --- TABLE STYLING --- */
   .admin-table-wrapper {
     overflow-x: auto;
-    margin-top: 20px;
+    border-radius: 4px;
+    border: 1px solid #eee;
+    margin-top: 10px;
   }
 
   .admin-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12px;
   }
 
+  /* Smaller font for professionalism */
   .admin-table th {
     background: #f8f5f2;
     color: var(--vg-brown);
     text-align: left;
-    padding: 12px;
+    padding: 10px;
     border-bottom: 2px solid var(--border-light);
   }
 
   .admin-table td {
-    padding: 12px;
+    padding: 10px;
     border-bottom: 1px solid #eee;
+    background: white;
   }
 
-  .admin-table tr:hover {
+  .admin-table tr:hover td {
     background-color: #fffaf5;
   }
 
+  /* --- STATUS BADGES --- */
   .badge {
-    padding: 4px 8px;
+    padding: 3px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
     text-transform: uppercase;
   }
@@ -208,19 +329,66 @@
     border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
-    font-weight: bold;
   }
 
+  /* --- MODAL POPUP --- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    width: 320px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    border-top: 6px solid var(--vg-brown);
+  }
+
+  #modal-status {
+    display: none;
+    padding: 8px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    min-height: 18px;
+  }
+
+  .status-success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #c8e6c9;
+  }
+
+  .status-error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+  }
+
+  /* --- ANIMATIONS --- */
   .loader {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border: 2px solid #FFF;
     border-bottom-color: transparent;
     border-radius: 50%;
     display: inline-block;
     animation: rotation 1s linear infinite;
     vertical-align: middle;
-    margin-right: 8px;
+    margin-right: 5px;
   }
 
   @keyframes rotation {

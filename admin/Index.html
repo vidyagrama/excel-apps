@@ -4,7 +4,6 @@
 <head>
   <base target="_top">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
   <?!= include('Styles'); ?>
 </head>
 
@@ -38,6 +37,29 @@
 
     <div class="content-area">
       <div id="tab-content" class="card"></div>
+    </div>
+  </div>
+
+  <div id="stock-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="modal-item-name" style="margin-top:0; color:var(--vg-brown);">Update Stock</h3>
+      <p style="font-size: 12px; color: #666; margin-bottom:15px;">Enter new quantity below</p>
+
+      <div id="modal-status" style="min-height: 20px;"></div>
+
+      <input type="number" id="new-stock-input"
+            style="text-align: center; font-size: 24px; font-weight: bold; width: 80%; padding: 10px; margin-bottom: 20px; border: 2px solid var(--vg-amber);">
+
+      <div style="display: flex; gap: 10px; justify-content: center;">
+        <button id="modal-cancel-btn" class="btn-cancel" onclick="closeModal()"
+                style="background:#eee; color:#333; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; flex:1;">
+          Cancel
+        </button>
+        <button id="modal-save-btn" class="btn-save" onclick="saveStock()"
+                style="background:var(--vg-amber); color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:bold; flex:1;">
+          Save
+        </button>
+      </div>
     </div>
   </div>
 

@@ -1,13 +1,26 @@
 <script>
+  let inventoryData = [];
+  let selectedSku = '';
+
   window.onload = function() {
-    const inputs = document.querySelectorAll('#login-container input');
-    inputs.forEach(input => {
+    // Login Enter Key Listener
+    const loginInputs = document.querySelectorAll('#login-container input');
+    loginInputs.forEach(input => {
       input.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') login();
       });
     });
+
+    // Modal Stock Enter Key Listener
+    const stockInput = document.getElementById('new-stock-input');
+    if (stockInput) {
+      stockInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') saveStock();
+      });
+    }
   };
 
+  /** --- LOGIN LOGIC --- **/
   function login() {
     const id = document.getElementById('userid').value;
     const mob = document.getElementById('mobile').value;
@@ -18,93 +31,216 @@
 
     btn.innerHTML = '<span class="loader"></span> Authenticating...';
     btn.disabled = true;
-    msg.innerText = "";
-    
-    google.script.run.withSuccessHandler(function(res) {
-      if(res.success) {
-        document.getElementById('login-container').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
-        openTab(null, 'Inventory'); 
-      } else {
-        msg.innerText = res.message;
-        btn.innerText = "Login to Admin";
-        btn.disabled = false;
-      }
-    }).checkLogin(id, mob);
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if(res.success) {
+          document.getElementById('login-container').style.display = 'none';
+          document.getElementById('dashboard').style.display = 'block';
+          document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
+          loadInventory(); 
+        } else {
+          msg.innerText = res.message;
+          btn.innerHTML = "Login to Admin";
+          btn.disabled = false;
+        }
+      })
+      .withFailureHandler(function(err) {
+         msg.innerText = "System Error: " + err;
+         btn.disabled = false;
+      })
+      .checkLogin(id, mob); 
   }
 
-  function logout() {
-    location.reload(); 
-  }
+  function logout() { location.reload(); }
 
   function openTab(evt, tabName) {
     const tabs = document.getElementsByClassName("tab");
     for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
-    
     if(evt) evt.currentTarget.classList.add("active");
-    else document.querySelector('.tab').classList.add("active");
     
     const content = document.getElementById('tab-content');
-    content.innerHTML = `<div style="text-align:center; padding:40px;"><span class="loader" style="border-color:var(--vg-brown); border-bottom-color:transparent;"></span> Fetching ${tabName} Data...</div>`;
-
     if(tabName === 'Inventory') {
       loadInventory();
     } else {
-      content.innerHTML = `
-        <h2 style="color:var(--vg-brown); font-size: 20px;">${tabName} Control</h2>
-        <hr style="border: 0; border-top: 1px solid var(--border-light); margin-bottom: 20px;">
-        <p style="font-size: 14px;">Module for <strong>${tabName}</strong> is under development.</p>
-      `;
+      content.innerHTML = `<h2>${tabName} Control</h2><p>Module under development.</p>`;
     }
   }
 
+  /** --- INVENTORY LOGIC --- **/
   function loadInventory() {
+    const refreshBtn = document.getElementById('refreshInvBtn');
+    if(refreshBtn) {
+      refreshBtn.innerHTML = '<span class="loader"></span> Refreshing...';
+      refreshBtn.classList.add('btn-refresh-active');
+      refreshBtn.disabled = true;
+    }
+
     google.script.run.withSuccessHandler(function(data) {
-      let html = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <h2 style="color:var(--vg-brown); margin:0; font-size:20px;">Inventory Master</h2>
-          <button class="btn-primary" style="width:auto; margin:0; padding:8px 15px; font-size:12px;" onclick="loadInventory()">Refresh</button>
-        </div>
-        <div class="admin-table-wrapper">
-          <table class="admin-table">
-            <thead>
-              <tr>
-                <th>SKU</th>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Price</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-      data.forEach(item => {
-        let badgeClass = 'badge-ok';
-        let badgeText = 'In Stock';
-        
-        if (item.stock <= 0) {
-          badgeClass = 'badge-out';
-          badgeText = 'Out';
-        } else if (item.stock <= item.reorderPoint) {
-          badgeClass = 'badge-low';
-          badgeText = 'Low';
-        }
-
-        html += `
-          <tr>
-            <td><strong>${item.sku}</strong></td>
-            <td>${item.itemName}</td>
-            <td><small>${item.mainCategory} > ${item.subCategory}</small></td>
-            <td>${item.stock} ${item.uom}</td>
-            <td>₹${item.salePrice.toFixed(2)}</td>
-            <td><span class="badge ${badgeClass}">${badgeText}</span></td>
-          </tr>`;
-      });
-
-      html += `</tbody></table></div>`;
-      document.getElementById('tab-content').innerHTML = html;
+      inventoryData = data;
+      renderInventoryDashboard();
     }).getInventoryData();
   }
+
+  function saveStock() {
+    const newValue = document.getElementById('new-stock-input').value;
+    const saveBtn = document.getElementById('modal-save-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const status = document.getElementById('modal-status');
+
+    if (!saveBtn.disabled) { // Prevent double-clicks
+      saveBtn.disabled = true;
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      saveBtn.innerHTML = '<span class="loader"></span> Saving...';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            saveBtn.innerHTML = '✓ Done';
+            saveBtn.style.backgroundColor = '#2e7d32'; // Green
+            status.className = "status-success";
+            status.innerHTML = "✓ " + (res.message || "Stock Updated!");
+            status.style.display = 'block';
+
+            setTimeout(() => {
+              closeModal();
+              loadInventory(); 
+            }, 1200);
+          } else {
+            saveBtn.disabled = false; 
+            if (cancelBtn) cancelBtn.style.display = 'block';
+            saveBtn.innerHTML = 'Save';
+            status.className = "status-error";
+            status.innerHTML = "✕ " + (res ? res.message : "Error: No response");
+            status.style.display = 'block';
+          }
+        })
+        .withFailureHandler(function(err) {
+          saveBtn.disabled = false;
+          if (cancelBtn) cancelBtn.style.display = 'block';
+          saveBtn.innerHTML = 'Save';
+          status.className = "status-error";
+          status.innerHTML = "✕ System Error: " + err;
+          status.style.display = 'block';
+        })
+        .updateStockValue(selectedSku, parseFloat(newValue));
+    }
+  }
+
+  function renderInventoryDashboard() {
+    const metrics = inventoryData.reduce((acc, item) => {
+      const val = (item.stock * item.salePrice) || 0;
+      acc.totalVal += val; acc.totalQty += (item.stock || 0);
+      if (!acc.cats[item.mainCategory]) acc.cats[item.mainCategory] = { qty: 0, val: 0 };
+      acc.cats[item.mainCategory].qty += (item.stock || 0);
+      acc.cats[item.mainCategory].val += val;
+      return acc;
+    }, { totalVal: 0, totalQty: 0, cats: {} });
+
+    let headerHtml = `<div class="summary-container">
+      <div class="summary-card total">
+        <div class="label">Total Stock Value</div>
+        <div class="value">₹${metrics.totalVal.toLocaleString('en-IN')}</div>
+        <div class="sub-label">${metrics.totalQty} Units Total</div>
+      </div>`;
+    for (let cat in metrics.cats) {
+      headerHtml += `
+        <div class="summary-card">
+          <div class="label">${cat}</div>
+          <div class="value">₹${metrics.cats[cat].val.toLocaleString('en-IN')}</div>
+          <div class="sub-label">${metrics.cats[cat].qty} Units</div>
+        </div>`;
+    }
+    headerHtml += `</div>`;
+
+    let controlsHtml = `
+      <div class="inventory-controls">
+        <div class="search-group">
+          <div class="search-box">
+             <i class="material-icons" style="position:absolute; left:10px; top:12px; font-size:18px; color:#999;">search</i>
+             <input type="text" id="invSearch" placeholder="Search Item Name or SKU..." onkeyup="filterInventory()">
+          </div>
+          <select id="catFilter" onchange="filterInventory()">
+            <option value="All">All Categories</option>
+            ${Object.keys(metrics.cats).map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+        <button id="refreshInvBtn" class="btn-primary btn-refresh" onclick="loadInventory()">Refresh</button>
+      </div>`;
+
+    document.getElementById('tab-content').innerHTML = headerHtml + controlsHtml + `<div id="invTableWrapper">${generateTableHTML(inventoryData)}</div>`;
+  }
+
+  function filterInventory() {
+    const query = document.getElementById('invSearch').value.toLowerCase();
+    const cat = document.getElementById('catFilter').value;
+    
+    const filtered = inventoryData.filter(item => {
+      const matchesSearch = item.itemName.toLowerCase().includes(query) || item.sku.toLowerCase().includes(query);
+      const matchesCat = (cat === "All" || item.mainCategory === cat);
+      return matchesSearch && matchesCat;
+    });
+    document.getElementById('invTableWrapper').innerHTML = generateTableHTML(filtered);
+  }
+
+  function generateTableHTML(data) {
+    const sorted = [...data].sort((a, b) => (b.stock <= b.reorderPoint) - (a.stock <= a.reorderPoint));
+    let rows = sorted.map(item => {
+      const isLow = item.stock <= item.reorderPoint;
+      const badge = item.stock <= 0 ? 'badge-out' : (isLow ? 'badge-low' : 'badge-ok');
+      return `
+        <tr style="${isLow ? 'background-color:#fff9f0;' : ''}">
+          <td><strong>${item.itemName}</strong></td>
+          <td><small>${item.sku}</small></td>
+          <td>${item.mainCategory}</td>
+          <td onclick="openUpdateModal('${item.sku}', '${item.itemName}', ${item.stock})" style="cursor:pointer; font-weight:bold; color:var(--vg-brown);">
+            <div style="display:flex; align-items:center; gap:5px;">
+              ${item.stock} ${item.uom} <i class="material-icons" style="font-size:14px; opacity:0.5;">edit</i>
+            </div>
+          </td>
+          <td>₹${item.salePrice.toFixed(2)}</td>
+          <td><span class="badge ${badge}">${item.stock<=0?'Out':(isLow?'Low':'OK')}</span></td>
+        </tr>`;
+    }).join('');
+
+    return `<div class="admin-table-wrapper"><table class="admin-table">
+      <thead><tr><th>Item Name</th><th>SKU</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+
+  /** --- MODAL CONTROLS --- **/
+    function openUpdateModal(sku, name, current) {
+    selectedSku = sku.toString().trim();
+    
+    const saveBtn = document.getElementById('modal-save-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const status = document.getElementById('modal-status');
+    const input = document.getElementById('new-stock-input');
+
+    // RESET BUTTON TO AMBER (ACTIVE STATE)
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = 'Save';
+      saveBtn.style.backgroundColor = 'var(--vg-amber)'; // Force reset to Amber
+      saveBtn.style.opacity = '1';
+    }
+    
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.style.display = 'block';
+    }
+
+    if (status) status.style.display = 'none';
+    
+    document.getElementById('modal-item-name').innerText = name;
+    input.value = current;
+    document.getElementById('stock-modal').style.display = 'flex';
+    
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 150);
+  }
+
+  function closeModal() { document.getElementById('stock-modal').style.display = 'none'; }
 </script>
