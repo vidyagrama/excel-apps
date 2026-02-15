@@ -175,22 +175,28 @@
     border-left: 5px solid var(--vg-brown);
   }
 
-  /* --- INVENTORY SUMMARY CARDS --- */
+  /* --- INVENTORY SUMMARY CARDS (PILL SHADOW DESIGN) --- */
   .summary-container {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     overflow-x: auto;
-    padding-bottom: 12px;
+    padding-bottom: 15px;
     margin-bottom: 15px;
   }
 
   .summary-card {
-    min-width: 140px;
+    min-width: 160px;
     background: white;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 15px;
+    border-radius: 12px;
+    /* Rounded card */
     border: 1px solid var(--border-light);
+    box-shadow: 0 4px 12px rgba(99, 65, 33, 0.05);
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    transition: 0.2s;
   }
 
   .summary-card.total {
@@ -199,11 +205,28 @@
     border: none;
   }
 
+  /* The Pill Shadow for category names */
   .summary-card .label {
-    font-size: 9px;
-    text-transform: uppercase;
+    font-size: 11px;
+    text-transform: lowercase;
+    /* as requested */
     font-weight: bold;
-    opacity: 0.7;
+    background: #f0e6d2;
+    /* Light tan pill */
+    color: var(--vg-brown);
+    padding: 4px 12px;
+    border-radius: 50px;
+    /* Pill shape */
+    box-shadow: 0 2px 6px rgba(99, 65, 33, 0.15);
+    /* Circular/Rounded shadow */
+    margin-bottom: 8px;
+    display: inline-block;
+  }
+
+  .summary-card.total .label {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   }
 
   .summary-card .value {
@@ -220,7 +243,7 @@
     color: var(--vg-amber);
   }
 
-  /* --- CONTROLS & SEARCH --- */
+  /* --- CONTROLS & TABLE --- */
   .inventory-controls {
     display: flex;
     justify-content: space-between;
