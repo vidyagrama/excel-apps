@@ -6,3 +6,8 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
+
+/** --- HELPER: INCLUDE HTML FILES --- **/
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}

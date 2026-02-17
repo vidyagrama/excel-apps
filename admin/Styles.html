@@ -423,4 +423,55 @@
       transform: rotate(360deg);
     }
   }
+
+  /* --- NEW UPDATES FOR ORDERS DASHBOARD (ADDED AT END) --- */
+  
+  /* Prevent the Orders header from squashing dropdowns */
+  .inventory-controls {
+    flex-wrap: wrap !important;
+  }
+
+  /* Specific sizing for Order Month/Year dropdowns */
+  #orderMonth, #orderYear {
+    width: auto !important;
+    min-width: 120px;
+    flex: 1;
+    margin: 0;
+  }
+
+  /* Icon Buttons for Edit/Print/Delete */
+  .icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    vertical-align: middle;
+  }
+
+  .icon-btn i {
+    font-size: 18px;
+    color: var(--vg-brown);
+  }
+
+  /* Smaller select boxes inside the Order Table */
+  .status-select {
+    width: auto !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    font-size: 11px !important;
+  }
+
+  /* Ensure modal can grow for the order items table */
+  .modal-content {
+    max-width: 600px !important;
+    width: 90% !important;
+  }
+
+  /* Table styling for items inside the modal */
+  #modal-status .admin-table {
+    margin-top: 10px;
+    border: 1px solid var(--border-light);
+  }
+
+
 </style>

@@ -1,5 +1,6 @@
 <script>
   let inventoryData = [];
+  let ordersData = []; // To store current month's orders
   let selectedSku = '';
 
   window.onload = function() {
@@ -54,17 +55,27 @@
 
   function logout() { location.reload(); }
 
-  function openTab(evt, tabName) {
+  /** --- TAB ROUTING --- **/
+
+    function openTab(evt, tabName) {
+    // 1. Update UI (Tabs)
     const tabs = document.getElementsByClassName("tab");
-    for (let i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
-    if(evt) evt.currentTarget.classList.add("active");
-    
-    const content = document.getElementById('tab-content');
-    if(tabName === 'Inventory') {
-      loadInventory();
-    } else {
-      content.innerHTML = `<h2>${tabName} Control</h2><p>Module under development.</p>`;
+    for (let i = 0; i < tabs.length; i++) {
+      tabs[i].classList.remove("active");
     }
+    evt.currentTarget.classList.add("active");
+
+    // 2. Clear the content area immediately so the user doesn't see old data
+    const contentArea = document.getElementById('tab-content');
+    contentArea.innerHTML = '<div style="text-align:center; padding:50px;"><span class="loader" style="border-color:var(--vg-amber); border-bottom-color:transparent;"></span><br>Loading ' + tabName + '...</div>';
+
+    // 3. Route to the correct loader
+    if (tabName === 'Inventory') {
+      renderInventoryDashboard();
+    } else if (tabName === 'Orders') {
+      renderOrdersDashboard();
+    }
+    // Add other tabs here...
   }
 
   /** --- INVENTORY LOGIC --- **/
@@ -209,38 +220,207 @@
   }
 
   /** --- MODAL CONTROLS --- **/
-    function openUpdateModal(sku, name, current) {
-    selectedSku = sku.toString().trim();
-    
-    const saveBtn = document.getElementById('modal-save-btn');
-    const cancelBtn = document.getElementById('modal-cancel-btn');
-    const status = document.getElementById('modal-status');
-    const input = document.getElementById('new-stock-input');
+  function openUpdateModal(sku, name, current) {
+  selectedSku = sku.toString().trim();
+  
+  const saveBtn = document.getElementById('modal-save-btn');
+  const cancelBtn = document.getElementById('modal-cancel-btn');
+  const status = document.getElementById('modal-status');
+  const input = document.getElementById('new-stock-input');
 
-    // RESET BUTTON TO AMBER (ACTIVE STATE)
-    if (saveBtn) {
-      saveBtn.disabled = false;
-      saveBtn.innerHTML = 'Save';
-      saveBtn.style.backgroundColor = 'var(--vg-amber)'; // Force reset to Amber
-      saveBtn.style.opacity = '1';
-    }
-    
-    if (cancelBtn) {
-      cancelBtn.disabled = false;
-      cancelBtn.style.display = 'block';
-    }
+  // RESET BUTTON TO AMBER (ACTIVE STATE)
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = 'Save';
+    saveBtn.style.backgroundColor = 'var(--vg-amber)'; // Force reset to Amber
+    saveBtn.style.opacity = '1';
+  }
+  
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+    cancelBtn.style.display = 'block';
+  }
 
-    if (status) status.style.display = 'none';
+  if (status) status.style.display = 'none';
+  
+  document.getElementById('modal-item-name').innerText = name;
+  input.value = current;
+  document.getElementById('stock-modal').style.display = 'flex';
+  
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 150);
+}
+  
+  /** --- ORDERS & INVOICE LOGIC --- **/
+  function renderOrdersDashboard() {
+    const now = new Date();
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     
-    document.getElementById('modal-item-name').innerText = name;
-    input.value = current;
-    document.getElementById('stock-modal').style.display = 'flex';
+    // 1. Create the skeleton structure first
+    document.getElementById('tab-content').innerHTML = `
+      <div class="inventory-controls">
+        <div class="search-group">
+          <select id="orderMonth" onchange="loadOrders()">
+            ${months.map((m, i) => `<option value="${i+1}" ${i === now.getMonth() ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+          <select id="orderYear" onchange="loadOrders()">
+            <option value="2024">2024</option>
+            <option value="2025" selected>2025</option>
+            <option value="2026">2026</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="loadOrders()">Refresh Orders</button>
+      </div>
+      <div id="orders-summary"></div>
+      <div id="orders-table-container"></div>
+    `;
     
-    setTimeout(() => {
-      input.focus();
-      input.select();
-    }, 150);
+    // 2. Now call the data
+    loadOrders();
+  }
+
+  function loadOrders() {
+    const container = document.getElementById('orders-table-container');
+    container.innerHTML = '<div style="text-align:center; padding:20px;">Fetching...</div>';
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        console.log("Data received from Server:");
+        console.table(data); // This shows your sheet data in the F12 console!
+
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="text-align:center; padding:20px;">Sheet returned 0 rows.</div>';
+          return;
+        }
+
+        // 1. Store the data globally
+        ordersData = data; 
+        
+        // 2. Build the table
+        renderOrdersTable(data);
+      })
+      .withFailureHandler(function(err) {
+        container.innerHTML = "Error: " + err;
+      })
+      .getOrdersData(); // Calling our new "Fetch All" version
+  }
+
+  function updateOrderSummary(data) {
+    const stats = data.reduce((acc, o) => {
+      acc.total += 1;
+      acc.revenue += parseFloat(o.total_amount || 0);
+      if(o.order_status === 'Delivered') acc.delivered += 1;
+      return acc;
+    }, { total: 0, revenue: 0, delivered: 0 });
+
+    document.getElementById('orders-summary').innerHTML = `
+      <div class="summary-container">
+        <div class="summary-card total">
+          <div class="label">Total Orders</div>
+          <div class="value">${stats.total}</div>
+          <div class="sub-label">This Month</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Revenue</div>
+          <div class="value">₹${stats.revenue.toLocaleString('en-IN')}</div>
+        </div>
+        <div class="summary-card">
+          <div class="label">Delivered</div>
+          <div class="value">${stats.delivered}</div>
+          <div class="sub-label">Completion Rate</div>
+        </div>
+      </div>`;
+  }
+
+  function renderOrdersTable(data) {
+    let rows = data.map(o => `
+      <tr>
+        <td onclick="viewOrderDetails('${o.order_id}')" style="cursor:pointer; color:var(--vg-brown); font-weight:bold;">#${o.order_id}</td>
+        <td>${o.customer_name}</td>
+        <td>${new Date(o.order_date).toLocaleDateString()}</td>
+        <td>₹${o.total_amount}</td>
+        <td>
+          <select onchange="updateStatus('${o.order_id}', 'status', this.value)">
+            <option value="Received" ${o.order_status=='Received'?'selected':''}>Received</option>
+            <option value="Accepted" ${o.order_status=='Accepted'?'selected':''}>Accepted</option>
+            <option value="Delivered" ${o.order_status=='Delivered'?'selected':''}>Delivered</option>
+          </select>
+        </td>
+        <td>
+          <select onchange="updateStatus('${o.order_id}', 'payment', this.value)">
+            <option value="Unpaid" ${o.payment_status=='Unpaid'?'selected':''}>Unpaid</option>
+            <option value="Paid" ${o.payment_status=='Paid'?'selected':''}>Paid</option>
+          </select>
+        </td>
+        <td>
+          <button class="icon-btn" onclick="generateInvoicePDF('${o.order_id}')"><i class="material-icons">print</i></button>
+          <button class="icon-btn" onclick="deleteOrder('${o.order_id}')"><i class="material-icons" style="color:red">delete</i></button>
+        </td>
+      </tr>
+    `).join('');
+
+    document.getElementById('orders-table-container').innerHTML = `
+      <div class="admin-table-wrapper">
+        <table class="admin-table">
+          <thead><tr><th>ID</th><th>Customer</th><th>Date</th><th>Total</th><th>Status</th><th>Payment</th><th>Actions</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function updateStatus(id, type, val) {
+    google.script.run.withSuccessHandler(() => loadOrders()).updateOrderField(id, type, val);
+  }
+
+  function deleteOrder(id) {
+    if(confirm("Permanently delete Order #" + id + "?")) {
+      google.script.run.withSuccessHandler(() => loadOrders()).deleteOrderData(id);
+    }
+  }
+
+  function viewOrderDetails(orderId) {
+    google.script.run.withSuccessHandler(function(data) {
+      const { summary, items } = data;
+      let itemsTable = `<table class="admin-table"><thead><tr><th>Product</th><th>Qty</th><th>Price</th></tr></thead><tbody>`;
+      items.forEach(it => {
+        itemsTable += `<tr><td>${it.itemName}</td><td>${it.quantity} ${it.uom || ''}</td><td>₹${it.unit_price}</td></tr>`;
+      });
+      itemsTable += `</tbody></table><br>
+      <button class="btn-primary" onclick="generateInvoicePDF('${orderId}')">Print Invoice</button>`;
+      
+      document.getElementById('modal-item-name').innerText = "Order Details: #" + orderId;
+      document.getElementById('modal-status').innerHTML = itemsTable;
+      document.getElementById('modal-status').style.display = 'block';
+      document.getElementById('stock-modal').style.display = 'flex';
+      // Hide standard input fields for this view
+      document.getElementById('new-stock-input').style.display = 'none';
+      document.getElementById('modal-save-btn').style.display = 'none';
+    }).getOrderInvoiceData(orderId);
+  }
+
+  /** --- PDF INVOICE GENERATOR --- **/
+  function generateInvoicePDF(orderId) {
+    google.script.run.withSuccessHandler(function(data) {
+      const { summary, items } = data;
+      const printWin = window.open('', '_blank');
+      let tableRows = items.map(it => `<tr><td>${it.itemName}</td><td>${it.quantity}</td><td>₹${it.unit_price}</td><td>₹${(it.quantity * it.unit_price).toFixed(2)}</td></tr>`).join('');
+      
+      const html = `<html><body style="font-family:sans-serif; padding:20px;">
+        <h2>INVOICE #${summary.order_id}</h2>
+        <p>Customer: ${summary.customer_name}<br>Date: ${new Date(summary.order_date).toLocaleDateString()}</p>
+        <table border="1" width="100%" style="border-collapse:collapse;">
+          <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>${tableRows}
+          <tr><th colspan="3" align="right">Final Amount:</th><td>₹${summary.total_amount}</td></tr>
+        </table>
+        <script>window.print();<\/script>
+      </body></html>`;
+      printWin.document.write(html);
+      printWin.document.close();
+    }).getOrderInvoiceData(orderId);
   }
 
   function closeModal() { document.getElementById('stock-modal').style.display = 'none'; }
+
 </script>
