@@ -40,6 +40,12 @@
           document.getElementById('dashboard').style.display = 'block';
           document.getElementById('user-display').innerHTML = `<i class="material-icons">account_circle</i> Logged in: ${res.userName}`;
           loadInventory(); 
+          
+          // Fetch orders silently in background
+          google.script.run.withSuccessHandler(function(data) {
+            ordersData = data;
+          }).getOrdersData();
+          
         } else {
           msg.innerText = res.message;
           btn.innerHTML = "Login to Admin";
@@ -286,8 +292,14 @@ function renderOrdersDashboard() {
 
     <div id="orders-table-wrapper"></div>
   `;
+  // 2. Logic: If we already have data, show it. If not, fetch it.
+  if (ordersData && ordersData.length > 0) {
+    filterOrders();
+  } else {
+    document.getElementById('orders-summary-container').innerHTML = `<div style="padding:20px;"><span class="loader"></span> Fetching data from server...</div>`;
+    loadOrders();
+  }
   
-  loadOrders();
 }
 
   /** --- LOAD & PROCESS DATA --- **/
@@ -310,10 +322,19 @@ function renderOrdersDashboard() {
         }
         filterOrders(); // This will trigger both summary and table update
       })
+      .withFailureHandler(function(err) {
+      document.getElementById('orders-summary-container').innerHTML = "Error: " + err;
+      })
       .getOrdersData(); 
   }
 
   function filterOrders() {
+
+    // If data is missing, don't crash, just show loading or empty
+    if (!ordersData || ordersData.length === 0) {
+      document.getElementById('orders-summary-container').innerHTML = `<div style="padding:20px;">No data available. Click Refresh.</div>`;
+      return;
+    }
     const query = document.getElementById('orderSearch').value.toLowerCase();
     const selMonth = parseInt(document.getElementById('orderMonth').value);
     const selYear = parseInt(document.getElementById('orderYear').value);
