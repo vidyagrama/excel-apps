@@ -85,6 +85,13 @@
               <div class="d-flex justify-content-between small text-danger">
                 <span id="disc-label">Discount:</span><span id="disc-val">-₹0</span>
               </div>
+
+              <div class="d-flex justify-content-between small text-muted border-top mt-1 pt-1">
+                <span>Previous Balance:</span><span id="balance-val">₹0</span>
+              </div>
+              <div class="d-flex justify-content-between small text-success">
+                <span>Available Credit:</span><span id="credit-val">-₹0</span>
+              </div>
               <div class="d-flex justify-content-between h5 mt-2 fw-bold" style="color:var(--vg-brown)">
                 <span>Final Total:</span><span id="final-val">₹0</span>
               </div>
@@ -139,7 +146,6 @@
       }, 3000);
     }
 
-
     window.onload = () => {
       generateOrderId();
       document.getElementById('login-form-container').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
@@ -188,12 +194,15 @@
         }
       }).validateLogin(v, n, m);
     }
-   
+    
     function startShop() {
       document.getElementById('login-section').classList.add('hidden');
       document.getElementById('shop-section').classList.remove('hidden');
       document.getElementById('welcome-msg').innerText = "Namaste, " + currentUser.name;
       document.getElementById('disc-label').innerText = `Discount (${currentUser.discount}%):`;
+      
+      // NEW: Initialize the cart UI to show Balance and Credit immediately
+      updateCartUI();
       
       // Trigger the initial data load
       refreshData();
@@ -355,22 +364,43 @@
 
     function removeFromCart(id) { cart = cart.filter(i => i.cartId !== id); updateCartUI(); }
 
+
     function updateCartUI() {
       const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
       let gross = 0;
+
+      // 1. Get Financials from currentUser
+      const userCredit = currentUser ? parseFloat(currentUser.credit || 0) : 0;
+      const userBalance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
+
+      // 2. Update Display Labels
+      document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
+      document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
+
+      // 3. Handle Empty Cart Case
       if (cart.length === 0) {
         list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
         document.getElementById('gross-val').innerText = "₹0";
         document.getElementById('disc-val').innerText = "-₹0";
-        document.getElementById('final-val').innerText = "₹0";
+        
+        // Show account standing even with 0 items
+        let netAccount = userBalance - userCredit;
+        document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
+        
         btn.classList.add('disabled');
         return;
       }
+
+      // 4. Render Cart Items
       list.innerHTML = cart.map(i => {
-        const subtotalNum = parseFloat(i.fullSubtotal); gross += subtotalNum;
+        const subtotalNum = parseFloat(i.fullSubtotal); 
+        gross += subtotalNum;
         return `
           <div class="cart-item d-flex justify-content-between align-items-center py-2">
-            <div style="flex: 1; min-width: 0;"><div class="fw-bold text-truncate" style="font-size:0.85rem">${i.itemName}</div><small class="text-muted">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small></div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="fw-bold text-truncate" style="font-size:0.85rem">${i.itemName}</div>
+              <small class="text-muted">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
+            </div>
             <div class="d-flex align-items-center">
               <div class="input-group input-group-sm me-2" style="width: 90px;">
                 <button class="btn btn-outline-secondary px-1" onclick="changeCartQty('${i.sku}', -1)">-</button>
@@ -382,13 +412,22 @@
             </div>
           </div>`;
       }).join('');
+
+      // 5. Final Calculations
       const discAmt = (gross * (currentUser.discount / 100));
+      
+      // Formula: (Current Items - Discount) + Previous Unpaid - Credit Available
+      const finalTotal = (gross - discAmt) + userBalance - userCredit;
+
       document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
       document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
-      document.getElementById('final-val').innerText = "₹" + (gross - discAmt).toFixed(2);
+      
+      // Display final total (never showing less than 0)
+      document.getElementById('final-val').innerText = "₹" + (finalTotal > 0 ? finalTotal : 0).toFixed(2);
       btn.classList.remove('disabled');
     }
-
+   
+   
     function changeCartQty(sku, direction) {
       const itemInCart = cart.find(i => i.sku === sku); if (!itemInCart) return;
       const step = 1, minAllowed = itemInCart.moq || 0.5;
@@ -402,16 +441,36 @@
     }
 
     function placeOrder() {
-      const btn = document.getElementById('place-order-btn'); btn.disabled = true; btn.innerHTML = '<span class="loader"></span> Saving...';
+      const btn = document.getElementById('place-order-btn'); 
+      btn.disabled = true; 
+      btn.innerHTML = '<span class="loader"></span> Saving...';
+
       const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
       const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
-      const summary = { orderId: currentOrderId, customerId: currentUser.id, customerName: currentUser.name, finalTotal: parseFloat(finalTotalStr), notes: document.getElementById('order-notes').value };
+      
+      // NEW: Include all financial details in the summary object
+      const summary = { 
+        orderId: currentOrderId, 
+        customerId: currentUser.id, 
+        customerName: currentUser.name, 
+        customerEmail: currentUser.email, // Ensure this is sent for the MailApp to work
+        finalTotal: parseFloat(finalTotalStr), 
+        savingAmount: parseFloat(savingStr), // The discount value
+        previousBalance: parseFloat(currentUser.balance || 0),
+        creditUsed: parseFloat(currentUser.credit || 0),
+        notes: document.getElementById('order-notes').value 
+      };
+
       google.script.run.withSuccessHandler(res => {
         if (res === true) {
           document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
           document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
           successModal.show();
-        } else { showAlert("Error: " + res,"error"); btn.disabled = false; btn.innerHTML = "Place Order"; }
+        } else { 
+          showAlert("Error: " + res, "error"); 
+          btn.disabled = false; 
+          btn.innerHTML = "Place Order"; 
+        }
       }).finalizeOrderBulk(summary, cart);
     }
 
@@ -420,59 +479,58 @@
 
 
     function hardReset() {
-    // 1. Reset Global Data Variables
-    cart = []; 
-    currentUser = null; 
-    fullInventory = []; // Clear the inventory array
-    generateOrderId();
+      // 1. Reset Global Data Variables
+      cart = []; 
+      currentUser = null; 
+      fullInventory = []; // Clear the inventory array
+      generateOrderId();
 
-    // 2. Clear Input Fields
-    document.getElementById('mobile').value = "";
-    document.getElementById('order-notes').value = "";
-    document.getElementById('search-bar').value = "";
+      // 2. Clear Input Fields
+      document.getElementById('mobile').value = "";
+      document.getElementById('order-notes').value = "";
+      document.getElementById('search-bar').value = "";
 
-    // 3. Clear UI Containers (The "Fresh Start" fix)
-    document.getElementById('inventory-grid').innerHTML = ""; // Empty the product list
-    document.getElementById('main-cat-filter').innerHTML = '<option value="All">All Inventories</option>';
-    document.getElementById('sub-cat-filter').innerHTML = '<option value="All">All Sub-Categories</option>';
-    document.getElementById('welcome-msg').innerText = "";
-    
-    // 4. Reset Buttons
-    const placeBtn = document.getElementById('place-order-btn');
-    placeBtn.disabled = false; 
-    placeBtn.classList.add('disabled');
-    placeBtn.innerHTML = "Place Order";
-    
-    const loginBtn = document.getElementById('login-btn');
-    loginBtn.disabled = false; 
-    loginBtn.innerText = "Login";
+      // 3. Clear UI Containers (The "Fresh Start" fix)
+      document.getElementById('inventory-grid').innerHTML = ""; // Empty the product list
+      document.getElementById('main-cat-filter').innerHTML = '<option value="All">All Inventories</option>';
+      document.getElementById('sub-cat-filter').innerHTML = '<option value="All">All Sub-Categories</option>';
+      document.getElementById('welcome-msg').innerText = "";
+      
+      // 4. Reset Buttons
+      const placeBtn = document.getElementById('place-order-btn');
+      placeBtn.disabled = false; 
+      placeBtn.classList.add('disabled');
+      placeBtn.innerHTML = "Place Order";
+      
+      const loginBtn = document.getElementById('login-btn');
+      loginBtn.disabled = false; 
+      loginBtn.innerText = "Login";
 
-    // 5. Switch Views
-    updateCartUI();
-    document.getElementById('shop-section').classList.add('hidden');
-    document.getElementById('login-section').classList.remove('hidden');
+      // 5. Switch Views
+      updateCartUI();
+      document.getElementById('shop-section').classList.add('hidden');
+      document.getElementById('login-section').classList.remove('hidden');
 
-    // Ensure filters and cart are reset to visible for the next user session
-    const filterRow = document.querySelector('.row.g-2.mb-3');
-    if (filterRow) filterRow.classList.remove('hidden');
-    
-    const sidebar = document.getElementById('cart-sidebar');
-    if (sidebar) {
-      sidebar.style.opacity = "1";
-      sidebar.style.pointerEvents = "auto";
+      // Ensure filters and cart are reset to visible for the next user session
+      const filterRow = document.querySelector('.row.g-2.mb-3');
+      if (filterRow) filterRow.classList.remove('hidden');
+      
+      const sidebar = document.getElementById('cart-sidebar');
+      if (sidebar) {
+        sidebar.style.opacity = "1";
+        sidebar.style.pointerEvents = "auto";
+      }
+
+      // 6. Reload Varga dropdown for the next user
+      loadInitialData();
     }
 
-    // 6. Reload Varga dropdown for the next user
-    loadInitialData();
-  }
-
-  function toTitleCase(str) {
-    if (!str || typeof str !== 'string') return "";
-    return str.toLowerCase().split(' ').map(word => {
-      return word.charAt(0).toUpperCase() + word.slice(1);
-    }).join(' ');
-  }
-
+    function toTitleCase(str) {
+      if (!str || typeof str !== 'string') return "";
+      return str.toLowerCase().split(' ').map(word => {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }).join(' ');
+    }
   
   </script>
 </body>

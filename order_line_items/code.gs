@@ -43,11 +43,29 @@ function getNamesByVarga(varga) {
 function validateLogin(varga, name, mobile) {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
   const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
-  const user = data.find(row => row[1] === varga && row[2] === name && String(row[5]).trim() === String(mobile).trim());
-  return user ? { success: true, email: user[6], discount: user[7] || 0, name: user[2], id: user[0] } : { success: false };
+  
+  // Find the user based on your existing column mapping
+  const user = data.find(row => 
+    row[1] === varga && 
+    row[2] === name && 
+    String(row[5]).trim() === String(mobile).trim()
+  );
+
+  if (user) {
+    return { 
+      success: true, 
+      email: user[6], 
+      discount: user[7] || 0, 
+      name: user[2], 
+      id: user[0],
+      // NEW: Adjust the index numbers [8] and [9] if your columns are different
+      credit: parseFloat(user[8] || 0), 
+      balance: parseFloat(user[9] || 0)
+    };
+  } else {
+    return { success: false };
+  }
 }
-
-
 
 function getInventoryData() {
   const adminSS = SpreadsheetApp.openById(ID_ADMINS);
@@ -234,8 +252,17 @@ function sendReceiptEmail(summary, cart) {
 
     const discountRate = parseFloat(user[7] || 0);
     const discountAmount = overallTotal * (discountRate / 100);
-    const finalAmount = overallTotal - discountAmount;
+    
+    // NEW FINANCIAL CALCULATIONS
+    const cartTotalAfterDiscount = overallTotal - discountAmount;
+    const prevBalance = parseFloat(summary.previousBalance || 0);
+    const creditUsed = parseFloat(summary.creditUsed || 0);
+    
+    // Formula: (Cart Total) + Balance - Credit
+    const netPayable = cartTotalAfterDiscount + prevBalance - creditUsed;
+    const finalAmount = netPayable > 0 ? netPayable : 0;
 
+    // Update UPI link with the correct net amount
     const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
 
@@ -265,11 +292,15 @@ function sendReceiptEmail(summary, cart) {
           </thead>
           <tbody>${tableRows}</tbody>
           <tfoot>
-            <tr><td colspan="3" align="right" style="padding: 10px;">Subtotal</td><td align="right" style="padding: 10px;">₹ ${overallTotal.toFixed(2)}</td></tr>
+            <tr><td colspan="3" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td><td align="right" style="padding: 10px; border-top: 2px solid #eee;">₹ ${overallTotal.toFixed(2)}</td></tr>
             ${discountRate > 0 ? `<tr><td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td><td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td></tr>` : ''}
+            
+            <tr><td colspan="3" align="right" style="padding: 10px;">Previous Balance</td><td align="right" style="padding: 10px;">₹ ${prevBalance.toFixed(2)}</td></tr>
+            <tr><td colspan="3" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td><td align="right" style="padding: 10px; color: #2e7d32;">- ₹ ${creditUsed.toFixed(2)}</td></tr>
+            
             <tr style="font-size: 18px;">
-              <td colspan="3" align="right" style="padding: 10px; font-weight: bold;">Final Amount Due</td>
-              <td align="right" style="padding: 10px; font-weight: bold; color: #d32f2f;">₹ ${finalAmount.toFixed(2)}</td>
+              <td colspan="3" align="right" style="padding: 10px; font-weight: bold; border-top: 1px solid #444;">Net Amount Payable</td>
+              <td align="right" style="padding: 10px; font-weight: bold; color: #d32f2f; border-top: 1px solid #444;">₹ ${finalAmount.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
@@ -277,8 +308,8 @@ function sendReceiptEmail(summary, cart) {
           <table width="100%">
             <tr>
               <td width="70%" style="vertical-align: top;">
-                 <p style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">A COMMUNITY ENTERPRISE INSPIRED BY THE VISION OF VIDYAKSHETRA</p>
-                 <p style="font-size: 11px; color: #666;">Thank you for your support!</p>
+                <p style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">A COMMUNITY ENTERPRISE INSPIRED BY THE VISION OF VIDYAKSHETRA</p>
+                <p style="font-size: 11px; color: #666;">Thank you for your support!</p>
               </td>
               <td width="30%" align="right">
                 <p style="font-size: 11px; margin-bottom: 5px; font-weight: bold;">Scan to Pay via UPI</p>
