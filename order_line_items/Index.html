@@ -13,7 +13,7 @@
 <body>
 
   <div id="custom-toast">
-    <div class="alert alert-danger shadow-lg" id="toast-msg"></div>
+    <div class="alert alert-vg-success shadow-lg" id="toast-msg"></div>
   </div>
 
   <div class="container py-4">
@@ -117,11 +117,28 @@
     let currentUser = null, fullInventory = [], cart = [], currentOrderId = "";
     const successModal = new bootstrap.Modal(document.getElementById('successModal'));
 
-    function showAlert(m) {
-      const t = document.getElementById('custom-toast');
-      document.getElementById('toast-msg').innerText = m;
-      t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 3000);
+    function showAlert(message, type = 'success') {
+      const toastContainer = document.getElementById('custom-toast');
+      const toastMsg = document.getElementById('toast-msg');
+      
+      // Reset classes
+      toastMsg.classList.remove('alert-vg-success', 'alert-danger');
+      
+      // Apply class based on type
+      if (type === 'error') {
+        toastMsg.classList.add('alert-danger');
+      } else {
+        toastMsg.classList.add('alert-vg-success');
+      }
+      
+      toastMsg.innerText = message;
+      toastContainer.style.display = 'block';
+      
+      setTimeout(() => {
+        toastContainer.style.display = 'none';
+      }, 3000);
     }
+
 
     window.onload = () => {
       generateOrderId();
@@ -158,20 +175,20 @@
 
     function doLogin() {
       const v = document.getElementById('varga').value, n = document.getElementById('name').value, m = document.getElementById('mobile').value;
-      if (!v || !n || !m) return showAlert("Fill all fields");
+      if (!v || !n || !m) return showAlert("Fill all fields","error");
       const loginBtn = document.getElementById('login-btn');
       loginBtn.disabled = true;
       loginBtn.innerHTML = '<span class="loader"></span> Authenticating...';
       google.script.run.withSuccessHandler(res => {
         if (res.success) { currentUser = res; startShop(); }
         else {
-          showAlert("Invalid Login Details");
+          showAlert("Invalid Login Details","error");
           loginBtn.disabled = false;
           loginBtn.innerText = "Login";
         }
       }).validateLogin(v, n, m);
     }
-
+   
     function startShop() {
       document.getElementById('login-section').classList.add('hidden');
       document.getElementById('shop-section').classList.remove('hidden');
@@ -239,7 +256,7 @@
         updateSubCategoryDropdown(); 
         
         // Alert the user (only if this was a manual refresh)
-        if (currentUser) showAlert("Inventory refreshed! 🌿");
+        if (currentUser) showAlert("Inventory refreshed! 🌿","success");
 
       }).getInventoryData();
     }
@@ -308,10 +325,10 @@
       const item = fullInventory.find(i => i.sku === sku);
       const qtyInput = document.getElementById('qty-' + sku);
       const addBtn = document.getElementById('btn-' + sku);
-      if (!item) return showAlert("Item not found");
+      if (!item) return showAlert("Item not found","error");
       const qty = parseFloat(qtyInput.value);
       const minAllowed = item.moq || 0.5;
-      if (isNaN(qty) || qty < minAllowed) { showAlert(`Minimum order is ${minAllowed} ${item.uom}`); return; }
+      if (isNaN(qty) || qty < minAllowed) { showAlert(`Minimum order is ${minAllowed} ${item.uom}`,"error"); return; }
       
       addBtn.classList.add('btn-clicked');
       addBtn.innerText = "Added!";
@@ -377,7 +394,7 @@
       const step = 1, minAllowed = itemInCart.moq || 0.5;
       if (direction === 1) { itemInCart.quantity = parseFloat((itemInCart.quantity + step).toFixed(2)); } 
       else {
-        if (itemInCart.quantity - step < minAllowed) { showAlert(`Min order is ${minAllowed} ${itemInCart.uom}`); itemInCart.quantity = minAllowed; } 
+        if (itemInCart.quantity - step < minAllowed) { showAlert(`Min order is ${minAllowed} ${itemInCart.uom}`,"error"); itemInCart.quantity = minAllowed; } 
         else { itemInCart.quantity = parseFloat((itemInCart.quantity - step).toFixed(2)); }
       }
       itemInCart.fullSubtotal = (itemInCart.quantity * parseFloat(itemInCart.salePrice)).toFixed(2);
@@ -394,7 +411,7 @@
           document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
           document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
           successModal.show();
-        } else { showAlert("Error: " + res); btn.disabled = false; btn.innerHTML = "Place Order"; }
+        } else { showAlert("Error: " + res,"error"); btn.disabled = false; btn.innerHTML = "Place Order"; }
       }).finalizeOrderBulk(summary, cart);
     }
 
@@ -456,6 +473,7 @@
     }).join(' ');
   }
 
+  
   </script>
 </body>
 
