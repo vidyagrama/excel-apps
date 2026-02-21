@@ -3,19 +3,29 @@ var ID_PARENTS = "1xgcQfWYczXmkwpQsbonkRUraAMvlWExNRtm7D_iSJbk";
 var ID_INVENTORY = "1YDiJsrkNEj4HxDaNlirGIczAX4h7FExpb3XNs9Xu5co";
 var ID_ORDERS_LINE_ITEMS = "1j5ma5hH1vKaoNW0O3JrYL19FZvPLBXMOyN5_0efP0e8";
 var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
+var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
 
 var TAB_PARENTS = "main";
 var TAB_LINE_ITEMS = "main";
 var TAB_ORDERS = "main";
+var TAB_ENABLE_CATEGORY = "enable_maincategory";
 
 var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps", "snacks"];
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  // 1. Create a template from the file
+  var template = HtmlService.createTemplateFromFile('Index');
+
+  // 2. Evaluate the template to execute <?!= include('Styles'); ?>
+  return template.evaluate()
     .setTitle("Vidyagrama Online Order")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 function getVargas() {
@@ -37,21 +47,69 @@ function validateLogin(varga, name, mobile) {
   return user ? { success: true, email: user[6], discount: user[7] || 0, name: user[2], id: user[0] } : { success: false };
 }
 
+
+
 function getInventoryData() {
+  const adminSS = SpreadsheetApp.openById(ID_ADMINS);
+  const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+  const adminData = adminSheet.getDataRange().getValues();
+  const now = new Date();
+
+  // 1. Get list of currently ACTIVE categories (Normalized to lowercase)
+  const activeCategories = adminData.slice(1).reduce((acc, row) => {
+    const category = String(row[0]).toLowerCase().trim();
+    const status = String(row[1]).toLowerCase().trim();
+
+    // 2. Get current date in YYYY-MM-DD format based on Script timezone
+    const now = new Date();
+    const nowStr = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+    // Check if cells are empty
+    if (!row[2] || !row[3]) return acc;
+
+    try {
+      // 3. Format From/To dates from the sheet into YYYY-MM-DD
+      const fromStr = Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy-MM-dd");
+      const toStr = Utilities.formatDate(new Date(row[3]), Session.getScriptTimeZone(), "yyyy-MM-dd");
+
+      // Debugging: View this in the "Executions" tab of Apps Script
+      console.log(`Checking ${category}: Status=${status}, Now=${nowStr}, Range=${fromStr} to ${toStr}`);
+
+      // 4. Compare strings (alphabetical comparison works for yyyy-mm-dd)
+      if (status === 'enable' && nowStr >= fromStr && nowStr <= toStr) {
+        acc.push(category);
+      }
+    } catch (e) {
+      console.log(`Error parsing dates for ${category}: ${e.message}`);
+    }
+
+    return acc;
+  }, []);
+
   const ss = SpreadsheetApp.openById(ID_INVENTORY);
   let allItems = [];
 
-  VALID_SHEETS.forEach(sheetName => {
-    const sheet = ss.getSheetByName(sheetName);
+  // 2. Normalize VALID_SHEETS for comparison
+  const normalizedValidSheets = VALID_SHEETS.map(s => s.toLowerCase().trim());
+
+  normalizedValidSheets.forEach(sheetName => {
+    // Compare lowercase sheet name against our active list
+    if (activeCategories.indexOf(sheetName) === -1) return;
+
+    // Use the actual sheet name from the valid list to open the tab
+    // (Google Sheets tab names themselves are case-sensitive)
+    const originalSheetName = VALID_SHEETS[normalizedValidSheets.indexOf(sheetName)];
+    const sheet = ss.getSheetByName(originalSheetName);
+
     if (!sheet) return;
 
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) return;
 
     const items = data.slice(1).map(row => ({
-      sku: String(row[15]),   // Column P
-      mainCategory: sheetName,
-      subCategory: row[1],    // Ensure this is captured
+      sku: String(row[15]),
+      mainCategory: originalSheetName,
+      subCategory: row[1],
       itemName: row[2],
       uom: row[3],
       stock: parseFloat(row[4]) || 0,
@@ -62,6 +120,7 @@ function getInventoryData() {
 
     allItems = allItems.concat(items);
   });
+
   return allItems;
 }
 
@@ -136,9 +195,6 @@ function finalizeOrderBulk(summary, fullCart) {
   }
 }
 
-/**
- * Integrated Tax Invoice Email Logic
- */
 function sendReceiptEmail(summary, cart) {
   try {
     const parentSS = SpreadsheetApp.openById(ID_PARENTS);
@@ -148,7 +204,6 @@ function sendReceiptEmail(summary, cart) {
 
     if (!userEmail) return;
 
-    // --- Configuration for Invoice ---
     const logoUrl = "https://i.ibb.co/3mk7ddzj/vidyagrama-logo.png";
     const upiId = "9035734752@icici";
 

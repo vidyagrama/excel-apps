@@ -1,0 +1,237 @@
+<style>
+  :root {
+    --vg-brown: #634121;
+    --vg-amber: #E89F22;
+    --vg-cream: #FAF9F6;
+    --border-light: #e0d7c6;
+    --disabled-tan: #d2b48c;
+  }
+
+  body {
+    background: var(--vg-cream);
+    font-family: Verdana, Geneva, sans-serif;
+    color: #333;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* CARDS */
+  .item-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    box-shadow: 0 4px 12px rgba(99, 65, 33, 0.05);
+    overflow: hidden;
+    height: 100%;
+    transition: 0.2s;
+  }
+
+  .item-card:hover {
+    transform: translateY(-3px);
+  }
+
+  .item-img {
+    height: 120px;
+    width: 100%;
+    object-fit: cover;
+    background: #f9f9f9;
+  }
+
+  #cart-sidebar {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
+    border: 1px solid var(--border-light);
+    position: sticky;
+    top: 20px;
+  }
+
+  /* THEMED BUTTONS & STATES */
+
+  /* Login Button (Brown) */
+  #login-btn {
+    background-color: var(--vg-brown) !important;
+    border: none !important;
+    color: white !important;
+  }
+
+  #login-btn:disabled {
+    background-color: var(--disabled-tan) !important;
+    opacity: 0.8;
+    cursor: not-allowed;
+  }
+
+  /* Place Order Button (Amber) */
+  #place-order-btn {
+    background-color: var(--vg-amber) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: bold;
+  }
+
+  #place-order-btn.disabled,
+  #place-order-btn:disabled {
+    background-color: var(--disabled-tan) !important;
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Inventory 'Add' Buttons (Brown by default) */
+  .btn-success {
+    background-color: var(--vg-brown) !important;
+    border: none !important;
+    color: white !important;
+  }
+
+  /* 'Added!' Feedback State (Amber) */
+  .btn-clicked {
+    transform: scale(0.9) !important;
+    background-color: var(--vg-amber) !important;
+    color: white !important;
+    transition: 0.1s;
+  }
+
+  #login-section {
+    border: none;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-header {
+    background-color: var(--vg-brown) !important;
+    border-bottom: 3px solid var(--vg-amber);
+  }
+
+  .remove-btn {
+    color: #dc3545;
+    cursor: pointer;
+  }
+
+  /* HELPERS */
+  #custom-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: none;
+  }
+
+  .loader {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #FFF;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+
+  @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .moq-label {
+    font-size: 0.68rem;
+    color: #888;
+    display: block;
+    margin-top: 4px;
+  }
+
+  @keyframes highlight-cart {
+    0% {
+      background-color: #fff9e6;
+    }
+
+    100% {
+      background-color: white;
+    }
+  }
+
+  .cart-updated {
+    animation: highlight-cart 0.8s ease-out;
+  }
+
+  h5,
+  h6,
+  .fw-bold {
+    color: var(--vg-brown);
+  }
+
+  /* Fix for badge green */
+  .badge.text-success {
+    color: var(--vg-brown) !important;
+  }
+
+  /* CLOSED STORE BANNER */
+  .empty-store-banner {
+    background: white;
+    border: 2px dashed var(--vg-amber);
+    border-radius: 20px;
+    padding: 40px 20px;
+    text-align: center;
+    margin-top: 30px;
+    box-shadow: 0 10px 25px rgba(99, 65, 33, 0.05);
+  }
+
+  .empty-store-icon {
+    color: var(--vg-amber);
+    margin-bottom: 20px;
+    opacity: 0.8;
+  }
+
+  .empty-store-title {
+    color: var(--vg-brown);
+    font-weight: bold;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+  }
+
+  .empty-store-text {
+    color: #666;
+    font-size: 1rem;
+    max-width: 350px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .decorative-leaf {
+    color: #8da05e;
+    /* Earthy Green */
+    font-size: 24px;
+  }
+
+  /* Custom Refresh Button */
+  .btn-vg-refresh {
+    background-color: transparent !important;
+    color: var(--vg-brown) !important;
+    border: 1px solid var(--vg-brown) !important;
+    transition: all 0.3s ease;
+  }
+
+  .btn-vg-refresh:hover {
+    background-color: var(--vg-brown) !important;
+    color: white !important;
+  }
+
+  .btn-vg-refresh:active {
+    transform: scale(0.95);
+  }
+
+  /* Optional: Make the icon spin when clicked */
+  .spinning {
+    animation: rotation 1s infinite linear;
+  }
+</style>

@@ -7,183 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <style>
-    :root {
-      --vg-brown: #634121;
-      --vg-amber: #E89F22;
-      --vg-cream: #FAF9F6;
-      --border-light: #e0d7c6;
-      --disabled-tan: #d2b48c;
-    }
-
-    body {
-      background: var(--vg-cream);
-      font-family: Verdana, Geneva, sans-serif;
-      color: #333;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    /* CARDS */
-    .item-card {
-      background: white;
-      border-radius: 12px;
-      border: 1px solid var(--border-light);
-      box-shadow: 0 4px 12px rgba(99, 65, 33, 0.05);
-      overflow: hidden;
-      height: 100%;
-      transition: 0.2s;
-    }
-
-    .item-card:hover {
-      transform: translateY(-3px);
-    }
-
-    .item-img {
-      height: 120px;
-      width: 100%;
-      object-fit: cover;
-      background: #f9f9f9;
-    }
-
-    #cart-sidebar {
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
-      border: 1px solid var(--border-light);
-      position: sticky;
-      top: 20px;
-    }
-
-    /* THEMED BUTTONS & STATES */
-
-    /* Login Button (Brown) */
-    #login-btn {
-      background-color: var(--vg-brown) !important;
-      border: none !important;
-      color: white !important;
-    }
-
-    #login-btn:disabled {
-      background-color: var(--disabled-tan) !important;
-      opacity: 0.8;
-      cursor: not-allowed;
-    }
-
-    /* Place Order Button (Amber) */
-    #place-order-btn {
-      background-color: var(--vg-amber) !important;
-      border: none !important;
-      color: white !important;
-      font-weight: bold;
-    }
-
-    #place-order-btn.disabled,
-    #place-order-btn:disabled {
-      background-color: var(--disabled-tan) !important;
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* Inventory 'Add' Buttons (Brown by default) */
-    .btn-success {
-      background-color: var(--vg-brown) !important;
-      border: none !important;
-      color: white !important;
-    }
-
-    /* 'Added!' Feedback State (Amber) */
-    .btn-clicked {
-      transform: scale(0.9) !important;
-      background-color: var(--vg-amber) !important;
-      color: white !important;
-      transition: 0.1s;
-    }
-
-    #login-section {
-      border: none;
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .card-header {
-      background-color: var(--vg-brown) !important;
-      border-bottom: 3px solid var(--vg-amber);
-    }
-
-    .remove-btn {
-      color: #dc3545;
-      cursor: pointer;
-    }
-
-    /* HELPERS */
-    #custom-toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 9999;
-      display: none;
-    }
-
-    .loader {
-      width: 18px;
-      height: 18px;
-      border: 2px solid #FFF;
-      border-bottom-color: transparent;
-      border-radius: 50%;
-      display: inline-block;
-      animation: rotation 1s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
-    }
-
-    @keyframes rotation {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-
-    .moq-label {
-      font-size: 0.68rem;
-      color: #888;
-      display: block;
-      margin-top: 4px;
-    }
-
-    @keyframes highlight-cart {
-      0% {
-        background-color: #fff9e6;
-      }
-
-      100% {
-        background-color: white;
-      }
-    }
-
-    .cart-updated {
-      animation: highlight-cart 0.8s ease-out;
-    }
-
-    h5,
-    h6,
-    .fw-bold {
-      color: var(--vg-brown);
-    }
-
-    /* Fix for badge green */
-    .badge.text-success {
-      color: var(--vg-brown) !important;
-    }
-  </style>
+  <?!= include('Styles'); ?>
 </head>
 
 <body>
@@ -221,7 +45,12 @@
     <div id="shop-section" class="hidden">
       <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
         <h6 id="welcome-msg" class="mb-0 fw-bold"></h6>
-        <button class="btn btn-outline-danger btn-sm" onclick="hardReset()">Logout</button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-vg-refresh btn-sm d-flex align-items-center" onclick="refreshData()">
+            <i class="material-icons" style="font-size: 16px; margin-right: 4px;">sync</i> Refresh
+          </button>
+          <button class="btn btn-outline-danger btn-sm" onclick="hardReset()">Logout</button>
+        </div>
       </div>
 
       <div class="row">
@@ -251,11 +80,14 @@
 
             <div class="border-top pt-2">
               <div class="d-flex justify-content-between small text-muted">
-                <span>Gross Total:</span><span id="gross-val">₹0</span></div>
+                <span>Gross Total:</span><span id="gross-val">₹0</span>
+              </div>
               <div class="d-flex justify-content-between small text-danger">
-                <span id="disc-label">Discount:</span><span id="disc-val">-₹0</span></div>
+                <span id="disc-label">Discount:</span><span id="disc-val">-₹0</span>
+              </div>
               <div class="d-flex justify-content-between h5 mt-2 fw-bold" style="color:var(--vg-brown)">
-                <span>Final Total:</span><span id="final-val">₹0</span></div>
+                <span>Final Total:</span><span id="final-val">₹0</span>
+              </div>
             </div>
 
             <textarea id="order-notes" class="form-control form-control-sm mt-3" placeholder="Add delivery notes..."></textarea>
@@ -345,13 +177,70 @@
       document.getElementById('shop-section').classList.remove('hidden');
       document.getElementById('welcome-msg').innerText = "Namaste, " + currentUser.name;
       document.getElementById('disc-label').innerText = `Discount (${currentUser.discount}%):`;
+      
+      // Trigger the initial data load
+      refreshData();
+    }
+
+    function refreshData() {
+      const refreshBtn = document.querySelector('.btn-vg-refresh');
+      const icon = refreshBtn ? refreshBtn.querySelector('.material-icons') : null;
+      
+      // Start spin animation and disable button
+      if (icon) icon.classList.add('spinning');
+      if (refreshBtn) refreshBtn.disabled = true;
+
+      const grid = document.getElementById('inventory-grid');
+      grid.innerHTML = '<div class="col-12 text-center py-5"><span class="loader" style="border-color:var(--vg-brown); border-bottom-color:transparent;"></span> Loading Items...</div>';
+
       google.script.run.withSuccessHandler(data => {
+        // Stop spin and re-enable button
+        if (icon) icon.classList.remove('spinning');
+        if (refreshBtn) refreshBtn.disabled = false;
+
+        // 1. CHECK IF STORE IS CLOSED
+        if (!data || data.length === 0) {
+          grid.innerHTML = `
+            <div class="col-12">
+              <div class="empty-store-banner">
+                <div class="empty-store-icon"><i class="material-icons" style="font-size: 80px;">hourglass_empty</i></div>
+                <div class="empty-store-title"><span class="decorative-leaf">🌿</span> Preparation in Progress</div>
+                <div class="empty-store-text">
+                  Please wait till <strong>Vidyagrama</strong> opens the cart for your pre-order. 
+                  <br><br>
+                  <small class="text-muted">We are currently curating the season's best for you.</small>
+                </div>
+              </div>
+            </div>`;
+          
+          document.querySelector('.row.g-2.mb-3').classList.add('hidden');
+          document.getElementById('cart-sidebar').style.opacity = "0.5";
+          document.getElementById('cart-sidebar').style.pointerEvents = "none";
+          return;
+        }
+
+        // 2. NORMAL FLOW
+        document.querySelector('.row.g-2.mb-3').classList.remove('hidden');
+        document.getElementById('cart-sidebar').style.opacity = "1";
+        document.getElementById('cart-sidebar').style.pointerEvents = "auto";
+
         fullInventory = data;
+        
+        // Update Main Category Filter
         const mainCatFilter = document.getElementById('main-cat-filter');
         mainCatFilter.innerHTML = '<option value="All">All Inventories</option>';
+        
         const mainCats = [...new Set(data.map(i => i.mainCategory))].sort();
-        mainCats.forEach(c => mainCatFilter.add(new Option(c.toUpperCase(), c)));
-        updateSubCategoryDropdown();
+        mainCats.forEach(c => {
+          mainCatFilter.add(new Option(toTitleCase(c), c));
+        });
+        
+        // This updates the sub-category dropdown AND calls filterItems() to render the grid
+        updateSubCategoryDropdown(); 
+        
+        // Alert the user (only if this was a manual refresh)
+        if (currentUser) showAlert("Inventory refreshed! 🌿");
+
       }).getInventoryData();
     }
 
@@ -380,26 +269,38 @@
 
     function renderInventory(items) {
       const grid = document.getElementById('inventory-grid');
-      if (items.length === 0) { grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found.</div>'; return; }
+
+      if (items.length === 0) { 
+        grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found.</div>'; 
+        return; 
+      }
+
       grid.innerHTML = items.map(i => {
         const itemMoq = i.moq || 0.5;
+        // FIX: Define formattedBadge INSIDE the map loop
+        const formattedBadge = toTitleCase(i.mainCategory);
+
         return `
-    <div class="col-6 col-md-4">
-      <div class="item-card p-2 text-center d-flex flex-column shadow-sm">
-        <div class="text-end"><span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">${i.mainCategory}</span></div>
-        <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
-        <div class="small fw-bold text-truncate">${i.itemName}</div>
-        <div class="text-muted" style="font-size: 0.65rem;">SKU: ${i.sku}</div>
-        <div class="small mb-1" style="color:var(--vg-brown)">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
-        <div class="mt-auto">
-          <div class="d-flex gap-1">
-            <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
-            <button id="btn-${i.sku}" class="btn btn-sm btn-success" onclick="addToCart('${i.sku}')">Add</button>
+        <div class="col-6 col-md-4">
+          <div class="item-card p-2 text-center d-flex flex-column shadow-sm">
+            <div class="text-end">
+              <span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">
+                ${formattedBadge}
+              </span>
+            </div>
+            <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://via.placeholder.com/150'">
+            <div class="small fw-bold text-truncate">${i.itemName}</div>
+            <div class="text-muted" style="font-size: 0.65rem;">SKU: ${i.sku}</div>
+            <div class="small mb-1" style="color:var(--vg-brown)">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
+            <div class="mt-auto">
+              <div class="d-flex gap-1">
+                <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
+                <button id="btn-${i.sku}" class="btn btn-sm btn-success" onclick="addToCart('${i.sku}')">Add</button>
+              </div>
+              <span class="moq-label">Min: ${itemMoq} ${i.uom}</span>
+            </div>
           </div>
-          <span class="moq-label">Min: ${itemMoq} ${i.uom}</span>
-        </div>
-      </div>
-    </div>`;
+        </div>`;
       }).join('');
     }
 
@@ -500,21 +401,61 @@
     function closeSuccessModal() { successModal.hide(); hardReset(); }
     function generateOrderId() { currentOrderId = "ORD-" + Date.now(); }
 
+
     function hardReset() {
-      cart = []; currentUser = null; generateOrderId();
-      document.getElementById('mobile').value = "";
-      document.getElementById('order-notes').value = "";
-      document.getElementById('search-bar').value = "";
-      updateCartUI();
-      const placeBtn = document.getElementById('place-order-btn');
-      placeBtn.disabled = false; placeBtn.classList.add('disabled');
-      placeBtn.innerHTML = "Place Order";
-      const loginBtn = document.getElementById('login-btn');
-      loginBtn.disabled = false; loginBtn.innerText = "Login";
-      document.getElementById('shop-section').classList.add('hidden');
-      document.getElementById('login-section').classList.remove('hidden');
-      loadInitialData();
+    // 1. Reset Global Data Variables
+    cart = []; 
+    currentUser = null; 
+    fullInventory = []; // Clear the inventory array
+    generateOrderId();
+
+    // 2. Clear Input Fields
+    document.getElementById('mobile').value = "";
+    document.getElementById('order-notes').value = "";
+    document.getElementById('search-bar').value = "";
+
+    // 3. Clear UI Containers (The "Fresh Start" fix)
+    document.getElementById('inventory-grid').innerHTML = ""; // Empty the product list
+    document.getElementById('main-cat-filter').innerHTML = '<option value="All">All Inventories</option>';
+    document.getElementById('sub-cat-filter').innerHTML = '<option value="All">All Sub-Categories</option>';
+    document.getElementById('welcome-msg').innerText = "";
+    
+    // 4. Reset Buttons
+    const placeBtn = document.getElementById('place-order-btn');
+    placeBtn.disabled = false; 
+    placeBtn.classList.add('disabled');
+    placeBtn.innerHTML = "Place Order";
+    
+    const loginBtn = document.getElementById('login-btn');
+    loginBtn.disabled = false; 
+    loginBtn.innerText = "Login";
+
+    // 5. Switch Views
+    updateCartUI();
+    document.getElementById('shop-section').classList.add('hidden');
+    document.getElementById('login-section').classList.remove('hidden');
+
+    // Ensure filters and cart are reset to visible for the next user session
+    const filterRow = document.querySelector('.row.g-2.mb-3');
+    if (filterRow) filterRow.classList.remove('hidden');
+    
+    const sidebar = document.getElementById('cart-sidebar');
+    if (sidebar) {
+      sidebar.style.opacity = "1";
+      sidebar.style.pointerEvents = "auto";
     }
+
+    // 6. Reload Varga dropdown for the next user
+    loadInitialData();
+  }
+
+  function toTitleCase(str) {
+    if (!str || typeof str !== 'string') return "";
+    return str.toLowerCase().split(' ').map(word => {
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }).join(' ');
+  }
+
   </script>
 </body>
 
