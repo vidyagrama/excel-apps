@@ -262,14 +262,27 @@ function sendReceiptEmail(summary, cart) {
     const netPayable = cartTotalAfterDiscount + prevBalance - creditUsed;
     const finalAmount = netPayable > 0 ? netPayable : 0;
 
-    // Update UPI link with the correct net amount
+    // 1. UPI QR Code Generation
     const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
+
+    // 2. Mobile Users Static Banner (No clickable button to avoid browser blocks)
+    const mobileBannerHtml = finalAmount > 0 ? `
+    <div style="margin: 25px 0; border: 2px dashed #2e7d32; padding: 20px; border-radius: 10px; background-color: #f9fdf9;">
+      <p style="margin: 0 0 10px 0; font-weight: bold; color: #2e7d32; font-size: 16px;">📱 Mobile Users:</p>
+      <p style="margin: 5px 0; font-size: 14px; color: #333;">
+        Please <b>Scan the QR Code</b> below using any UPI app (GPay, PhonePe, Paytm).
+      </p>
+      <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">
+        If you cannot scan, pay <b>₹${finalAmount.toFixed(2)}</b> manually to UPI ID: <br>
+        <span style="font-size: 15px; font-weight: bold; color: #000;">${upiId}</span>
+      </p>
+    </div>` : '';
 
     const htmlInvoice = `
       <!DOCTYPE html>
       <html>
-      <body style="font-family: sans-serif; padding: 20px; color: #333;">
+      <body style="font-family: sans-serif; padding: 20px; color: #333; line-height: 1.5;">
         <table width="100%" style="margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px;">
           <tr>
             <td><img src="${logoUrl}" height="70" alt="Logo"></td>
@@ -294,16 +307,17 @@ function sendReceiptEmail(summary, cart) {
           <tfoot>
             <tr><td colspan="3" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td><td align="right" style="padding: 10px; border-top: 2px solid #eee;">₹ ${overallTotal.toFixed(2)}</td></tr>
             ${discountRate > 0 ? `<tr><td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td><td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td></tr>` : ''}
-            
             <tr><td colspan="3" align="right" style="padding: 10px;">Previous Balance</td><td align="right" style="padding: 10px;">₹ ${prevBalance.toFixed(2)}</td></tr>
             <tr><td colspan="3" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td><td align="right" style="padding: 10px; color: #2e7d32;">- ₹ ${creditUsed.toFixed(2)}</td></tr>
-            
             <tr style="font-size: 18px;">
               <td colspan="3" align="right" style="padding: 10px; font-weight: bold; border-top: 1px solid #444;">Net Amount Payable</td>
               <td align="right" style="padding: 10px; font-weight: bold; color: #d32f2f; border-top: 1px solid #444;">₹ ${finalAmount.toFixed(2)}</td>
             </tr>
           </tfoot>
         </table>
+
+        ${mobileBannerHtml}
+
         <div style="margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
           <table width="100%">
             <tr>
