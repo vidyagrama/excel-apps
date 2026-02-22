@@ -147,7 +147,6 @@
     }
 
     window.onload = () => {
-      generateOrderId();
       document.getElementById('login-form-container').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
       loadInitialData();
     };
@@ -448,26 +447,26 @@
       const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
       const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
       
-      // NEW: Include all financial details in the summary object
       const summary = { 
-        orderId: currentOrderId, 
         customerId: currentUser.id, 
         customerName: currentUser.name, 
-        customerEmail: currentUser.email, // Ensure this is sent for the MailApp to work
+        customerEmail: currentUser.email,
         finalTotal: parseFloat(finalTotalStr), 
-        savingAmount: parseFloat(savingStr), // The discount value
+        savingAmount: parseFloat(savingStr),
         previousBalance: parseFloat(currentUser.balance || 0),
         creditUsed: parseFloat(currentUser.credit || 0),
         notes: document.getElementById('order-notes').value 
       };
 
+      // The server now returns an object {success: true, orderId: "ORD-CAT-..."}
       google.script.run.withSuccessHandler(res => {
-        if (res === true) {
-          document.getElementById('modal-id').innerText = "Order ID: " + currentOrderId;
+        if (res.success) {
+          // DISPLAY THE REAL ID FROM THE SERVER
+          document.getElementById('modal-id').innerText = "Order ID: " + res.orderId;
           document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
           successModal.show();
         } else { 
-          showAlert("Error: " + res, "error"); 
+          showAlert("Error: " + (res.error || res), "error"); 
           btn.disabled = false; 
           btn.innerHTML = "Place Order"; 
         }
@@ -475,15 +474,12 @@
     }
 
     function closeSuccessModal() { successModal.hide(); hardReset(); }
-    function generateOrderId() { currentOrderId = "ORD-" + Date.now(); }
-
 
     function hardReset() {
       // 1. Reset Global Data Variables
       cart = []; 
       currentUser = null; 
       fullInventory = []; // Clear the inventory array
-      generateOrderId();
 
       // 2. Clear Input Fields
       document.getElementById('mobile').value = "";

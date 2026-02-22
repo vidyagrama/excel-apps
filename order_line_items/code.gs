@@ -148,42 +148,49 @@ function finalizeOrderBulk(summary, fullCart) {
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // 1. Save Line Items (Corrected Column Mapping)
+    // --- 1. GENERATE THE TRANSACTION-BASED ORDER ID ---
+    // This acts as both the Order ID and the Payment Reference
+    const primaryCategory = fullCart.length > 0 ? fullCart[0].mainCategory : "General";
+    const transactionOrderId = generateOrderId(primaryCategory, ordSheet);
+    
+    // Assign to summary so the Email and Sheets use this ID
+    summary.orderId = transactionOrderId;
+
+    // --- 2. SAVE LINE ITEMS ---
     const lineRows = fullCart.map((item, index) => [
       index + 1,             // Col A: Serial
-      summary.orderId,       // Col B: Order ID
+      summary.orderId,       // Col B: Transaction ID / Order ID
       item.mainCategory,     // Col C: Main Category
-      item.subCategory || "",// Col D: Sub Category (ADDED THIS TO PREVENT SHIFTING)
+      item.subCategory || "",// Col D: Sub Category
       item.sku,              // Col E: SKU
       item.itemName,         // Col F: Item Name
       item.quantity,         // Col G: Quantity
       item.uom,              // Col H: UOM
       item.salePrice,        // Col I: Sale Price
       item.fullSubtotal,     // Col J: Subtotal
-      ""                     // Col K: Empty/Notes
+      ""                     // Col K: Notes
     ]);
 
     const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
-    // Note: Column count increased to 11 to accommodate the Sub-Category column
     liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
-    // 2. Save Order Summary
+    // --- 3. SAVE ORDER SUMMARY ---
     const ordRow = [[
       "P0",
-      summary.orderId,
+      summary.orderId,       // Col B: Transaction ID / Order ID
       summary.customerId,
       summary.customerName,
       new Date(),
       "Received",
       summary.finalTotal,
-      "Not Received",
+      "Unpaid",        // Payment Status
       summary.notes
     ]];
 
     const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
     ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
 
-    // 3. INVENTORY SYNC
+    // --- 4. INVENTORY SYNC ---
     fullCart.forEach(cartItem => {
       if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
@@ -203,12 +210,19 @@ function finalizeOrderBulk(summary, fullCart) {
       }
     });
 
-    // 4. EMAIL INVOICE
+    // --- 5. EMAIL INVOICE ---
+    // This will now use the new Transaction ID as the subject and order number
     sendReceiptEmail(summary, fullCart);
 
     SpreadsheetApp.flush();
-    return true;
+   
+    return {
+      success: true,
+      orderId: summary.orderId 
+    };
+
   } catch (e) {
+    console.log("Error in finalizeOrderBulk: " + e.toString());
     return e.toString();
   }
 }
@@ -355,4 +369,44 @@ function getFirstEmptyRowInColumn(sheet, col) {
     }
   }
   return sheet.getLastRow() + 1;
+}
+
+function generateOrderId(mainCategory) {
+  const ss = SpreadsheetApp.openById(ID_ORDERS);
+  const sheet = ss.getSheetByName(TAB_ORDERS);
+  
+  // 1. Clean Category Name (First 3 letters, Uppercase)
+  const catCode = mainCategory.substring(0, 3).toUpperCase();
+  
+  // 2. Format Date: YYYYMM (e.g., 202602)
+  const dateStr = Utilities.formatDate(new Date(), "GMT+5:30", "yyyyMM");
+  
+  // 3. The Prefix to search for (e.g., "ORD-DHN-202602-")
+  const prefix = `ORD-${catCode}-${dateStr}-`;
+  
+  // 4. Get all existing Order IDs from Column B
+  const lastRow = sheet.getLastRow();
+  let nextSerial = 1;
+  
+  if (lastRow > 1) {
+    const existingIds = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
+    
+    // Filter IDs that match our specific Category and Month
+    const monthlyCatOrders = existingIds
+      .filter(id => id.toString().startsWith(prefix))
+      .map(id => {
+        const parts = id.split("-");
+        return parseInt(parts[parts.length - 1], 10);
+      })
+      .sort((a, b) => b - a); // Sort descending
+    
+    if (monthlyCatOrders.length > 0) {
+      nextSerial = monthlyCatOrders[0] + 1;
+    }
+  }
+  
+  // 5. Pad the serial number with leading zeros (001)
+  const paddedSerial = ("000" + nextSerial).slice(-3);
+  
+  return prefix + paddedSerial;
 }
