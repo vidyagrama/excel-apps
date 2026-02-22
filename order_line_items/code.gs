@@ -148,54 +148,38 @@ function finalizeOrderBulk(summary, fullCart) {
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // --- 1. GENERATE THE TRANSACTION-BASED ORDER ID ---
-    // This acts as both the Order ID and the Payment Reference
-    const primaryCategory = fullCart.length > 0 ? fullCart[0].mainCategory : "General";
-    const transactionOrderId = generateOrderId(primaryCategory, ordSheet);
-    
-    // Assign to summary so the Email and Sheets use this ID
-    summary.orderId = transactionOrderId;
+    const categoriesInCart = [...new Set(fullCart.map(item => item.mainCategory))];
+    let generatedOrderIds = [];
 
-    // --- 2. SAVE LINE ITEMS ---
-    const lineRows = fullCart.map((item, index) => [
-      index + 1,             // Col A: Serial
-      summary.orderId,       // Col B: Transaction ID / Order ID
-      item.mainCategory,     // Col C: Main Category
-      item.subCategory || "",// Col D: Sub Category
-      item.sku,              // Col E: SKU
-      item.itemName,         // Col F: Item Name
-      item.quantity,         // Col G: Quantity
-      item.uom,              // Col H: UOM
-      item.salePrice,        // Col I: Sale Price
-      item.fullSubtotal,     // Col J: Subtotal
-      ""                     // Col K: Notes
-    ]);
+    // --- 1 & 2. INTERNAL LOOP: SAVE TO SHEETS CATEGORY-WISE ---
+    categoriesInCart.forEach((cat) => {
+      const catItems = fullCart.filter(item => item.mainCategory === cat);
+      const catOrderId = generateOrderId(cat, ordSheet); 
+      generatedOrderIds.push(catOrderId);
 
-    const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
-    liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
+      // Save Line Items for this category
+      const lineRows = catItems.map((item, index) => [
+        index + 1, catOrderId, item.mainCategory, item.subCategory || "",
+        item.sku, item.itemName, item.quantity, item.uom,
+        item.salePrice, item.fullSubtotal, ""
+      ]);
+      const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
+      liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
-    // --- 3. SAVE ORDER SUMMARY ---
-    const ordRow = [[
-      "P0",
-      summary.orderId,       // Col B: Transaction ID / Order ID
-      summary.customerId,
-      summary.customerName,
-      new Date(),
-      "Received",
-      summary.finalTotal,
-      "Unpaid",        // Payment Status
-      summary.notes
-    ]];
+      // Save Order Summary row for this category
+      const ordRow = [[
+        "P0", catOrderId, summary.customerId, summary.customerName,
+        new Date(), "Received", summary.finalTotal, "Unpaid", summary.notes
+      ]];
+      const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
+      ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
+    });
 
-    const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
-    ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
-
-    // --- 4. INVENTORY SYNC ---
+    // --- 3. INVENTORY SYNC (As you have it) ---
     fullCart.forEach(cartItem => {
       if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
       if (!targetSheet) return;
-
       const data = targetSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         if (String(data[i][15]) === String(cartItem.sku)) {
@@ -210,20 +194,17 @@ function finalizeOrderBulk(summary, fullCart) {
       }
     });
 
-    // --- 5. EMAIL INVOICE ---
-    // This will now use the new Transaction ID as the subject and order number
-    sendReceiptEmail(summary, fullCart);
+    // --- 4. CONSOLIDATED EMAIL: SEND ONCE ---
+    // Pass the combined IDs so the user sees all references
+    summary.allOrderIds = generatedOrderIds.join(", "); 
+    sendReceiptEmail(summary, fullCart); 
 
     SpreadsheetApp.flush();
-   
-    return {
-      success: true,
-      orderId: summary.orderId 
-    };
+    return { success: true, orderIds: generatedOrderIds };
 
   } catch (e) {
     console.log("Error in finalizeOrderBulk: " + e.toString());
-    return e.toString();
+    return { success: false, error: e.toString() };
   }
 }
 
@@ -239,57 +220,59 @@ function sendReceiptEmail(summary, cart) {
     const logoUrl = "https://i.ibb.co/3mk7ddzj/vidyagrama-logo.png";
     const upiId = "9035734752@icici";
 
+    // --- GROUPING LOGIC FOR CONSOLIDATED VIEW ---
+    const categories = [...new Set(cart.map(i => i.mainCategory))];
     let tableRows = "";
     let overallTotal = 0;
 
-    cart.forEach(item => {
-      let qty = parseFloat(item.quantity);
-      let price = parseFloat(item.salePrice);
-      let unit = item.uom;
-
-      if (unit.toLowerCase() === 'gms') {
-        qty = qty / 1000;
-        unit = 'kg';
-      }
-
-      let lineTotal = qty * price;
-      overallTotal += lineTotal;
-
+    categories.forEach(cat => {
+      // Category Header Row
       tableRows += `
-        <tr>
-          <td style="border: 1px solid #cccccc; padding: 10px;">${item.itemName}</td>
-          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">${qty} ${unit}</td>
-          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${price.toFixed(2)}</td>
-          <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${lineTotal.toFixed(2)}</td>
+        <tr style="background-color: #fcf8e3;">
+          <td colspan="4" style="border: 1px solid #cccccc; padding: 8px; font-weight: bold; color: #8a6d3b; text-transform: uppercase; font-size: 12px;">
+            ${cat}
+          </td>
         </tr>`;
+
+      const catItems = cart.filter(i => i.mainCategory === cat);
+      catItems.forEach(item => {
+        let qty = parseFloat(item.quantity);
+        let price = parseFloat(item.salePrice);
+        let unit = item.uom;
+
+        if (unit.toLowerCase() === 'gms') {
+          qty = qty / 1000;
+          unit = 'kg';
+        }
+
+        let lineTotal = qty * price;
+        overallTotal += lineTotal;
+
+        tableRows += `
+          <tr>
+            <td style="border: 1px solid #cccccc; padding: 10px;">${item.itemName}</td>
+            <td align="right" style="border: 1px solid #cccccc; padding: 10px;">${qty} ${unit}</td>
+            <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${price.toFixed(2)}</td>
+            <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${lineTotal.toFixed(2)}</td>
+          </tr>`;
+      });
     });
 
     const discountRate = parseFloat(user[7] || 0);
     const discountAmount = overallTotal * (discountRate / 100);
     
-    // NEW FINANCIAL CALCULATIONS
-    const cartTotalAfterDiscount = overallTotal - discountAmount;
     const prevBalance = parseFloat(summary.previousBalance || 0);
     const creditUsed = parseFloat(summary.creditUsed || 0);
-    
-    // Formula: (Cart Total) + Balance - Credit
-    const netPayable = cartTotalAfterDiscount + prevBalance - creditUsed;
-    const finalAmount = netPayable > 0 ? netPayable : 0;
+    const finalAmount = summary.finalTotal > 0 ? summary.finalTotal : 0;
 
-    // 1. UPI QR Code Generation
     const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
 
-    // 2. Mobile Users Static Banner (No clickable button to avoid browser blocks)
     const mobileBannerHtml = finalAmount > 0 ? `
     <div style="margin: 25px 0; border: 2px dashed #2e7d32; padding: 20px; border-radius: 10px; background-color: #f9fdf9;">
-      <p style="margin: 0 0 10px 0; font-weight: bold; color: #2e7d32; font-size: 16px;">📱 Mobile Users:</p>
+      <p style="margin: 0 0 10px 0; font-weight: bold; color: #2e7d32; font-size: 16px;">📱 Payment Instructions:</p>
       <p style="margin: 5px 0; font-size: 14px; color: #333;">
-        Please <b>Scan the QR Code</b> below using any UPI app (GPay, PhonePe, Paytm).
-      </p>
-      <p style="margin: 10px 0 0 0; font-size: 13px; color: #666;">
-        If you cannot scan, pay <b>₹${finalAmount.toFixed(2)}</b> manually to UPI ID: <br>
-        <span style="font-size: 15px; font-weight: bold; color: #000;">${upiId}</span>
+        Please scan the QR code below for the <b>Combined Total</b> of all items.
       </p>
     </div>` : '';
 
@@ -302,12 +285,14 @@ function sendReceiptEmail(summary, cart) {
             <td><img src="${logoUrl}" height="70" alt="Logo"></td>
             <td align="right">
               <h1 style="margin:0; font-size: 24px;">TAX INVOICE</h1>
-              <p style="margin:5px 0;">No: <strong>${summary.orderId}</strong></p>
+              <p style="margin:5px 0;">Ref: <strong>${summary.allOrderIds || summary.orderId}</strong></p>
               <p style="margin:5px 0;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
             </td>
           </tr>
         </table>
-        <p><strong>Billed To:</strong> ${summary.customerName}</p>
+        <p>Namaste <strong>${summary.customerName}</strong>,</p>
+        <p>Your order has been received. Here is your consolidated invoice:</p>
+        
         <table width="100%" style="border-collapse: collapse;">
           <thead>
             <tr style="background: #f4f4f4;">
@@ -349,10 +334,12 @@ function sendReceiptEmail(summary, cart) {
       </body>
       </html>`;
 
+    const formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd-MM-yyyy");
+
     MailApp.sendEmail({
       to: userEmail,
       bcc: "writetovidyagrama@gmail.com",
-      subject: "Tax Invoice - " + summary.orderId,
+      subject: `Tax-Invoice - Vidyagram - ${formattedDate}`,
       htmlBody: htmlInvoice
     });
 

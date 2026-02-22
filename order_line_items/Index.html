@@ -362,71 +362,79 @@
     }
 
     function removeFromCart(id) { cart = cart.filter(i => i.cartId !== id); updateCartUI(); }
-
+   
 
     function updateCartUI() {
-      const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
-      let gross = 0;
+        const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
+        let gross = 0;
 
-      // 1. Get Financials from currentUser
-      const userCredit = currentUser ? parseFloat(currentUser.credit || 0) : 0;
-      const userBalance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
+        const userCredit = currentUser ? parseFloat(currentUser.credit || 0) : 0;
+        const userBalance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
 
-      // 2. Update Display Labels
-      document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
-      document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
+        document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
+        document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
 
-      // 3. Handle Empty Cart Case
-      if (cart.length === 0) {
-        list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
-        document.getElementById('gross-val').innerText = "₹0";
-        document.getElementById('disc-val').innerText = "-₹0";
-        
-        // Show account standing even with 0 items
-        let netAccount = userBalance - userCredit;
-        document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
-        
-        btn.classList.add('disabled');
-        return;
+        if (cart.length === 0) {
+          list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
+          document.getElementById('gross-val').innerText = "₹0";
+          document.getElementById('disc-val').innerText = "-₹0";
+          let netAccount = userBalance - userCredit;
+          document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
+          btn.classList.add('disabled');
+          return;
+        }
+
+        // --- GROUPING LOGIC ---
+        const grouped = cart.reduce((acc, item) => {
+          if (!acc[item.mainCategory]) acc[item.mainCategory] = [];
+          acc[item.mainCategory].push(item);
+          return acc;
+        }, {});
+
+        let cartHtml = "";
+        for (const cat in grouped) {
+          // Add Category Header
+          cartHtml += `
+            <div class="category-divider d-flex align-items-center my-2">
+              <span class="fw-bold small text-uppercase" style="color:var(--vg-brown); letter-spacing:1px;">${cat}</span>
+              <div class="flex-grow-1 ms-2" style="border-bottom: 1px dashed #ccc;"></div>
+            </div>`;
+
+          // Render items within this category
+          cartHtml += grouped[cat].map(i => {
+            const subtotalNum = parseFloat(i.fullSubtotal);
+            gross += subtotalNum;
+            return `
+              <div class="cart-item d-flex justify-content-between align-items-center py-1 mb-1">
+                <div style="flex: 1; min-width: 0;">
+                  <div class="fw-bold text-truncate" style="font-size:0.8rem">${i.itemName}</div>
+                  <small class="text-muted" style="font-size:0.7rem">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
+                </div>
+                <div class="d-flex align-items-center">
+                  <div class="input-group input-group-sm me-2" style="width: 80px;">
+                    <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', -1)">-</button>
+                    <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.7rem; min-height:24px;">${i.quantity}</span>
+                    <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', 1)">+</button>
+                  </div>
+                  <div class="text-end" style="min-width: 55px;"><span class="fw-bold" style="font-size:0.8rem">₹${subtotalNum.toFixed(2)}</span></div>
+                  <i class="material-icons ms-2 remove-btn" style="font-size:16px; cursor:pointer; color:#dc3545;" onclick="removeFromCart(${i.cartId})">cancel</i>
+                </div>
+              </div>`;
+          }).join('');
+        }
+
+        list.innerHTML = cartHtml;
+
+        // 5. Final Calculations
+        const discAmt = (gross * (currentUser.discount / 100));
+        const finalTotal = (gross - discAmt) + userBalance - userCredit;
+
+        document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
+        document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
+        document.getElementById('final-val').innerText = "₹" + (finalTotal > 0 ? finalTotal : 0).toFixed(2);
+        btn.classList.remove('disabled');
       }
-
-      // 4. Render Cart Items
-      list.innerHTML = cart.map(i => {
-        const subtotalNum = parseFloat(i.fullSubtotal); 
-        gross += subtotalNum;
-        return `
-          <div class="cart-item d-flex justify-content-between align-items-center py-2">
-            <div style="flex: 1; min-width: 0;">
-              <div class="fw-bold text-truncate" style="font-size:0.85rem">${i.itemName}</div>
-              <small class="text-muted">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
-            </div>
-            <div class="d-flex align-items-center">
-              <div class="input-group input-group-sm me-2" style="width: 90px;">
-                <button class="btn btn-outline-secondary px-1" onclick="changeCartQty('${i.sku}', -1)">-</button>
-                <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.75rem;">${i.quantity}</span>
-                <button class="btn btn-outline-secondary px-1" onclick="changeCartQty('${i.sku}', 1)">+</button>
-              </div>
-              <div class="text-end" style="min-width: 60px;"><span class="fw-bold" style="font-size:0.85rem">₹${subtotalNum.toFixed(2)}</span></div>
-              <i class="material-icons ms-2 remove-btn" style="font-size:18px;" onclick="removeFromCart(${i.cartId})">cancel</i>
-            </div>
-          </div>`;
-      }).join('');
-
-      // 5. Final Calculations
-      const discAmt = (gross * (currentUser.discount / 100));
       
-      // Formula: (Current Items - Discount) + Previous Unpaid - Credit Available
-      const finalTotal = (gross - discAmt) + userBalance - userCredit;
-
-      document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
-      document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
-      
-      // Display final total (never showing less than 0)
-      document.getElementById('final-val').innerText = "₹" + (finalTotal > 0 ? finalTotal : 0).toFixed(2);
-      btn.classList.remove('disabled');
-    }
-   
-   
     function changeCartQty(sku, direction) {
       const itemInCart = cart.find(i => i.sku === sku); if (!itemInCart) return;
       const step = 1, minAllowed = itemInCart.moq || 0.5;
@@ -461,10 +469,33 @@
       // The server now returns an object {success: true, orderId: "ORD-CAT-..."}
       google.script.run.withSuccessHandler(res => {
         if (res.success) {
-          // DISPLAY THE REAL ID FROM THE SERVER
-          document.getElementById('modal-id').innerText = "Order ID: " + res.orderId;
-          document.getElementById('modal-saving').innerText = "You saved ₹" + savingStr + "!";
+          // 1. Join the IDs with a comma for a clean display
+          const idList = res.orderIds.join(", ");
+          
+          // 2. Set a meaningful heading
+          document.getElementById('modal-id').innerHTML = `
+            <div class="text-success mb-2">
+              <i class="material-icons" style="vertical-align: middle;">check_circle</i> 
+              <strong>Order Placed Successfully!</strong>
+            </div>
+            <div style="font-size: 0.9rem; color: #555;">
+              Reference IDs: <span class="fw-bold" style="color:var(--vg-brown);">${idList}</span><br>
+              <small>A consolidated invoice has been sent to your email.</small>
+            </div>
+          `;
+
+          // 3. Show savings with a bit more "pop"
+          document.getElementById('modal-saving').innerHTML = `
+            <div class="badge bg-success-light text-success p-2" style="font-size: 1rem; border: 1px dashed #2e7d32;">
+              You saved ₹${savingStr}!
+            </div>
+          `;
+
           successModal.show();
+          
+          // Optional: Clear the cart after success
+          cart = []; 
+          updateCartUI();
         } else { 
           showAlert("Error: " + (res.error || res), "error"); 
           btn.disabled = false; 
