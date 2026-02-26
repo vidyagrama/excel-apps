@@ -43,23 +43,23 @@ function getNamesByVarga(varga) {
 function validateLogin(varga, name, mobile) {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
   const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
-  
+
   // Find the user based on your existing column mapping
-  const user = data.find(row => 
-    row[1] === varga && 
-    row[2] === name && 
+  const user = data.find(row =>
+    row[1] === varga &&
+    row[2] === name &&
     String(row[5]).trim() === String(mobile).trim()
   );
 
   if (user) {
-    return { 
-      success: true, 
-      email: user[6], 
-      discount: user[7] || 0, 
-      name: user[2], 
+    return {
+      success: true,
+      email: user[6],
+      discount: user[7] || 0,
+      name: user[2],
       id: user[0],
       // NEW: Adjust the index numbers [8] and [9] if your columns are different
-      credit: parseFloat(user[8] || 0), 
+      credit: parseFloat(user[8] || 0),
       balance: parseFloat(user[9] || 0)
     };
   } else {
@@ -142,69 +142,88 @@ function getInventoryData() {
   return allItems;
 }
 
-function finalizeOrderBulk(summary, fullCart) {
+function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
+  // 1. GET THE LOCK (Critical for 50-60 users)
+  const lock = LockService.getScriptLock();
   try {
+    // Wait for up to 30 seconds for other orders to finish writing
+    lock.waitLock(30000);
+
     const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS);
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
+    // 1. Handle Screenshot Upload (Happens inside the lock to be safe)
+    let screenshotUrl = "N/A";
+    if (paymentMode === "Manual Screenshot" && base64Image) {
+      screenshotUrl = saveScreenshotToDrive(base64Image, txnId, summary.customerName);
+    }
+
+    const orderStatus = (paymentMode === "Auto-Verified") ? "Received" : "Pending";
+    const paymentStatus = (paymentMode === "Auto-Verified") ? "Paid" : "Unpaid";
     const categoriesInCart = [...new Set(fullCart.map(item => item.mainCategory))];
     let generatedOrderIds = [];
 
-    // --- 1 & 2. INTERNAL LOOP: SAVE TO SHEETS CATEGORY-WISE ---
+    // 2. Save Orders and Line Items
     categoriesInCart.forEach((cat) => {
       const catItems = fullCart.filter(item => item.mainCategory === cat);
-      const catOrderId = generateOrderId(cat, ordSheet); 
+      const catOrderId = generateOrderId(cat);
       generatedOrderIds.push(catOrderId);
 
-      // Save Line Items for this category
       const lineRows = catItems.map((item, index) => [
         index + 1, catOrderId, item.mainCategory, item.subCategory || "",
         item.sku, item.itemName, item.quantity, item.uom,
         item.salePrice, item.fullSubtotal, ""
       ]);
+
       const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
       liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
-      // Save Order Summary row for this category
       const ordRow = [[
         "P0", catOrderId, summary.customerId, summary.customerName,
-        new Date(), "Received", summary.finalTotal, "Unpaid", summary.notes
+        new Date(), orderStatus, summary.finalTotal, paymentStatus,
+        (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl
       ]];
       const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
       ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
     });
 
-    // --- 3. INVENTORY SYNC (As you have it) ---
+    // 3. Inventory Sync (Optimization: Minimize setValues calls)
     fullCart.forEach(cartItem => {
       if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
       if (!targetSheet) return;
+
       const data = targetSheet.getDataRange().getValues();
       for (let i = 1; i < data.length; i++) {
         if (String(data[i][15]) === String(cartItem.sku)) {
           let currentStock = parseFloat(data[i][4]) || 0;
           let reorderPoint = parseFloat(data[i][9]) || 0;
           let newStock = currentStock - cartItem.quantity;
-          targetSheet.getRange(i + 1, 5).setValue(newStock);
           let status = newStock <= 0 ? "Sold out" : (newStock <= reorderPoint ? "Repurchase needed" : "In stock");
+
+          targetSheet.getRange(i + 1, 5).setValue(newStock);
           targetSheet.getRange(i + 1, 13).setValue(status);
           break;
         }
       }
     });
 
-    // --- 4. CONSOLIDATED EMAIL: SEND ONCE ---
-    // Pass the combined IDs so the user sees all references
-    summary.allOrderIds = generatedOrderIds.join(", "); 
-    sendReceiptEmail(summary, fullCart); 
+    // 4. Email and Finalize
+    summary.allOrderIds = generatedOrderIds.join(", ");
+    summary.paymentStatus = paymentStatus;
+    sendReceiptEmail(summary, fullCart);
 
+    // Force all spreadsheet changes to commit before releasing the lock
     SpreadsheetApp.flush();
-    return { success: true, orderIds: generatedOrderIds };
+    return { success: true, orderIds: generatedOrderIds, mode: paymentMode };
 
   } catch (e) {
     console.log("Error in finalizeOrderBulk: " + e.toString());
     return { success: false, error: e.toString() };
+  } finally {
+    // 5. RELEASE THE LOCK (Always do this in 'finally')
+    lock.releaseLock();
   }
 }
 
@@ -260,7 +279,7 @@ function sendReceiptEmail(summary, cart) {
 
     const discountRate = parseFloat(user[7] || 0);
     const discountAmount = overallTotal * (discountRate / 100);
-    
+
     const prevBalance = parseFloat(summary.previousBalance || 0);
     const creditUsed = parseFloat(summary.creditUsed || 0);
     const finalAmount = summary.finalTotal > 0 ? summary.finalTotal : 0;
@@ -358,10 +377,59 @@ function getFirstEmptyRowInColumn(sheet, col) {
   return sheet.getLastRow() + 1;
 }
 
+//this is sample code to reauth
+function REAUTH_DRIVE() {
+  // This forces the script to prove it can access the folder
+  const folder = DriveApp.getFolderById("1DgR2LyUJfvmGVD9HCaJcILk3Mve2_YYG");
+  const sampleBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const sampleTxnId = "TEST_123456";
+  const sampleCustomer = "Test User";
+
+  // 1. Clean the incoming data (remove headers like "data:image/png;base64,")
+  const contentType = sampleBase64.split(',')[0].split(':')[1].split(';')[0];
+  const bytes = Utilities.base64Decode(sampleBase64.split(',')[1]);
+  const blob = Utilities.newBlob(bytes, contentType, "Screenshot.png");
+
+  const file = folder.createFile(blob);
+  Logger.log("Permission Granted for: " + folder.getName());
+}
+
+function saveScreenshotToDrive(base64Data, txnId, customerName) {
+  // Use your designated folder for screenshots
+  const FOLDER_ID = '1DgR2LyUJfvmGVD9HCaJcILk3Mve2_YYG';
+
+  try {
+    const folder = DriveApp.getFolderById(FOLDER_ID);
+
+    // 1. Clean the incoming data (remove headers like "data:image/png;base64,")
+    const contentType = base64Data.split(',')[0].split(':')[1].split(';')[0];
+    const bytes = Utilities.base64Decode(base64Data.split(',')[1]);
+
+    // 2. Create the blob (similar to your fetch logic)
+    const blob = Utilities.newBlob(bytes, contentType);
+
+    // 3. Name the file using Transaction ID and Customer Name for easy searching
+    const safeName = customerName.replace(/\s+/g, '_');
+    blob.setName("PAYMENT_" + txnId + "_" + safeName + ".png");
+
+    // 4. Save to folder
+    const file = folder.createFile(blob);
+
+    // 5. Set sharing so you can view the receipt from the Google Sheet link
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    return file.getUrl();
+
+  } catch (e) {
+    console.error("Screenshot Upload Failed: " + e.message);
+    return "Upload Error: " + e.message;
+  }
+}
+
 function generateOrderId(mainCategory) {
   const ss = SpreadsheetApp.openById(ID_ORDERS);
   const sheet = ss.getSheetByName(TAB_ORDERS);
-  
+
   // 1. Clean Category Name (First 3 letters, Uppercase)
   const catCode = mainCategory.substring(0, 3).toUpperCase();
   
@@ -370,30 +438,75 @@ function generateOrderId(mainCategory) {
   
   // 3. The Prefix to search for (e.g., "ORD-DHN-202602-")
   const prefix = `ORD-${catCode}-${dateStr}-`;
-  
+
   // 4. Get all existing Order IDs from Column B
   const lastRow = sheet.getLastRow();
   let nextSerial = 1;
-  
+
   if (lastRow > 1) {
+    // Get only the Order ID column (Column B is index 2)
     const existingIds = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
-    
+
     // Filter IDs that match our specific Category and Month
     const monthlyCatOrders = existingIds
-      .filter(id => id.toString().startsWith(prefix))
+      .filter(id => id && id.toString().startsWith(prefix))
       .map(id => {
         const parts = id.split("-");
         return parseInt(parts[parts.length - 1], 10);
       })
-      .sort((a, b) => b - a); // Sort descending
-    
+      .sort((a, b) => b - a);
+
     if (monthlyCatOrders.length > 0) {
       nextSerial = monthlyCatOrders[0] + 1;
     }
   }
-  
-  // 5. Pad the serial number with leading zeros (001)
-  const paddedSerial = ("000" + nextSerial).slice(-3);
-  
-  return prefix + paddedSerial;
+
+  return prefix + ("000" + nextSerial).slice(-3);
 }
+
+function checkPaymentInLogs(userEnteredUTR, userExpectedAmount) {
+  try {
+    const ss = SpreadsheetApp.openById("1bqvra9w6O4QV_qebmcrnpwbsMtwk9QDTcKTAcmjh9bw")
+    const sheet = ss.getSheetByName("Sheet1");
+    if (!sheet) return { status: "ERROR", message: "Log sheet not found." };
+
+    //userEnteredUTR = "119024074786";
+    //userExpectedAmount = "1";
+
+    const data = sheet.getDataRange().getValues();
+    const searchUTR = userEnteredUTR.toString().trim();
+    const searchAmount = parseFloat(userExpectedAmount);
+
+    // Loop from bottom to top (newest SMS first)
+    for (let i = data.length - 1; i >= 0; i--) {
+      // Assuming Column B (index 1) contains the SMS body
+      const message = data[i][3].toString();
+
+      // 1. Precise UTR Check: Look for the 12-digit number 
+      // We use a regex that looks specifically for the searchUTR
+      if (message.indexOf(searchUTR) !== -1) {
+
+        // 2. Extract Amount: Look for "Rs." followed by digits
+        // Based on your sample: "Sent Rs.1.00"
+        const amtMatch = message.match(/Rs\.?\s?([0-9,.]+)/i);
+
+        if (amtMatch) {
+          const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
+
+          // Check if amount matches (within 1 Rupee tolerance)
+          if (Math.abs(smsAmount - searchAmount) < 1.0) {
+            return { status: "SUCCESS", message: "Verified! Received Rs." + smsAmount };
+          } else {
+            return { status: "MISMATCH", message: "Found Ref, but amount is Rs." + smsAmount };
+          }
+        }
+      }
+    }
+    return { status: "NOT_FOUND", message: "Ref No. not found in recent logs." };
+
+  } catch (e) {
+    return { status: "ERROR", message: "Server Error: " + e.toString() };
+  }
+}
+
+

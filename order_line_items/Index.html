@@ -97,6 +97,38 @@
               </div>
             </div>
 
+            <div id="payment-gate" class="mt-3 p-3 border rounded bg-light shadow-sm" style="display:none;">
+              <h6 class="fw-bold small mb-2">
+                <i class="material-icons" style="font-size:16px; vertical-align:middle;">payments</i> Payment
+                Verification</h6>
+
+              <div id="payment-instructions" class="small text-muted mb-2" style="font-size: 0.75rem;">
+                Please pay the final amount to proceed.
+              </div>
+
+              <button id="pay-now-btn" class="btn btn-primary btn-sm w-100 mb-2" onclick="initiatePayment()">
+                Pay Now <span id="pay-amt-label">₹0</span>
+              </button>
+
+              <div id="verify-box" style="display:none;">
+                <div class="input-group input-group-sm mb-1">
+                  <input type="text" id="txn-id-input" class="form-control" placeholder="Enter UPI Transaction ID">
+                  <button class="btn btn-success" onclick="verifyTxn()">Verify</button>
+                </div>
+                <small id="verify-error" style="font-size: 0.75rem; display: block; margin-top: 5px;"></small>
+              </div>
+
+              <div id="manual-upload-section" class="mt-3 pt-2 border-top" style="display:none;">
+                <p class="fw-bold text-danger mb-1" style="font-size: 0.7rem;">Verification Failed?</p>
+                <p class="text-muted mb-2" style="font-size: 0.65rem;">
+                  If you've already paid, please upload the screenshot.
+                  <strong>Note:</strong> This order will be processed after manual verification (2-4 hours).
+                </p>
+                <input type="file" id="screenshot-file" class="form-control form-control-sm" accept="image/*">
+              </div>
+
+            </div>
+
             <textarea id="order-notes" class="form-control form-control-sm mt-3" placeholder="Add delivery notes..."></textarea>
             <button id="place-order-btn" class="btn w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
           </div>
@@ -145,10 +177,51 @@
         toastContainer.style.display = 'none';
       }, 3000);
     }
-
+    
+    /*
     window.onload = () => {
       document.getElementById('login-form-container').addEventListener('keypress', (e) => { if (e.key === 'Enter') doLogin(); });
       loadInitialData();
+    };*/
+
+    window.onload = () => {
+      // 1. Run data fetch first
+      loadInitialData();
+      
+      // 2. Then set up listeners
+      const loginForm = document.getElementById('login-form-container');
+      if (loginForm) {
+        loginForm.addEventListener('keypress', (e) => { 
+          if (e.key === 'Enter') doLogin(); 
+        });
+      }
+
+      document.addEventListener('change', function(e) {
+        // Check if the change happened on the screenshot file input
+        if (e.target && e.target.id === 'screenshot-file') {
+          const btn = document.getElementById('place-order-btn');
+          const err = document.getElementById('verify-error');
+          
+          // Check if at least one file was actually selected
+          if (e.target.files && e.target.files.length > 0) {
+            // 1. Enable the button
+            btn.classList.remove('disabled');
+            btn.disabled = false;
+            
+            // 2. Ensure it uses your vg-brown theme color
+            btn.style.setProperty("background-color", "var(--vg-brown)", "important");
+            
+            // 3. Update the message to let the user know they are good to go
+            err.style.color = "#E89F22"; // vg-amber
+            err.innerHTML = "<strong>📸 Screenshot attached!</strong> You can now Place Order.";
+          } else {
+            // If they cleared the file, lock the button again
+            btn.classList.add('disabled');
+            btn.disabled = true;
+          }
+        }
+      });
+
     };
 
     function loadInitialData() {
@@ -365,75 +438,88 @@
    
 
     function updateCartUI() {
-        const list = document.getElementById('cart-list'), btn = document.getElementById('place-order-btn');
-        let gross = 0;
+      if (!currentUser) return;
 
-        const userCredit = currentUser ? parseFloat(currentUser.credit || 0) : 0;
-        const userBalance = currentUser ? parseFloat(currentUser.balance || 0) : 0;
+      const list = document.getElementById('cart-list'), 
+            btn = document.getElementById('place-order-btn'),
+            gate = document.getElementById('payment-gate'); 
+      let gross = 0;
 
-        document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
-        document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
+      const userCredit = parseFloat(currentUser.credit || 0);
+      const userBalance = parseFloat(currentUser.balance || 0);
 
-        if (cart.length === 0) {
-          list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
-          document.getElementById('gross-val').innerText = "₹0";
-          document.getElementById('disc-val').innerText = "-₹0";
-          let netAccount = userBalance - userCredit;
-          document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
-          btn.classList.add('disabled');
-          return;
-        }
+      document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
+      document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
 
-        // --- GROUPING LOGIC ---
-        const grouped = cart.reduce((acc, item) => {
-          if (!acc[item.mainCategory]) acc[item.mainCategory] = [];
-          acc[item.mainCategory].push(item);
-          return acc;
-        }, {});
-
-        let cartHtml = "";
-        for (const cat in grouped) {
-          // Add Category Header
-          cartHtml += `
-            <div class="category-divider d-flex align-items-center my-2">
-              <span class="fw-bold small text-uppercase" style="color:var(--vg-brown); letter-spacing:1px;">${cat}</span>
-              <div class="flex-grow-1 ms-2" style="border-bottom: 1px dashed #ccc;"></div>
-            </div>`;
-
-          // Render items within this category
-          cartHtml += grouped[cat].map(i => {
-            const subtotalNum = parseFloat(i.fullSubtotal);
-            gross += subtotalNum;
-            return `
-              <div class="cart-item d-flex justify-content-between align-items-center py-1 mb-1">
-                <div style="flex: 1; min-width: 0;">
-                  <div class="fw-bold text-truncate" style="font-size:0.8rem">${i.itemName}</div>
-                  <small class="text-muted" style="font-size:0.7rem">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
-                </div>
-                <div class="d-flex align-items-center">
-                  <div class="input-group input-group-sm me-2" style="width: 80px;">
-                    <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', -1)">-</button>
-                    <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.7rem; min-height:24px;">${i.quantity}</span>
-                    <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', 1)">+</button>
-                  </div>
-                  <div class="text-end" style="min-width: 55px;"><span class="fw-bold" style="font-size:0.8rem">₹${subtotalNum.toFixed(2)}</span></div>
-                  <i class="material-icons ms-2 remove-btn" style="font-size:16px; cursor:pointer; color:#dc3545;" onclick="removeFromCart(${i.cartId})">cancel</i>
-                </div>
-              </div>`;
-          }).join('');
-        }
-
-        list.innerHTML = cartHtml;
-
-        // 5. Final Calculations
-        const discAmt = (gross * (currentUser.discount / 100));
-        const finalTotal = (gross - discAmt) + userBalance - userCredit;
-
-        document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
-        document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
-        document.getElementById('final-val').innerText = "₹" + (finalTotal > 0 ? finalTotal : 0).toFixed(2);
-        btn.classList.remove('disabled');
+      if (cart.length === 0) {
+        list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
+        document.getElementById('gross-val').innerText = "₹0";
+        document.getElementById('disc-val').innerText = "-₹0";
+        let netAccount = userBalance - userCredit;
+        document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
+        btn.classList.add('disabled');
+        if (gate) gate.style.display = 'none';
+        return;
       }
+
+      // --- GROUPING LOGIC ---
+      const grouped = cart.reduce((acc, item) => {
+        if (!acc[item.mainCategory]) acc[item.mainCategory] = [];
+        acc[item.mainCategory].push(item);
+        return acc;
+      }, {});
+
+      let cartHtml = "";
+      for (const cat in grouped) {
+        cartHtml += `
+          <div class="category-divider d-flex align-items-center my-2">
+            <span class="fw-bold small text-uppercase" style="color:var(--vg-brown); letter-spacing:1px;">${cat}</span>
+            <div class="flex-grow-1 ms-2" style="border-bottom: 1px dashed #ccc;"></div>
+          </div>`;
+
+        cartHtml += grouped[cat].map(i => {
+          const subtotalNum = parseFloat(i.fullSubtotal);
+          gross += subtotalNum;
+          return `
+            <div class="cart-item d-flex justify-content-between align-items-center py-1 mb-1">
+              <div style="flex: 1; min-width: 0;">
+                <div class="fw-bold text-truncate" style="font-size:0.8rem">${i.itemName}</div>
+                <small class="text-muted" style="font-size:0.7rem">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
+              </div>
+              <div class="d-flex align-items-center">
+                <div class="input-group input-group-sm me-2" style="width: 80px;">
+                  <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', -1)">-</button>
+                  <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.7rem; min-height:24px;">${i.quantity}</span>
+                  <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', 1)">+</button>
+                </div>
+                <div class="text-end" style="min-width: 55px;"><span class="fw-bold" style="font-size:0.8rem">₹${subtotalNum.toFixed(2)}</span></div>
+                <i class="material-icons ms-2 remove-btn" style="font-size:16px; cursor:pointer; color:#dc3545;" onclick="removeFromCart(${i.cartId})">cancel</i>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      list.innerHTML = cartHtml;
+
+      // SAFETY CHECK: Ensure discount exists before math
+      const userDisc = parseFloat(currentUser.discount || 0);
+      const discAmt = (gross * (userDisc / 100));
+      const finalTotal = (gross - discAmt) + userBalance - userCredit;
+      const displayTotal = finalTotal > 0 ? finalTotal : 0;
+
+      document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
+      document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
+      document.getElementById('final-val').innerText = "₹" + displayTotal.toFixed(2);
+      
+      // Show payment gateway if there is a balance to pay
+      if (gate) {
+        gate.style.display = 'block';
+        document.getElementById('pay-amt-label').innerText = "₹" + displayTotal.toFixed(2);
+      }
+      
+      // Keep order button disabled until payment is verified (if you want that logic)
+      btn.classList.add('disabled'); 
+    }
       
     function changeCartQty(sku, direction) {
       const itemInCart = cart.find(i => i.sku === sku); if (!itemInCart) return;
@@ -447,61 +533,90 @@
       updateCartUI();
     }
 
-    function placeOrder() {
-      const btn = document.getElementById('place-order-btn'); 
-      btn.disabled = true; 
+    async function placeOrder() {
+      const btn = document.getElementById('place-order-btn');
+      const tidInput = document.getElementById('txn-id-input');
+      const fileInput = document.getElementById('screenshot-file');
+      const err = document.getElementById('verify-error');
+
+      // 1. DEFINE VARIABLES
+      let paymentMode = "Auto-Verified"; 
+      let base64Image = null;
+      let txnId = tidInput ? tidInput.value.trim() : "N/A";
+
+      // 2. CHECK VERIFICATION STATUS
+      // Check if verified color is GREEN
+      const isAutoVerified = (err.style.color === "rgb(25, 135, 84)" || err.style.color === "#198754");
+
+      if (!isAutoVerified) {
+        // If not auto-verified, check if a file is uploaded
+        if (fileInput && fileInput.files.length > 0) {
+          paymentMode = "Manual Screenshot";
+        } else {
+          showAlert("Please verify your transaction or upload a payment screenshot.", "error");
+          return; 
+        }
+      }
+      // 3. UI Feedback
+      btn.disabled = true;
       btn.innerHTML = '<span class="loader"></span> Saving...';
 
-      const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
-      const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
-      
-      const summary = { 
-        customerId: currentUser.id, 
-        customerName: currentUser.name, 
-        customerEmail: currentUser.email,
-        finalTotal: parseFloat(finalTotalStr), 
-        savingAmount: parseFloat(savingStr),
-        previousBalance: parseFloat(currentUser.balance || 0),
-        creditUsed: parseFloat(currentUser.credit || 0),
-        notes: document.getElementById('order-notes').value 
-      };
-
-      // The server now returns an object {success: true, orderId: "ORD-CAT-..."}
-      google.script.run.withSuccessHandler(res => {
-        if (res.success) {
-          // 1. Join the IDs with a comma for a clean display
-          const idList = res.orderIds.join(", ");
-          
-          // 2. Set a meaningful heading
-          document.getElementById('modal-id').innerHTML = `
-            <div class="text-success mb-2">
-              <i class="material-icons" style="vertical-align: middle;">check_circle</i> 
-              <strong>Order Placed Successfully!</strong>
-            </div>
-            <div style="font-size: 0.9rem; color: #555;">
-              Reference IDs: <span class="fw-bold" style="color:var(--vg-brown);">${idList}</span><br>
-              <small>A consolidated invoice has been sent to your email.</small>
-            </div>
-          `;
-
-          // 3. Show savings with a bit more "pop"
-          document.getElementById('modal-saving').innerHTML = `
-            <div class="badge bg-success-light text-success p-2" style="font-size: 1rem; border: 1px dashed #2e7d32;">
-              You saved ₹${savingStr}!
-            </div>
-          `;
-
-          successModal.show();
-          
-          // Optional: Clear the cart after success
-          cart = []; 
-          updateCartUI();
-        } else { 
-          showAlert("Error: " + (res.error || res), "error"); 
-          btn.disabled = false; 
-          btn.innerHTML = "Place Order"; 
+      try {
+        // 4. Handle Screenshot Conversion
+        if (paymentMode === "Manual Screenshot") {
+          const file = fileInput.files[0];
+          base64Image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject("File read error");
+            reader.readAsDataURL(file);
+          });
         }
-      }).finalizeOrderBulk(summary, cart);
+
+        // 5. Prepare Summary
+        const finalTotalStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
+        const savingStr = document.getElementById('disc-val').innerText.replace(/[-₹,]/g, '');
+        
+        const summary = { 
+          customerId: currentUser.id, 
+          customerName: currentUser.name, 
+          customerEmail: currentUser.email,
+          finalTotal: parseFloat(finalTotalStr), 
+          savingAmount: parseFloat(savingStr),
+          notes: document.getElementById('order-notes').value 
+        };
+        // 6. Run Server Script
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success) {
+              const idList = res.orderIds.join(", ");
+              
+              // UPDATED SUCCESS MESSAGE: Notify user of manual check if screenshot was used
+              let successMessage = `<strong>Order Placed!</strong><br>IDs: ${idList}`;
+              if (paymentMode === "Manual Screenshot") {
+                successMessage += `<br><br><small class="text-danger">⚠️ Screenshot uploaded. Your order will be processed after manual verification (2-4 hours).</small>`;
+              }
+
+              document.getElementById('modal-id').innerHTML = successMessage;
+              successModal.show();
+              cart = [];
+              updateCartUI();
+            } else {
+              throw new Error(res.error || "Unknown server error");
+            }
+          })
+          .withFailureHandler(err => {
+            showAlert("Failed to save order: " + err, "error");
+            btn.disabled = false;
+            btn.innerHTML = "Place Order";
+          })
+          .finalizeOrderBulk(summary, cart, paymentMode, base64Image, txnId);
+
+      } catch (error) {
+        showAlert("Error: " + error.message, "error");
+        btn.disabled = false;
+        btn.innerHTML = "Place Order";
+      }
     }
 
     function closeSuccessModal() { successModal.hide(); hardReset(); }
@@ -548,17 +663,170 @@
         sidebar.style.pointerEvents = "auto";
       }
 
+      // 1. Clear the Transaction ID input
+      const tidInput = document.getElementById('txn-id-input');
+      if (tidInput) tidInput.value = "";
+
+      // 2. Reset the Verification Error/Success Message
+      const err = document.getElementById('verify-error');
+      if (err) {
+        err.innerText = "";
+        err.style.color = ""; // Reset color
+      }
+
+      // 3. Re-lock the Place Order button
+      const btn = document.getElementById('place-order-btn');
+      if (btn) {
+        btn.classList.add('disabled');
+        btn.disabled = true;
+        btn.innerHTML = "Place Order";
+        // Reset to theme amber or original color
+        btn.style.setProperty("background-color", "var(--vg-amber)", "important");
+      }
+
+      // 4. Hide the Verification Box and Screenshot section
+      const verifyBox = document.getElementById('verify-box');
+      if (verifyBox) verifyBox.style.display = 'none';
+      
+      const manualSection = document.getElementById('manual-upload-section');
+      if (manualSection) manualSection.style.display = 'none';
+
+      // 5. Clear the file input if it exists
+      const fileInput = document.getElementById('screenshot-file');
+      if (fileInput) fileInput.value = "";
+
+
       // 6. Reload Varga dropdown for the next user
       loadInitialData();
     }
 
     function toTitleCase(str) {
-      if (!str || typeof str !== 'string') return "";
-      return str.toLowerCase().split(' ').map(word => {
+      if (!str) return "General"; // Fallback for empty categories
+      return str.toString().toLowerCase().split(' ').map(word => {
         return word.charAt(0).toUpperCase() + word.slice(1);
       }).join(' ');
     }
-  
+
+    function initiatePayment() {
+      if (!currentUser) return;
+
+      const finalValEl = document.getElementById('final-val');
+      if (!finalValEl) return;
+
+      const amountStr = finalValEl.innerText.replace(/[₹,]/g, '').trim();
+      const amount = parseFloat(amountStr) || 0;
+
+      if (amount <= 0) {
+        alert("Total must be greater than zero.");
+        return;
+      }
+
+      const upiId = "9035734752@icici";
+      const name = "Vidyakshetra";
+      const amountFixed = amount.toFixed(2);
+      
+      // UPI URL only used for generating the QR Code
+      const upiUrl = "upi://pay?pa=" + upiId + "&pn=" + encodeURIComponent(name) + "&am=" + amountFixed + "&cu=INR";
+      const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(upiUrl);
+
+      const grid = document.getElementById('inventory-grid');
+      if (grid) {
+        grid.innerHTML = `
+          <div class="col-12 text-center py-4 bg-white shadow rounded border-top border-warning border-4">
+            <h5 class="fw-bold mb-3" style="color: var(--vg-brown);">Complete Your Payment</h5>
+            
+            <div class="mb-3">
+              <img src="${qrUrl}" class="img-fluid border p-2 bg-light" style="max-width: 200px;" alt="Scan to Pay">
+              <p class="small text-muted mt-2">Scan this QR code with any UPI app (GPay, PhonePe, etc.)</p>
+            </div>
+
+            <div class="px-4">
+              <div class="alert alert-secondary py-2 mb-3">
+                <small class="d-block text-muted">Amount to Pay:</small>
+                <strong class="h4" style="color: var(--vg-brown);">₹${amountFixed}</strong>
+              </div>
+
+              <p class="small text-muted mb-2">Or copy the UPI ID below:</p>
+              <div class="input-group mb-3">
+                <input type="text" id="upi-copy-target" class="form-control text-center bg-light" value="${upiId}" readonly>
+                <button class="btn" style="background-color: var(--vg-brown); color: white;" onclick="copyUpiId()">Copy ID</button>
+              </div>
+              
+              <div class="d-grid gap-2 mt-4">
+                <button class="btn btn-outline-secondary btn-sm" onclick="filterItems()">Back to Items</button>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Show the verification input in the sidebar
+      const verifyBox = document.getElementById('verify-box');
+      if (verifyBox) verifyBox.style.display = 'block';
+
+      // Disable 'Place Order' until verification is successful or screenshot is uploaded
+      const placeOrderBtn = document.getElementById('place-order-btn');
+      if (placeOrderBtn) {
+        placeOrderBtn.classList.add('disabled');
+        placeOrderBtn.disabled = true;
+      }
+    }
+    // Add this function to your <script> to make the Copy button work
+    function copyUpiId() {
+      const copyText = document.getElementById("upi-copy-target");
+      copyText.select();
+      copyText.setSelectionRange(0, 99999); // For mobile
+      navigator.clipboard.writeText(copyText.value);
+      
+      showAlert("UPI ID Copied! Paste it in your Payment App.", "success");
+    }
+
+    function verifyTxn() {
+      const tid = document.getElementById('txn-id-input').value.trim();
+      const amountStr = document.getElementById('final-val').innerText.replace(/[₹,]/g, '');
+      const amount = parseFloat(amountStr);
+      const err = document.getElementById('verify-error');
+      const btn = document.getElementById('place-order-btn');
+      const uploadSection = document.getElementById('manual-upload-section');
+
+      // Reset UI
+      btn.classList.add('disabled');
+      btn.disabled = true;
+      uploadSection.style.display = 'none';
+
+      if (tid.length < 12) {
+        err.style.color = "red";
+        err.innerText = "Please enter the full 12-digit UTR.";
+        return;
+      }
+
+      err.style.color = "#0d6efd";
+      err.innerText = "Verifying with bank logs...";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.status === "SUCCESS") {
+            err.style.color = "#198754"; 
+            err.innerHTML = "<strong>✅ Verified!</strong> " + res.message;
+            
+            btn.classList.remove('disabled');
+            btn.disabled = false;
+            btn.style.setProperty("background-color", "var(--vg-brown)", "important");
+          } else {
+            err.style.color = "#dc3545";
+            err.innerText = "❌ " + res.message;
+            
+            // SHOW the upload section when verification fails
+            uploadSection.style.display = 'block';
+          }
+        })
+        .withFailureHandler(msg => {
+          err.style.color = "red";
+          err.innerText = "System Error. Please upload screenshot instead.";
+          uploadSection.style.display = 'block';
+        })
+        .checkPaymentInLogs(tid, amount);
+    }
+     
   </script>
 </body>
 

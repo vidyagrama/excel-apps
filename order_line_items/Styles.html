@@ -237,20 +237,226 @@
 
   /* Custom Light Green Alert */
   .alert-vg-success {
-    background-color: #f0f7ec !important; /* Very light herbal green */
-    color: #3e5c2e !important;           /* Deep forest green for text */
-    border: 1px solid #c2d6b3 !important; /* Soft green border */
-    border-left: 5px solid #8da05e !important; /* Thick accent border on the left */
+    background-color: #f0f7ec !important;
+    /* Very light herbal green */
+    color: #3e5c2e !important;
+    /* Deep forest green for text */
+    border: 1px solid #c2d6b3 !important;
+    /* Soft green border */
+    border-left: 5px solid #8da05e !important;
+    /* Thick accent border on the left */
     font-weight: 500;
     min-width: 250px;
   }
 
   .bg-success-light {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+    background-color: #e8f5e9;
+    color: #2e7d32;
   }
+
   #modal-id {
     line-height: 1.6;
   }
 
+  /* 1. PAYMENT GATEWAY STYLING */
+  #payment-gate {
+    border: 1px solid var(--border-light) !important;
+    background-color: #fffdf9 !important;
+    /* Slightly warmer than pure white */
+  }
+
+  #txn-id-input {
+    border: 1px solid var(--vg-amber);
+    font-family: monospace;
+    /* Makes transaction IDs easier to read */
+    letter-spacing: 1px;
+  }
+
+  #pay-now-btn {
+    transition: all 0.3s ease;
+    font-weight: 600;
+  }
+
+  /* 2. CART CATEGORY DIVIDERS */
+  .category-divider {
+    background: #fdfaf5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 15px !important;
+  }
+
+  .category-divider span {
+    font-size: 0.7rem !important;
+    color: var(--vg-brown);
+    opacity: 0.8;
+  }
+
+  /* 3. CART ITEM HOVER EFFECT */
+  .cart-item {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+  }
+
+  .cart-item:hover {
+    background-color: #fffcf5;
+  }
+
+  /* 4. SUCCESS MODAL ENHANCEMENT */
+  .modal-content {
+    border-radius: 20px !important;
+    background: var(--vg-cream);
+  }
+
+  .bg-success-light {
+    background-color: #f0f7ec;
+    border: 1px dashed #8da05e;
+    display: inline-block;
+  }
+
+  /* 5. RESPONSIVE FIX FOR MOBILE */
+  @media (max-width: 768px) {
+    #cart-sidebar {
+      position: relative;
+      /* Removes sticky on mobile so it doesn't overlap items */
+      top: 0;
+      margin-top: 20px;
+    }
+
+    .item-img {
+      height: 100px;
+      /* Slightly smaller images on mobile to fit 2-column grid better */
+    }
+  }
+
+  #verify-error {
+    transition: color 0.3s ease;
+    font-weight: 500;
+    margin-top: 5px;
+    display: block;
+  }
+
+  /* --- THEMED PAYMENT BUTTONS --- */
+
+  /* Pay Now & Try Opening UPI Buttons */
+  #pay-now-btn,
+  .upi-link-btn {
+    background-color: var(--vg-brown) !important;
+    border-color: var(--vg-brown) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+
+  .upi-link-btn:active {
+    transform: scale(0.98);
+    filter: brightness(90%);
+  }
+
+  /* Hover effect for all active Brown buttons */
+  #pay-now-btn:hover,
+  .upi-link-btn:hover,
+  #login-btn:hover {
+    background-color: #4d321a !important;
+    /* Slightly darker brown */
+    filter: brightness(110%);
+  }
+
+  /* Place Order Button - Overriding the Amber to Brown */
+  #place-order-btn {
+    background-color: var(--vg-brown) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: bold;
+  }
+
+  /* Ensure Disabled State stays Tan/Grey for all buttons */
+  #place-order-btn:disabled,
+  #place-order-btn.disabled,
+  #pay-now-btn:disabled,
+  .upi-link-btn.disabled {
+    background-color: var(--disabled-tan) !important;
+    border-color: var(--disabled-tan) !important;
+    color: #666 !important;
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  /* Button Verification Feedback (Optional - keeps it brown but adds a green border) */
+  .btn-verified {
+    border: 2px solid #198754 !important;
+  }
+
+  /* Add this to Styles.html */
+  #place-order-btn:not(:disabled) {
+    animation: pulse-brown 1.5s infinite;
+  }
+
+  @keyframes pulse-brown {
+    0% {
+      box-shadow: 0 0 0 0 rgba(99, 65, 33, 0.4);
+    }
+
+    70% {
+      box-shadow: 0 0 0 10px rgba(99, 65, 33, 0);
+    }
+
+    100% {
+      box-shadow: 0 0 0 0 rgba(99, 65, 33, 0);
+    }
+  }
+
+  /* --- NEW: MANUAL UPLOAD ALERT STYLING --- */
+  #manual-upload-section {
+    background-color: #fff5f5;
+    /* Light reddish tint to indicate fallback/warning */
+    border: 1px solid #feb2b2;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 15px;
+    transition: all 0.3s ease-in-out;
+  }
+
+  /* File Input styling to match theme */
+  #screenshot-file {
+    font-size: 0.75rem;
+    border: 1px solid var(--disabled-tan);
+    background-color: white;
+  }
+
+  #screenshot-file:focus {
+    border-color: var(--vg-brown);
+    box-shadow: 0 0 0 0.2rem rgba(99, 65, 33, 0.15);
+  }
+
+  /* Pulse animation for when a file is successfully attached */
+  .file-attached {
+    border: 2px solid var(--vg-amber) !important;
+    animation: pulse-amber 1s ease-in-out;
+  }
+
+  @keyframes pulse-amber {
+    0% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.02);
+    }
+
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Success Modal Enhancement for Manual Info */
+  .manual-processing-note {
+    background-color: #fff9e6;
+    border-left: 4px solid var(--vg-amber);
+    padding: 10px;
+    font-size: 0.8rem;
+    color: var(--vg-brown);
+    margin-top: 10px;
+    text-align: left;
+  }
 </style>
