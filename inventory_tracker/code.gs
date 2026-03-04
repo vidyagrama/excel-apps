@@ -2,15 +2,25 @@
 
 // --- CONFIGURATION ---
 var ID_VENDORS = "188U_8Catanggeycs_VY2kisIaZl1uUi4KYpOC2qyh8g";
-var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps","snacks"];
+var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps", "snacks"];
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle("Vidyagrama Inventory Manager")
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+
+  var template = HtmlService.createTemplateFromFile('Index');
+
+  // 2. Evaluate the template to execute <?!= include('Styles'); ?>
+  return template.evaluate()
+    .setTitle("Vidyagrama  Inventory Manager")
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
+
+/*This requires if you like seperate Styles,Scripts to sepearte html as template loading */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 
 /**
  * TRIGGER: Auto-Serial No for Manual Spreadsheet Entries
@@ -40,6 +50,7 @@ function onEdit(e) {
   }
 }
 
+/*Fetch Recent item list */
 function getRecentItems(sheetName) {
   var targetSheet = sheetName || "dhanyam";
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -99,6 +110,7 @@ function searchItem(searchText) {
   return null;
 }
 
+/* Check SKU exists in sheets */
 function checkSkuExists(sku, currentSlNo) {
   if (!sku) return null;
   var cleanSku = sku.toString().trim().toLowerCase();
@@ -120,6 +132,8 @@ function checkSkuExists(sku, currentSlNo) {
   return null;
 }
 
+
+/*Main Function to Add Data to Google sheets */
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
   try {
@@ -186,6 +200,7 @@ function processForm(formObject) {
   }
 }
 
+/* Get Vendors list from Vendors google sheet */
 function getVendorList() {
   try {
     const ss = SpreadsheetApp.openById(ID_VENDORS);
@@ -195,6 +210,8 @@ function getVendorList() {
   } catch (e) { return []; }
 }
 
+
+/*We are not using this function, its used by Admin portal */
 function getSheetSummary(sheetName) {
   var targetSheet = sheetName || "dhanyam";
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
@@ -223,6 +240,49 @@ function getSheetSummary(sheetName) {
   };
 }
 
+/*This helps to generate SKU for the next new item based on main category */
+function getNextSku(category) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(category);
+  if (!sheet) return "VG??-007";
+
+  // 1. Define Short Codes
+  const shortCodes = {
+    'dhanyam': 'DH',
+    'varnam': 'VN',
+    'vastram': 'VS',
+    'gavya': 'GY',
+    'soaps': 'SP',
+    'snacks': 'SN'
+  };
+
+  const prefix = "VG" + (shortCodes[category] || category.substring(0, 2).toUpperCase()) + "-";
+  const lastRow = sheet.getLastRow();
+
+  // 2. Default if sheet is empty (starting at 007)
+  if (lastRow < 2) return prefix + "007";
+
+  // 3. Get all SKUs from Column P (Index 15)
+  const skuValues = sheet.getRange(2, 16, lastRow - 1, 1).getValues().flat();
+
+  let maxNum = 6; // Start below 007 so the first increment hits 007
+
+  skuValues.forEach(sku => {
+    if (sku && typeof sku === 'string' && sku.includes('-')) {
+      const parts = sku.split('-');
+      const num = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(num) && num > maxNum) {
+        maxNum = num;
+      }
+    }
+  });
+
+  // 4. Increment and Pad with zeros (e.g., 008, 012, 105)
+  const nextNum = (maxNum + 1).toString().padStart(3, '0');
+  return prefix + nextNum;
+}
+
+/* Save Barcode to backend google drive */
 function saveBarcodeToDrive(sku, itemName) {
   const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
   try {
@@ -332,15 +392,17 @@ function generateBulkBarcodePDF(sheetName) {
   }
 }
 
+/*Delete selected item with Bardcode */
+
 function deleteItemRecord(sheetName, rowNumber) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheet = ss.getSheetByName(sheetName);
-    
+
     if (!sheet) throw new Error("Category sheet not found.");
-    
+
     var rowIdx = Number(rowNumber);
     if (rowIdx <= 1) throw new Error("Cannot delete header row.");
 
@@ -354,11 +416,11 @@ function deleteItemRecord(sheetName, rowNumber) {
     if (sku) {
       const FOLDER_ID = '1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW';
       const folder = DriveApp.getFolderById(FOLDER_ID);
-      
+
       // Reconstruct the filename to match your saving convention
       const fileNameToDelete = sku + "_" + itemName.toString().replace(/\s+/g, '_') + ".png";
       const files = folder.getFilesByName(fileNameToDelete);
-      
+
       while (files.hasNext()) {
         var file = files.next();
         file.setTrashed(true); // Moves the barcode to Google Drive trash
@@ -433,5 +495,25 @@ function debugGetRecentItems() {
 
   } catch (e) {
     console.error("Test Failed with Error: " + e.toString());
+  }
+}
+
+
+/**
+ * RUN THIS TO TEST: This will generate a barcode image and save it to your folder.
+ * You can then check the folder to see if the layout is correct.
+ */
+function debugBarcodeDesign() {
+  var testSku = "VGDH-002";
+  var testItemName = "Kodo Millet Idli Rava"; // Will be used for bottom-left
+
+  console.log("Starting barcode test for: " + testSku);
+
+  try {
+    var resultUrl = saveBarcodeToDrive(testSku, testItemName);
+    console.log("✅ Success! Barcode generated.");
+    console.log("View it here: " + resultUrl);
+  } catch (e) {
+    console.error("❌ Test Failed: " + e.message);
   }
 }

@@ -1,0 +1,518 @@
+<style>
+  :root {
+    --vg-brown: #634121;
+    --vg-amber: #E89F22;
+    --vg-cream: #FAF9F6;
+    --success-green: #2e7d32;
+    --border-light: #e0d7c6;
+    --danger-red: #dc3545;
+  }
+
+  body,
+  input,
+  textarea,
+  button,
+  select {
+    font-family: Verdana, Geneva, sans-serif;
+  }
+
+  body {
+    padding: 15px;
+    background-color: var(--vg-cream);
+    display: flex;
+    justify-content: center;
+  }
+
+  .main-layout {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 1100px;
+    align-items: flex-start;
+  }
+
+  .container {
+    flex: 2;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
+    border: 1px solid var(--border-light);
+  }
+
+  .sidebar {
+    flex: 1.2;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
+    border: 1px solid var(--border-light);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  h2,
+  h3 {
+    color: var(--vg-brown);
+    margin-top: 0;
+    border-bottom: 2px solid var(--vg-amber);
+    padding-bottom: 10px;
+  }
+
+  h2 {
+    text-align: center;
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+    text-align: left;
+  }
+
+  #scanner-wrapper {
+    display: none;
+    margin-bottom: 15px;
+    border: 2px solid var(--vg-amber);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+  }
+
+  #reader {
+    width: 100%;
+  }
+
+  .search-box,
+  .sidebar-header {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f3efea;
+    border-radius: 8px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  input,
+  select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 14px;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    background-color: var(--vg-brown);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  .scan-btn {
+    background-color: var(--vg-amber);
+    width: auto;
+  }
+
+  .search-btn {
+    background-color: var(--vg-brown);
+    width: auto;
+  }
+
+  .reset-btn {
+    background-color: #757575;
+    width: auto;
+  }
+
+  .refresh-btn {
+    background: white;
+    border: 1px solid var(--border-light);
+    color: var(--vg-brown);
+    padding: 8px 12px;
+    width: auto;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* Container to allow horizontal scroll if columns are too wide */
+  .sidebar-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .item-list-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  /* Added: Make rows interactive */
+  .item-list-table tbody tr {
+    cursor: pointer;
+    /* Changes mouse to 'hand' icon */
+    transition: background-color 0.2s ease;
+    /* Smooth hover transition */
+  }
+
+  /* Added: Highlight row on hover */
+  .item-list-table tbody tr:hover {
+    background-color: #f8f9fa;
+    /* Light grey highlight */
+  }
+
+  /* Added: Stronger highlight for active/clicked row */
+  .item-list-table tbody tr:active {
+    background-color: #e8f0fe;
+  }
+
+  .item-list-table th,
+  .item-list-table td {
+    padding: 8px 4px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    white-space: nowrap;
+  }
+
+  /* Specific column control */
+  .item-list-table th:nth-child(2),
+  .item-list-table td:nth-child(2) {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* If a row has low stock, give it a subtle red tint on hover */
+  .item-list-table tbody tr.low-stock-row:hover {
+    background-color: #fff0f0;
+  }
+
+  // this is for custom messages showed 
+  #status-bar {
+    display: none;
+    position: fixed;
+    /* Floats over the screen */
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    /* Centers horizontally */
+    z-index: 10000;
+    /* Stays above modals */
+
+    /* Mobile-first styling */
+    width: 90%;
+    max-width: 500px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    color: white;
+    /* Contrast text */
+    transition: opacity 0.5s ease;
+  }
+
+  /* Specific styling for Desktop */
+  @media (min-width: 768px) {
+    #status-bar {
+      width: auto;
+      min-width: 300px;
+      font-size: 16px;
+    }
+  }
+
+  .grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .field {
+    margin-bottom: 10px;
+  }
+
+  .full-width {
+    grid-column: span 2;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: bold;
+    color: var(--vg-brown);
+    font-size: 11px;
+  }
+
+  /* Low Stock Visual */
+  .low-stock-row {
+    background-color: #fff4f4 !important;
+  }
+
+  .warning-icon {
+    color: var(--danger-red);
+    font-weight: bold;
+    margin-left: 4px;
+  }
+
+  @media (max-width: 850px) {
+    .main-layout {
+      customModal flex-direction: column;
+    }
+
+    .sidebar {
+      width: 100%;
+      max-height: none;
+    }
+
+    .grid-container {
+      grid-template-columns: 1fr;
+    }
+
+    .full-width {
+      grid-column: span 1;
+    }
+  }
+
+  #customModal {
+    transition: opacity 0.3s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .print-btn {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .print-btn:hover {
+    opacity: 0.9;
+  }
+
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 320px;
+    /* Small default for mobile */
+    width: 85%;
+    /* Don't touch the edges */
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.3s ease-out;
+  }
+
+  /* desktop override */
+  @media (min-width: 768px) {
+    .modal-content {
+      max-width: 450px;
+      /* Wider for desktop */
+      padding: 40px;
+    }
+  }
+
+  .modal-header h3 {
+    margin: 10px 0;
+    color: #333;
+  }
+
+  .modal-icon {
+    font-size: 30px;
+  }
+
+  .modal-btn {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 15px;
+  }
+
+  /* This forces the camera view to focus on a thin rectangle */
+  #reader__scan_region {
+    border: 2px solid #0d6efd !important;
+  }
+
+  #reader__dashboard {
+    padding: 10px;
+    background: #f8f9fa;
+  }
+
+  /* Ensure the camera video doesn't stretch */
+  #reader video {
+    object-fit: cover;
+  }
+
+
+  /*This is for SKU list during search */
+  .suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    /* Directly below the search bar */
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    z-index: 2000;
+    /* Ensure it's above the form */
+    max-height: 250px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .suggestion-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #f9f9f9;
+    transition: background 0.2s;
+  }
+
+  .suggestion-item:hover {
+    background: #f1f1f1;
+  }
+
+  .s-sku {
+    font-weight: bold;
+    color: var(--vg-brown);
+    font-size: 12px;
+  }
+
+  .s-name {
+    color: #555;
+    font-size: 13px;
+    text-align: right;
+  }
+
+
+  // this is for spinning refresh button during list refresh
+  /* 1. Base style adjustment for the Refresh Button */
+  .refresh-btn {
+    background: white;
+    border: 1px solid var(--border-light);
+    color: var(--vg-brown);
+    padding: 8px 12px;
+    width: auto;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    /* Smooth transition for all states */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 2. Mouse Over (Hover) State */
+  .refresh-btn:hover {
+    background-color: #f3efea;
+    /* Light brown/cream tint */
+    border-color: var(--vg-amber);
+    color: var(--vg-amber);
+    transform: translateY(-1px);
+    /* Subtle lift */
+    box-shadow: 0 2px 8px rgba(99, 65, 33, 0.15);
+  }
+
+  /* 3. Click (Active) State */
+  .refresh-btn:active {
+    background-color: var(--vg-amber);
+    color: white;
+    transform: translateY(1px);
+    /* Pressed down effect */
+    box-shadow: none;
+  }
+
+  /* 4. Rotation Animation for Loading */
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Class to be added via JavaScript when loading starts */
+  .spinning {
+    animation: spin 0.8s linear infinite;
+    pointer-events: none;
+    /* Prevent multiple clicks while loading */
+    color: var(--vg-amber) !important;
+  }
+
+  /* The rotation logic */
+  @keyframes spin-in-place {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* This class will be toggled by JS */
+  .spinning {
+    display: inline-block !important;
+    /* Force it to be a block that can rotate */
+    animation: spin-in-place 0.8s linear infinite !important;
+    color: var(--vg-amber);
+    transform-origin: center;
+    /* Ensure it spins around its own middle */
+  }
+
+  /* Optional: Disable the button visually while it's working */
+  .refresh-btn:disabled {
+    cursor: wait;
+    opacity: 0.7;
+  }
+</style>
