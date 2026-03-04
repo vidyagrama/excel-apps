@@ -2,7 +2,12 @@
 
 // --- CONFIGURATION ---
 var ID_VENDORS = "188U_8Catanggeycs_VY2kisIaZl1uUi4KYpOC2qyh8g";
-var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps", "snacks"];
+var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
+
+var TAB_ENABLE_CATEGORY = "enable_maincategory";
+
+var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
+var Default_Sheet = "Shridhanya";
 
 function doGet() {
 
@@ -30,12 +35,15 @@ function onEdit(e) {
   var sheet = range.getSheet();
   var sheetName = sheet.getName();
 
+  // 1. Safety Check: Only run on valid inventory sheets
   if (VALID_SHEETS.indexOf(sheetName) === -1) return;
 
   var row = range.getRow();
   var col = range.getColumn();
+  if (row <= 1) return; // Skip header row
 
-  if (row > 1 && col > 1) {
+  // --- PART A: AUTO-INCREMENT SL NO ---
+  if (col > 1) {
     var slNoCell = sheet.getRange(row, 1);
     if (slNoCell.getValue() === "") {
       var lastRow = sheet.getLastRow();
@@ -48,11 +56,130 @@ function onEdit(e) {
       slNoCell.setValue(maxNo + 1);
     }
   }
+
+  // --- PART B: DYNAMIC DROPDOWN (Column B) ---
+  const subCatCol = 2; // Column B
+
+  // If you edit any column OTHER than the subcategory itself,
+  // we ensure the dropdown is present in Column B for that row.
+  if (col !== subCatCol) {
+    const subCatCell = sheet.getRange(row, subCatCol);
+
+    // Check if validation already exists to prevent redundant slow calls
+    if (!subCatCell.getDataValidation()) {
+      // Pass the sheetName (e.g., "Vastram") to fetch the right list
+      updateSubCategoryDropdown(sheetName, subCatCell);
+    }
+  }
+
+}
+
+/**
+ * Helper to fetch mapping and apply validation
+ */
+function updateSubCategoryDropdown(mainCat, cell) {
+  if (!mainCat) {
+    cell.clearDataValidations();
+    return;
+  }
+
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "subcats_" + mainCat.toLowerCase().replace(/\s+/g, '_');
+  let subCatString = cache.get(cacheKey);
+
+  // 1. Fetch from Admin if not cached
+  if (subCatString === null) {
+    const adminSS = SpreadsheetApp.openById(ID_ADMINS);
+    const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+    const adminData = adminSheet.getDataRange().getValues();
+
+    for (let i = 1; i < adminData.length; i++) {
+      let catName = String(adminData[i][0]);
+      let catSubs = String(adminData[i][4] || ""); // Column E (index 4)
+
+      cache.put("subcats_" + catName.replace(/\s+/g, '_'), catSubs, 1500);
+      if (catName.toLowerCase() === mainCat.toLowerCase()) subCatString = catSubs;
+    }
+  }
+
+  // 2. Apply validation only
+  if (subCatString) {
+    const options = subCatString.split(',').map(item => item.trim()).filter(String);
+    const rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(options, true)
+      .setAllowInvalid(false)
+      .build();
+
+    cell.setDataValidation(rule);
+  } else {
+    cell.clearDataValidations();
+  }
+}
+
+/**
+ * Fetches all categories and subcategories from the Admin sheet.
+ * Used by the sidebar to populate dropdowns dynamically.
+ */
+function getSubCategoryMap() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "full_subcategory_map";
+  let cachedMap = cache.get(cacheKey);
+
+  // If map is cached, parse and return it instantly
+  if (cachedMap) {
+    console.log("Sidebar: Loading map from cache");
+    return JSON.parse(cachedMap);
+  }
+
+  // Otherwise, fetch from Admin Sheet
+  console.log("Sidebar: Fetching map from Admin Sheet");
+  const adminSS = SpreadsheetApp.openById(ID_ADMINS);
+  const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+  const adminData = adminSheet.getDataRange().getValues();
+
+  let map = {};
+
+  // Start from row 2 (skip header)
+  for (let i = 1; i < adminData.length; i++) {
+    let catName = String(adminData[i][0]).trim();
+    let catSubs = String(adminData[i][4] || "");
+
+    if (catName) {
+      // Split comma string into an array, trim items, and remove empties
+      map[catName] = catSubs.split(',').map(s => s.trim()).filter(String);
+    }
+  }
+
+  // Store the full map in cache for 25 minutes
+  cache.put(cacheKey, JSON.stringify(map), 1500);
+
+  return map;
+}
+
+// clear all caches created
+function clearAllSubCategoryCaches() {
+  const cache = CacheService.getScriptCache();
+
+  // Since we don't always know all the keys, 
+  // we usually clear them by category name or wipe the whole script cache if possible.
+  // Note: ScriptCache doesn't have a 'clear all' for every user, 
+  // but you can remove specific known keys.
+
+  const adminSS = SpreadsheetApp.openById(ID_ADMINS);
+  const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+  const adminData = adminSheet.getDataRange().getValues();
+
+  adminData.forEach(row => {
+    let catName = String(row[0]).replace(/\s+/g, '_');
+    cache.remove("subcats_" + catName);
+  });
+
+  console.log("All category caches have been cleared!");
 }
 
 /*Fetch Recent item list */
 function getRecentItems(sheetName) {
-  var targetSheet = sheetName || "dhanyam";
+  var targetSheet = sheetName || Default_Sheet;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(targetSheet);
   if (!sheet) return [];
@@ -132,7 +259,6 @@ function checkSkuExists(sku, currentSlNo) {
   return null;
 }
 
-
 /*Main Function to Add Data to Google sheets */
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
@@ -180,6 +306,9 @@ function processForm(formObject) {
 
     if (rowNumber) {
       sheet.getRange(rowNumber, 1, 1, 19).setValues([formData]);
+      // APPLY DROPDOWN VALIDATION TO COLUMN B (Index 2)
+      updateSubCategoryDropdown(sheetName, sheet.getRange(rowNumber, 2));
+
       return "Updated successfully!";
     } else {
       var lastRow = sheet.getLastRow();
@@ -191,6 +320,11 @@ function processForm(formObject) {
       }
       formData[0] = nextSlNo;
       sheet.appendRow(formData);
+
+      // APPLY DROPDOWN VALIDATION TO COLUMN B OF THE NEWLY APPENDED ROW
+      var newRowIndex = sheet.getLastRow();
+      updateSubCategoryDropdown(sheetName, sheet.getRange(newRowIndex, 2));
+
       return "Added successfully!";
     }
   } catch (e) {
@@ -213,7 +347,7 @@ function getVendorList() {
 
 /*We are not using this function, its used by Admin portal */
 function getSheetSummary(sheetName) {
-  var targetSheet = sheetName || "dhanyam";
+  var targetSheet = sheetName || Default_Sheet;
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
   if (!sheet) return { totalValue: 0, lowStockCount: 0 };
 
@@ -248,12 +382,12 @@ function getNextSku(category) {
 
   // 1. Define Short Codes
   const shortCodes = {
-    'dhanyam': 'DH',
-    'varnam': 'VN',
-    'vastram': 'VS',
-    'gavya': 'GY',
-    'soaps': 'SP',
-    'snacks': 'SN'
+    'Shridhanya': 'SD',
+    'Varnam': 'VN',
+    'Vastram': 'VS',
+    'GauAmruth': 'GA',
+    'Tejas': 'TJ',
+    'Madhuram': 'MD'
   };
 
   const prefix = "VG" + (shortCodes[category] || category.substring(0, 2).toUpperCase()) + "-";
@@ -291,7 +425,7 @@ function saveBarcodeToDrive(sku, itemName) {
       "&text=" + encodeURIComponent(sku) +
       "&scale=3&rotate=N&includetext&textsize=10" +
       "&textxalign=center" +
-      "&alttext=" + encodeURIComponent("vidyagrama | " + itemName + "\n*" + sku + "*");
+      "&alttext=" + encodeURIComponent(itemName + "\n*" + sku + "*");
     const response = UrlFetchApp.fetch(barcodeUrl);
     const blob = response.getBlob().setName(sku + "_" + itemName.replace(/\s+/g, '_') + ".png");
     const file = folder.createFile(blob);
@@ -457,7 +591,7 @@ function deleteItemRecord(sheetName, rowNumber) {
  */
 function debugGetRecentItems() {
   // 1. Set the sheet you want to test
-  var testSheet = "dhanyam";
+  var testSheet = Default_Sheet;
 
   try {
     console.log("--- Starting Test for: " + testSheet + " ---");
@@ -515,5 +649,33 @@ function debugBarcodeDesign() {
     console.log("View it here: " + resultUrl);
   } catch (e) {
     console.error("❌ Test Failed: " + e.message);
+  }
+}
+
+// test subcategory dropdown
+function testSubCategoryUpdate() {
+
+  clearAllSubCategoryCaches();
+
+  const testCategory = "Vastram"; // <--- Change to one of your real categories
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(testCategory);
+  const testCell = sheet.getRange("B9"); // <--- Change to your subcategory column
+
+  console.log("Starting test for category: " + testCategory);
+
+  try {
+    updateSubCategoryDropdown(testCategory, testCell);
+
+    // Verification
+    const validation = testCell.getDataValidation();
+    if (validation) {
+      console.log("TEST PASSED: Data validation is now present in " + testCell.getA1Notation());
+    } else {
+      console.warn("TEST FAILED: No validation found. Check if category exists in Admin Sheet.");
+    }
+  } catch (e) {
+    console.error("TEST CRASHED: " + e.message);
   }
 }

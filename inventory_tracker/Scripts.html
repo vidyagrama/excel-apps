@@ -1,15 +1,7 @@
 <script>
   let html5QrCode;
     let fullInventoryData = [];
-
-    const subCategoryMap = {
-      "dhanyam": ["Rice", "Millets", "Dals", "Pulses", "Cereals", "Flours", "Oil Seeds", "Spices & Herbs", "Sweetners", "Dry Fruits", "Salts", "Oils & Ghee"],
-      "gavya": ["Dhoop"],
-      "soaps": ["Soaps"],
-      "varnam": ["Ecofriendly Products"],
-      "vastram": ["Vastram"],
-      "snacks": ["Sweets","Mixture","Tokku","Pickle"]
-    };
+    let subCategoryMap = {};
 
     // This audio is for Scanning Barcode recognized
     let audioCtx;
@@ -56,22 +48,35 @@
       const subSelect = document.getElementById('subCategory');
       const rowNum = document.getElementById('rowNumber').value;
       const skuField = document.getElementById('skuField');
+
+      // 1. Update Sub-Categories from Dynamic Map
+      subSelect.innerHTML = '<option value="" disabled selected>Select Subcategory</option>';
       
-  
-      // 1. Update Sub-Categories (Existing Logic)
-      subSelect.innerHTML = "";
-      if (subCategoryMap[main]) {
-        subCategoryMap[main].forEach(opt => {
+      // Use the global window.subCategoryMap populated during window.onload
+      const currentMap = window.subCategoryMap || {}; 
+
+      if (currentMap[main]) {
+        currentMap[main].forEach(opt => {
           let el = document.createElement("option");
-          el.value = opt; el.textContent = opt;
+          el.value = opt; 
+          el.textContent = opt;
           subSelect.appendChild(el);
         });
-        if (selectedSub) subSelect.value = selectedSub;
+        
+        // Set the value if we are editing an existing record
+        if (selectedSub) {
+          subSelect.value = selectedSub;
+        }
+      } else {
+        // Optional: If map isn't loaded yet, add a placeholder
+        let loadingEl = document.createElement("option");
+        loadingEl.textContent = "Loading categories...";
+        subSelect.appendChild(loadingEl);
       }
 
-      // 2. Automatic SKU Generation (New Logic)
+      // 2. Automatic SKU Generation
       // Only generate a new SKU if we are NOT in update mode (rowNumber is empty)
-      if (!rowNum) {
+      if (!rowNum && main) {
         skuField.value = "Generating..."; 
         google.script.run
           .withSuccessHandler(nextSku => {
@@ -776,8 +781,24 @@
     
     // Window load function.
     window.onload = function () {
-      // 1. Immediate UI Setup (Zero Latency)
-      updateSubCategories(); 
+      // 1. Fetch Dynamic Mapping from Server
+      // This uses the unified cache keys we set up in Code.gs
+      google.script.run
+        .withSuccessHandler(function(serverMap) {
+          // Store the dynamic map globally in the sidebar
+          window.subCategoryMap = serverMap;
+          
+          // 2. Immediate UI Setup (Now with real data)
+          updateSubCategories(); 
+          
+          console.log("Subcategory map loaded from Admin Sheet.");
+        })
+        .withFailureHandler(function(err) {
+          console.error("Failed to load dynamic categories: " + err);
+          // Optional: Fallback to a hardcoded map if server fails
+        })
+        .getSubCategoryMap();
+
       
       // 2. Parallel Data Fetching
       // These fire at the same time, whichever finishes first renders first.

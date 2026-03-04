@@ -40,18 +40,20 @@
           <div class="field">
             <label>Main Category</label>
             <select name="mainCategory" id="mainCategory" onchange="updateSubCategories(); loadRecentItems();" required>
-              <option value="dhanyam">dhanyam</option>
-              <option value="varnam">varnam</option>
-              <option value="vastram">vastram</option>
-              <option value="gavya">gavya</option>
-              <option value="soaps">soaps</option>
-              <option value="snacks">snacks</option>
+              <option value="Shridhanya">Shridhanya</option>
+              <option value="Vastram">Vastram</option>
+              <option value="Varnam">Varnam</option>
+              <option value="GauAmruth">GauAmruth</option>
+              <option value="Tejas">Tejas</option>
+              <option value="Madhuram">Madhuram</option>
             </select>
           </div>
 
           <div class="field">
             <label>Sub Category</label>
-            <select name="category" id="subCategory" required></select>
+            <select id="subCategory" name="category" required>
+              <option value="" disabled selected>Select Subcategory</option>
+            </select>
           </div>
 
           <div class="field full-width"><label>Item Name</label><input type="text" name="itemName" required></div>
@@ -97,9 +99,9 @@
 
           <div class="field full-width" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div>
-              <label>Vendor</label>
-              <select name="vendorID" id="vendorSelect">
-                <option value="">Loading vendors...</option>
+              <label>Vendor <span style="color:red">*</span></label>
+              <select name="vendorID" id="vendorSelect" required>
+                <option value="" disabled selected>Select Vendor</option>
               </select>
             </div>
             <div>
