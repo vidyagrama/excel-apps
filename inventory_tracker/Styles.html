@@ -225,15 +225,6 @@
     transition: opacity 0.5s ease;
   }
 
-  /* Specific styling for Desktop */
-  @media (min-width: 768px) {
-    #status-bar {
-      width: auto;
-      min-width: 300px;
-      font-size: 16px;
-    }
-  }
-
   .grid-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -269,7 +260,7 @@
 
   @media (max-width: 850px) {
     .main-layout {
-      customModal flex-direction: column;
+      flex-direction: column;
     }
 
     .sidebar {
@@ -288,6 +279,10 @@
 
   #customModal {
     transition: opacity 0.3s ease;
+  }
+
+  .modal-content {
+    animation: slideDown 0.3s ease-out;
   }
 
   @keyframes slideDown {
@@ -333,24 +328,12 @@
 
   .modal-content {
     background: white;
-    padding: 30px;
-    border-radius: 15px;
-    max-width: 320px;
-    /* Small default for mobile */
-    width: 85%;
-    /* Don't touch the edges */
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 300px;
+    width: 90%;
     text-align: center;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-    animation: slideDown 0.3s ease-out;
-  }
-
-  /* desktop override */
-  @media (min-width: 768px) {
-    .modal-content {
-      max-width: 450px;
-      /* Wider for desktop */
-      padding: 40px;
-    }
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   }
 
   .modal-header h3 {
