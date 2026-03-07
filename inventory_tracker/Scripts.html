@@ -781,6 +781,8 @@
     
     // Window load function.
     window.onload = function () {
+      // 1. Immediate UI Setup (Zero Latency)
+
       // 1. Fetch Dynamic Mapping from Server
       // This uses the unified cache keys we set up in Code.gs
       google.script.run
@@ -797,7 +799,7 @@
           console.error("Failed to load dynamic categories: " + err);
           // Optional: Fallback to a hardcoded map if server fails
         })
-        .getSubCategoryMap();
+        .getSubCategoryMap(true);
 
       
       // 2. Parallel Data Fetching

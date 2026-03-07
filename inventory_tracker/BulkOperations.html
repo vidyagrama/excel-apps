@@ -1,0 +1,672 @@
+<div id="bulkModal" class="modal-overlay" style="display:none;">
+  <div class="modal-content bulk-window-fixed">
+
+    <div class="bulk-header">
+      <div class="header-title">
+        <span class="modal-icon">📦</span>
+        <h3>Bulk Operations: <span id="currentMainCatDisplay"></span></h3>
+      </div>
+    </div>
+
+    <div class="bulk-filter-bar">
+      <div class="filter-group">
+        <label>Sub-Category</label>
+        <select id="bulkSubCategoryFilter" onchange="filterBulkTable()">
+          <option value="">All Sub-Categories</option>
+          </select>
+      </div>
+      <div class="filter-group">
+        <label>Search Name/SKU</label>
+        <input type="text" id="bulkSearch" placeholder="Type to filter..." onkeyup="filterBulkTable()">
+      </div>
+    </div>
+
+    <div class="bulk-table-wrapper">
+      <table id="bulkItemsTable">
+        <thead>
+          <tr>
+            <th style="width: 40px;"><input type="checkbox" id="masterSelect" onclick="toggleBulkSelect(this)"></th>
+            <th>Item Name</th>
+            <th>SKU</th>
+            <th style="width: 80px;">UOM</th>
+            <th style="width: 80px;">Stock</th>
+          </tr>
+        </thead>
+        <tbody id="bulkTableBody">
+        </tbody>
+      </table>
+      <div id="noDataMsg" style="display:none; text-align:center; padding: 40px; color: #999;">
+        No items found in this category.
+      </div>
+    </div>
+
+    <div class="bulk-footer">
+      <div id="selectedCountMsg">0 items selected</div>
+      <div class="bulk-btn-group">
+        <button class="bulk-action-btn print-btn-v" onclick="generateBulkBarcodes()">
+          <span>🖨️</span> Print Barcodes
+        </button>
+        <button class="bulk-action-btn delete-btn-v" onclick="triggerBulkDelete()">
+          <span>🗑️</span> Delete Selected
+        </button>
+        <button class="bulk-action-btn close-btn-v" onclick="closeBulkModal()">
+          Close
+        </button>
+      </div>
+    </div>
+
+    <div id="customModal"
+      style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
+      <div class="modal-content"
+        style="background:white; padding:30px; border-radius:15px; max-width:320px; width:90%; text-align:center; box-shadow: 0 15px 35px rgba(0,0,0,0.3);">
+        <div id="modalIcon" style="font-size: 40px; margin-bottom: 10px;">🗑️</div>
+        <h3 id="modalTitle" style="border:none; color:var(--vg-brown); margin:0 0 10px 0;">Confirm Action</h3>
+        <p id="modalBody" style="font-size:13px; color:#777; line-height:1.5; margin-bottom:25px;"></p>
+
+        <input type="hidden" id="modalActionType">
+
+        <div style="display:flex; gap:12px;">
+          <button onclick="closeModal()" style="background:#eee; color:#333; flex:1; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">Cancel</button>
+          <button id="modalConfirmBtn" onclick="executeModalAction()" style="background:var(--danger-red); color:white; flex:1; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .bulk-modal-wide {
+    max-width: 800px !important;
+    width: 95%;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+  }
+
+
+  #bulkItemsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  #bulkItemsTable th {
+    position: sticky;
+    top: 0;
+    background: var(--vg-brown);
+    color: white;
+    padding: 10px;
+    z-index: 2;
+  }
+
+  #bulkItemsTable td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .modal-footer {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-light);
+  }
+
+  .bulk-btn-group {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Filter Bar */
+  .bulk-filter-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    padding: 15px 20px;
+    background: #fbfaf8;
+  }
+
+  .filter-group label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #888;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* Table Body */
+  .bulk-table-wrapper {
+    flex-grow: 1;
+    /* Takes up all remaining space */
+    overflow-y: auto;
+    border-top: 1px solid #eee;
+  }
+
+  .uom-badge {
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #666;
+    border: 1px solid #ddd;
+  }
+
+  /* Ensure the table doesn't collapse */
+  #bulkItemsTable {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  #bulkItemsTable th,
+  #bulkItemsTable td {
+    padding: 12px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Give Item Name the most room */
+  #bulkItemsTable th:nth-child(2),
+  #bulkItemsTable td:nth-child(2) {
+    width: 35%;
+  }
+
+  /* SKU and UOM columns */
+  #bulkItemsTable th:nth-child(3),
+  #bulkItemsTable td:nth-child(3) {
+    width: 25%;
+  }
+
+  #bulkItemsTable th:nth-child(4),
+  #bulkItemsTable td:nth-child(4) {
+    width: 20%;
+  }
+
+  /* Stock column aligned right */
+  #bulkItemsTable th:nth-child(5),
+  #bulkItemsTable td:nth-child(5) {
+    width: 15%;
+    text-align: right;
+  }
+
+  // Fixing overall look and feel 
+  /* Fixed Window Size & Standard Layout */
+  .bulk-window-fixed {
+    width: 90%;
+    max-width: 900px;
+    height: 80vh;
+    min-height: 500px;
+    background: white;
+    border-radius: 4px;
+    /* More rectangular */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    /* For absolute positioning of close btn if needed */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 1. Header Cleanup: Single line, no yellow underline */
+  .bulk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: var(--vg-cream);
+    border-bottom: 1px solid var(--border-light);
+    /* Clean neutral separator */
+  }
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Space between icon and text */
+    white-space: nowrap;
+    /* Forces single line */
+  }
+
+  .header-title h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--vg-brown);
+    border-bottom: none !important;
+    /* Removes the yellow underline */
+    padding-bottom: 0;
+    display: inline-block;
+  }
+
+  .modal-icon {
+    font-size: 20px;
+    /* Adjust icon size to match text height */
+    display: flex;
+    align-items: center;
+  }
+
+
+  /* 3: Slimmer Rectangular Buttons */
+  .bulk-footer {
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9f9f9;
+    border-top: 1px solid #eee;
+  }
+
+  .bulk-btn-group {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Base button style: Rectangular and Slim */
+  .bulk-action-btn {
+    width: auto;
+    /* Removes bulky full-width if in a group */
+    padding: 8px 16px;
+    /* Slimmer vertical profile */
+    border: none;
+    border-radius: 8px;
+    /* Matches your Vidyagrama standard */
+    font-size: 13px;
+    /* Consistent with your sidebar font */
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    /* Standardized height */
+  }
+
+  /* Specific Color Branding */
+  .print-btn-v {
+    background-color: var(--vg-amber);
+    color: white;
+  }
+
+  .delete-btn-v {
+    background-color: var(--danger-red);
+    color: white;
+  }
+
+  .close-btn-v {
+    background-color: #757575;
+    /* Matches your reset-btn style */
+    color: white;
+  }
+
+  /* Interaction effects from your main style */
+  .bulk-action-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(99, 65, 33, 0.15);
+  }
+
+  .bulk-action-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  .bulk-action-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  //For statu bar message
+  #status-bar {
+  display: none; 
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11000; /* Higher than your modal (9999) */
+  
+  min-width: 300px;
+  padding: 15px 25px;
+  border-radius: 12px;
+  text-align: center;
+  font-weight: bold;
+  font-size: 14px;
+  
+  /* Critical for visibility on cream background */
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: white;
+}
+
+/* Specific colors for different states */
+.status-info { background-color: #2196F3 !important; }    /* Bright Blue for "Generating PDF..." */
+.status-success { background-color: #2e7d32 !important; } /* Deep Green for "Deleted" */
+.status-error { background-color: #d32f2f !important; }   /* Alert Red for errors */
+
+/* Center all elements inside the custom modal */
+#customModal .modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centers items horizontally in the flex container */
+  text-align: center;
+}
+
+#modalTitle {
+  width: 100%;
+  text-align: center;
+  margin: 0 0 10px 0 !important; /* Removes potential side margins */
+  border: none !important;      /* Ensures no bottom border pushes it up */
+}
+
+#modalBody {
+  width: 100%;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+</style>
+
+<script>
+  let rawBulkData = [];
+
+  // Open Bulk Modal
+  function openBulkModal() {
+
+    resetBulkUI();
+
+    const mainCat = document.getElementById('mainCategory').value;
+    if (!mainCat) return alert("Please select a Main Category first.");
+
+    // Show Modal & Set Title
+    document.getElementById('bulkModal').style.display = 'flex';
+    document.getElementById('currentMainCatDisplay').innerText = mainCat;
+    
+    // Sync Sub-Categories from your existing function
+    syncBulkSubCategories(mainCat);
+
+    // Load Data
+    google.script.run
+      .withSuccessHandler(renderBulkTable)
+      .getBulkInventoryData(mainCat);
+
+    window.currentBulkSheet = mainCat;
+  }
+
+  // Reset BulkUI
+  function resetBulkUI() {
+    // 1. Uncheck the Master Checkbox
+    const masterSelect = document.getElementById('masterSelect');
+    if (masterSelect) masterSelect.checked = false;
+
+    // 2. Clear Search and Filter inputs
+    const searchInput = document.getElementById('bulkSearch');
+    const filterSelect = document.getElementById('bulkSubCategoryFilter');
+    if (searchInput) searchInput.value = '';
+    if (filterSelect) filterSelect.value = '';
+
+    // 3. Reset the Selection Counter text
+    const countMsg = document.getElementById('selectedCountMsg');
+    if (countMsg) countMsg.innerText = '0 items selected';
+    
+    // 4. Clear the Table Body so old data doesn't "flicker" next time
+    const tbody = document.getElementById('bulkTableBody');
+    if (tbody) tbody.innerHTML = '';
+  }
+
+  function syncBulkSubCategories(mainCat) {
+    const subCatDropdown = document.getElementById('bulkSubCategoryFilter');
+    const mainFormSubCat = document.getElementById('subCategory');
+    
+    // Copy options from your main form's subcategory dropdown
+    subCatDropdown.innerHTML = '<option value="">All Sub-Categories</option>';
+    Array.from(mainFormSubCat.options).forEach(opt => {
+      if(opt.value) {
+        const newOpt = document.createElement('option');
+        newOpt.value = opt.value;
+        newOpt.text = opt.text;
+        subCatDropdown.add(newOpt);
+      }
+    });
+  }
+
+  //Filter BulkUI
+  function filterBulkTable() {
+    const selectedSubCat = document.getElementById('bulkSubCategoryFilter').value;
+    const searchTerm = document.getElementById('bulkSearch').value.toLowerCase();
+    
+    const tbody = document.getElementById('bulkTableBody');
+    const noData = document.getElementById('noDataMsg');
+    
+    const filtered = rawBulkData.filter(item => {
+      // 1. Match Sub-Category (Mapped from Column B)
+      const matchSub = (selectedSubCat === "" || item.subCategory === selectedSubCat);
+      
+      // 2. Match Name (Column C) or SKU (Column P)
+      const matchSearch = (
+        (item.name && item.name.toString().toLowerCase().includes(searchTerm)) || 
+        (item.sku && item.sku.toString().toLowerCase().includes(searchTerm))
+      );
+
+      return matchSub && matchSearch;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      noData.style.display = 'block';
+    } else {
+      noData.style.display = 'none';
+      tbody.innerHTML = filtered.map(item => `
+        <tr>
+          <td><input type="checkbox" class="bulk-cb" value="${item.id}" onchange="updateSelectedCount()"></td>
+          <td style="color: var(--vg-brown); font-weight: 600;">${item.name || 'N/A'}</td>
+          <td style="color: #d81b60; font-size: 0.85em;">${item.sku || '---'}</td>
+          
+          <td><span class="uom-badge">${item.uom || 'Unit'}</span></td>
+          
+          <td style="text-align: right; font-weight: bold; padding-right: 15px;">
+            ${item.stock !== "" ? item.stock : 0}
+          </td>
+        </tr>
+      `).join('');
+    }
+    updateSelectedCount();
+  }
+
+  //Close Bulk Modal Dialog
+  function closeBulkModal() {
+    // 1. Hide the bulk modal overlay
+    document.getElementById('bulkModal').style.display = 'none';
+    
+    // 2. Reset the UI (checkboxes, search, counters) for next time
+    resetBulkUI(); 
+    
+    // 3. Refresh the main dashboard list
+    // This calls the function defined in your Scripts.html
+    if (typeof loadRecentItems === "function") {
+      console.log("Refreshing recent items list...");
+      loadRecentItems();
+    } else {
+      console.error("loadRecentItems function not found in Scripts.html");
+    }
+  }
+
+  //Render Data to the table
+  function renderBulkTable(data) {
+    rawBulkData = data;
+    const tbody = document.getElementById('bulkTableBody');
+    const noData = document.getElementById('noDataMsg');
+    
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '';
+      noData.style.display = 'block';
+      return;
+    }
+
+    noData.style.display = 'none';
+    
+    // Updated map: Each piece of data gets its own <td> to match the header
+    tbody.innerHTML = data.map(item => `
+      <tr>
+        <td style="width: 40px; text-align: center;">
+          <input type="checkbox" class="bulk-cb" value="${item.id}" onchange="updateSelectedCount()">
+        </td>
+        <td style="color: var(--vg-brown); font-weight: 600;">${item.name || 'N/A'}</td>
+        <td style="color: #d81b60; font-family: monospace;">${item.sku || '---'}</td>
+        
+        <td style="text-align: center;">
+          <span class="uom-badge">${item.uom || 'Unit'}</span>
+        </td>
+        
+        <td style="text-align: right; font-weight: bold; padding-right: 15px;">
+          ${item.stock !== "" ? item.stock : 0}
+        </td>
+      </tr>
+    `).join('');
+    
+    updateSelectedCount();
+  }
+  
+  function toggleBulkSelect(master) {
+    document.querySelectorAll('.bulk-cb').forEach(cb => cb.checked = master.checked);
+    updateSelectedCount();
+  }
+
+  function updateSelectedCount() {
+    const count = document.querySelectorAll('.bulk-cb:checked').length;
+    document.getElementById('selectedCountMsg').innerText = count + " items selected";
+  }
+
+  // trigger Bulk Delete
+  let pendingDeleteData = null; // Temporary storage for the items to delete
+  function triggerBulkDelete() {
+    const checkboxes = document.querySelectorAll('.bulk-cb:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    const sheetName = document.getElementById('currentMainCatDisplay').innerText;
+
+    if (selectedIds.length === 0) {
+      showStatus("Please select items to delete.", "error");
+      return;
+    }
+
+    // Store the data so we can use it when the user clicks "Confirm" in the modal
+    pendingDeleteData = { ids: selectedIds, sheetName: sheetName };
+
+    // Setup the Custom Modal
+    document.getElementById('modalIcon').innerText = "🗑️";
+    document.getElementById('modalTitle').innerText = "Confirm Deletion";
+    document.getElementById('modalBody').innerText = `Are you sure you want to delete ${selectedIds.length} selected items? This action cannot be undone.`;
+    
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+    confirmBtn.style.backgroundColor = "var(--danger-red)"; // Set to red for danger
+    confirmBtn.innerText = "Delete Now";
+
+    // Show the modal
+    document.getElementById('customModal').style.display = 'flex';
+  }
+
+  function executeModalAction() {
+    if (!pendingDeleteData) return;
+
+    const { ids, sheetName } = pendingDeleteData;
+    
+    // Close the confirmation modal immediately
+    closeModal();
+
+    // Show "Processing" status on your main UI
+    showStatus("Deleting items, please wait...", "info");
+
+    google.script.run
+      .withSuccessHandler(function(response) {
+        showStatus(response, "success");
+        
+        // Refresh the table list automatically
+        refreshBulkData(sheetName);
+        
+        // Reset state
+        pendingDeleteData = null;
+        document.getElementById('masterSelect').checked = false;
+      })
+      .withFailureHandler(function(err) {
+        showStatus("Error: " + err, "error");
+        pendingDeleteData = null;
+      })
+      .processBulkDelete(ids, sheetName);
+  }
+
+  // Ensure you have a working closeModal function
+  function closeModal() {
+    document.getElementById('customModal').style.display = 'none';
+    pendingDeleteData = null; 
+  }
+
+  function refreshBulkData(sheetName) {
+    const tbody = document.getElementById('bulkTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Refreshing list...</td></tr>';
+    
+    google.script.run
+      .withSuccessHandler(renderBulkTable)
+      .getBulkInventoryData(sheetName);
+  }
+
+  // Generate Bulk Bar Codes for the selected Main Category
+  function generateBulkBarcodes() {
+    const checkboxes = document.querySelectorAll('.bulk-cb:checked');
+    const selectedIds = Array.from(checkboxes).map(cb => cb.value);
+    const sheetName = document.getElementById('currentMainCatDisplay').innerText;
+
+    if (selectedIds.length === 0) {
+      showStatus("Please select items to print.", "error");
+      return;
+    }
+
+    showStatus("Generating PDF... please wait.", "info");
+    
+    // Disable button to prevent double clicks
+    const printBtn = document.querySelector('.print-btn-v');
+    printBtn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(url) {
+        printBtn.disabled = false;
+        if (url.startsWith("http")) {
+          showStatus("PDF Generated Successfully!", "success");
+          window.open(url, '_blank'); // Opens the PDF in a new tab
+        } else {
+          showStatus(url, "error");
+        }
+      })
+      .withFailureHandler(function(err) {
+        printBtn.disabled = false;
+        showStatus("Failed to generate PDF.", "error");
+      })
+      .generateBulkBarcodePDF(selectedIds, sheetName);
+  }
+
+  // Show Display Status Message
+  function showStatus(msg, type) {
+    const sb = document.getElementById('status-bar');
+    if (!sb) return;
+
+    sb.innerText = msg;
+    sb.style.display = 'block';
+    
+    // Reset classes
+    sb.className = ''; 
+    
+    // Apply specific color based on type
+    if (type === 'success') sb.classList.add('status-success');
+    else if (type === 'error') sb.classList.add('status-error');
+    else sb.classList.add('status-info');
+
+    // Auto-hide after 4 seconds
+    setTimeout(() => {
+      sb.style.display = 'none';
+    }, 4000);
+  }
+
+</script>
