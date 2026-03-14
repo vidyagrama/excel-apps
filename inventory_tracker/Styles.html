@@ -6,120 +6,118 @@
     --success-green: #2e7d32;
     --border-light: #e0d7c6;
     --danger-red: #dc3545;
+    --input-bg: #ffffff;
   }
 
-  body,
-  input,
-  textarea,
-  button,
-  select {
-    font-family: Verdana, Geneva, sans-serif;
+  /* 1. GLOBAL PROFESSIONAL FONT & ZOOM */
+  body, input, textarea, button, select {
+    /* Cleaner font stack for professional look */
+    font-family: 'Segoe UI', Roboto, Verdana, sans-serif;
   }
 
   body {
-    padding: 15px;
+    font-size: 16px; 
+    line-height: 1.6;
+    padding: 0;
+    margin: 0;
     background-color: var(--vg-cream);
-    display: flex;
-    justify-content: center;
   }
 
+  /* 2. LAYOUT & ALIGNMENT */
   .main-layout {
     display: flex;
-    gap: 20px;
-    width: 100%;
-    max-width: 1100px;
+    gap: 30px; /* Increased gap for breathing room */
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 20px;
     align-items: flex-start;
   }
 
   .container {
-    flex: 2;
+    flex: 1.5;
     background: white;
-    padding: 20px;
+    padding: 30px;
     border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     border: 1px solid var(--border-light);
   }
 
   .sidebar {
     flex: 1.2;
+    min-width: 380px; /* Ensures sidebar doesn't get too thin */
     background: white;
-    padding: 20px;
+    padding: 25px;
     border-radius: 12px;
     box-shadow: 0 8px 20px rgba(99, 65, 33, 0.1);
     border: 1px solid var(--border-light);
     max-height: 90vh;
     overflow-y: auto;
+    position: sticky;
+    top: 20px;
   }
 
-  h2,
-  h3 {
+  /* 3. INPUTS & LABELS (THE ZOOM) */
+  label {
+    display: block;
+    font-size: 13px; /* Smaller labels, bold text looks more modern */
+    font-weight: 700;
+    margin-bottom: 6px;
     color: var(--vg-brown);
-    margin-top: 0;
-    border-bottom: 2px solid var(--vg-amber);
-    padding-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
   }
 
-  h2 {
-    text-align: center;
-    font-size: 1.2rem;
-  }
-
-  h3 {
-    font-size: 1rem;
-    text-align: left;
-  }
-
-  #scanner-wrapper {
-    display: none;
-    margin-bottom: 15px;
-    border: 2px solid var(--vg-amber);
-    border-radius: 8px;
-    overflow: hidden;
-    background: #000;
-  }
-
-  #reader {
+  input, select, textarea {
     width: 100%;
-  }
-
-  .search-box,
-  .sidebar-header {
-    margin-bottom: 20px;
-    padding: 10px;
-    background: #f3efea;
-    border-radius: 8px;
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-
-  input,
-  select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid var(--border-light);
+    font-size: 1rem !important; 
+    padding: 12px !important; 
+    border: 1.5px solid var(--border-light);
     border-radius: 8px;
     box-sizing: border-box;
-    font-size: 14px;
+    background-color: var(--input-bg);
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
 
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--vg-amber);
+    box-shadow: 0 0 0 3px rgba(232, 159, 34, 0.15);
+  }
+
+  /* 4. BUTTONS */
   button {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     background-color: var(--vg-brown);
     color: white;
     border: none;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
-    transition: 0.2s ease;
+    transition: all 0.2s ease;
+  }
+
+  button:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
   }
 
   button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
   }
+
+  /* 5. GRID SYSTEM */
+
+  .grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+
+  .field { margin-bottom: 15px; }
+  .full-width { grid-column: span 2; }
 
   .scan-btn {
     background-color: var(--vg-amber);
@@ -153,10 +151,23 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* 6. HEADERS */
+  h2, h3 {
+    color: var(--vg-brown);
+    margin-top: 0;
+    border-bottom: 2px solid var(--vg-amber);
+    padding-bottom: 10px;
+    font-weight: 700;
+  }
+
+  h2 { font-size: 1.5rem; text-align: center; }
+  h3 { font-size: 1.1rem; }
+
+  /* 7. TABLE REFINEMENT */
   .item-list-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 11px;
+    font-size: 13px; /* Slightly larger for readability */
   }
 
   /* Added: Make rows interactive */
@@ -178,12 +189,17 @@
     background-color: #e8f0fe;
   }
 
-  .item-list-table th,
-  .item-list-table td {
-    padding: 8px 4px;
+  .item-list-table th, .item-list-table td {
+    padding: 12px 10px;
     text-align: left;
     border-bottom: 1px solid #eee;
-    white-space: nowrap;
+  }
+
+  .item-list-table th {
+    background-color: #fcfaf7;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
   }
 
   /* Specific column control */
@@ -199,19 +215,34 @@
     background-color: #fff0f0;
   }
 
-  // this is for custom messages showed 
+  * Low Stock Visual */
+  .low-stock-row {
+    background-color: #fff4f4 !important;
+  }
+
+   .warning-icon {
+    color: var(--danger-red);
+    font-weight: bold;
+    margin-left: 4px;
+  }
+
+  /* 8. MOBILE RESPONSIVENESS */
+  @media (max-width: 1024px) {
+    .main-layout { flex-direction: column; padding: 10px; }
+    .sidebar, .container { width: 100%; flex: none; min-width: 0; }
+    .sidebar { max-height: none; position: static; }
+    .grid-container { grid-template-columns: 1fr; }
+    .full-width { grid-column: span 1; }
+  }
+
+  /* 9. STATUS & UI COMPONENTS */
   #status-bar {
     display: none;
     position: fixed;
-    /* Floats over the screen */
     top: 15px;
     left: 50%;
     transform: translateX(-50%);
-    /* Centers horizontally */
     z-index: 10000;
-    /* Stays above modals */
-
-    /* Mobile-first styling */
     width: 90%;
     max-width: 500px;
     padding: 12px 20px;
@@ -221,161 +252,104 @@
     font-weight: bold;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     color: white;
-    /* Contrast text */
     transition: opacity 0.5s ease;
   }
 
-  .grid-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+  .search-box {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f3efea;
+    border-radius: 12px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .sidebar-header {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f3efea;
+    border-radius: 8px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
   }
 
-  .field {
-    margin-bottom: 10px;
-  }
-
-  .full-width {
-    grid-column: span 2;
-  }
-
-  label {
-    display: block;
-    margin-bottom: 4px;
-    font-weight: bold;
+  /* 10. REFRESH BUTTON SPINNING */
+  .refresh-btn {
+    background: white;
+    border: 1px solid var(--border-light);
     color: var(--vg-brown);
-    font-size: 11px;
-  }
-
-  /* Low Stock Visual */
-  .low-stock-row {
-    background-color: #fff4f4 !important;
-  }
-
-  .warning-icon {
-    color: var(--danger-red);
-    font-weight: bold;
-    margin-left: 4px;
-  }
-
-  @media (max-width: 850px) {
-    .main-layout {
-      flex-direction: column;
-    }
-
-    .sidebar {
-      width: 100%;
-      max-height: none;
-    }
-
-    .grid-container {
-      grid-template-columns: 1fr;
-    }
-
-    .full-width {
-      grid-column: span 1;
-    }
-  }
-
-  #customModal {
-    transition: opacity 0.3s ease;
-  }
-
-  .modal-content {
-    animation: slideDown 0.3s ease-out;
-  }
-
-  @keyframes slideDown {
-    from {
-      transform: translateY(-20px);
-      opacity: 0;
-    }
-
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-
-  .print-btn {
-    background: var(--vg-brown);
-    color: white;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 5px;
-    font-size: 11px;
+    padding: 8px 12px;
+    width: auto;
+    font-size: 18px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: opacity 0.2s;
-  }
-
-  .print-btn:hover {
-    opacity: 0.9;
-  }
-
-
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2000;
   }
 
-  .modal-content {
-    background: white;
-    padding: 20px;
+  @keyframes spin-in-place {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .spinning {
+    display: inline-block !important;
+    animation: spin-in-place 0.8s linear infinite !important;
+    color: var(--vg-amber);
+  }
+
+  /* 11. SECURITY & LOGOUT UI */
+  input:disabled {
+    background-color: #f5f5f5 !important;
+    color: #999;
+    font-style: italic;
+    cursor: not-allowed;
+  }
+
+  .user-profile-bar {
+    background: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 10px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .badge-pill {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 5px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  .role-admin { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+
+  /* SCANNER UI */
+  #scanner-wrapper {
+    display: none;
+    margin-bottom: 15px;
+    border: 2px solid var(--vg-amber);
     border-radius: 8px;
-    max-width: 300px;
-    width: 90%;
-    text-align: center;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    background: #000;
   }
 
-  .modal-header h3 {
-    margin: 10px 0;
-    color: #333;
-  }
-
-  .modal-icon {
-    font-size: 30px;
-  }
-
-  .modal-btn {
-    background: var(--vg-brown);
-    color: white;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 15px;
-  }
-
-  /* This forces the camera view to focus on a thin rectangle */
-  #reader__scan_region {
-    border: 2px solid #0d6efd !important;
-  }
-
-  #reader__dashboard {
-    padding: 10px;
-    background: #f8f9fa;
-  }
-
-  /* Ensure the camera video doesn't stretch */
-  #reader video {
-    object-fit: cover;
-  }
-
-
-  /*This is for SKU list during search */
+  /* SUGGESTIONS */
   .suggestions-dropdown {
     position: absolute;
     top: 100%;
-    /* Directly below the search bar */
     left: 0;
     right: 0;
     background: white;
@@ -383,7 +357,6 @@
     border-radius: 0 0 10px 10px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     z-index: 2000;
-    /* Ensure it's above the form */
     max-height: 250px;
     overflow-y: auto;
     display: none;
@@ -397,23 +370,19 @@
     border-bottom: 1px solid #f9f9f9;
     transition: background 0.2s;
   }
-
   .suggestion-item:hover {
     background: #f1f1f1;
   }
-
   .s-sku {
     font-weight: bold;
     color: var(--vg-brown);
     font-size: 12px;
   }
-
   .s-name {
     color: #555;
     font-size: 13px;
     text-align: right;
   }
-
 
   // this is for spinning refresh button during list refresh
   /* 1. Base style adjustment for the Refresh Button */
@@ -498,4 +467,291 @@
     cursor: wait;
     opacity: 0.7;
   }
+
+
+  /* Logic for visible Frames */
+  #mainApp, #loginFrame { display: none; }
+
+    //Special ones
+  /* Header Alignment */
+  .app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--vg-saffron, #f4a261);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+  }
+
+  .header-title {
+    margin: 0 !important;
+    flex-grow: 1;
+  }
+
+  /* User Info Styling */
+  .user-info-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #f9f9f9;
+    padding: 5px 15px;
+    border-radius: 50px;
+    border: 1px solid #eee;
+  }
+
+  .user-details {
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+  }
+
+  .user-label {
+    color: #888;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .user-name {
+    color: var(--vg-brown, #5d4037);
+    font-weight: bold;
+  }
+
+  /* Minimalist Logout Button */
+  .logout-minimal-btn {
+    background: #fff;
+    color: #d32f2f;
+    border: 1px solid #d32f2f;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .logout-minimal-btn:hover {
+    background: #d32f2f;
+    color: #fff;
+  }
+
+  .user-profile-bar {
+    background: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 10px 40px;
+    margin-bottom: 25px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  .header-content {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .avatar-circle {
+    width: 32px;
+    height: 32px;
+    background: var(--vg-brown); /* Using your brand brown */
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .welcome-text {
+    font-size: 14px;
+    color: #555;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .system-status {
+    font-size: 12px;
+    color: #2e7d32; /* Success Green */
+    background: #e8f5e9;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    background: #4caf50;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  .logout-btn-refined {
+    background: transparent;
+    color: #d32f2f;
+    border: 1px solid #ffcdd2;
+    padding: 6px 15px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .logout-btn-refined:hover {
+    background: #ffebee;
+    border-color: #d32f2f;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
+
+  // For user role badge
+  .badge-pill {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 5px;
+    text-transform: uppercase;
+    font-weight: bold;
+  }
+
+  /* Different colors for different roles */
+  .role-admin { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .role-user { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
+
+  /* Style for disabled financial fields */
+  input:disabled {
+    border: 1px solid #ddd;
+    color: #888;
+    font-style: italic;
+    box-shadow: none;
+  }
+
+  /* Optional: Add a "lock" icon background to restricted fields for Editors */
+  .restricted-field {
+    background-image: url('https://img.icons8.com/material-outlined/16/000000/lock.png');
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+
+  /* This forces the camera view to focus on a thin rectangle */
+  #reader__scan_region {
+    border: 2px solid #0d6efd !important;
+  }
+
+  #reader__dashboard {
+    padding: 10px;
+    background: #f8f9fa;
+  }
+
+  /* Ensure the camera video doesn't stretch */
+  #reader video {
+    object-fit: cover;
+  }
+
+
+  /* Custom modal for Bulk Operation*/
+    #customModal {
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-content {
+    animation: slideDown 0.3s ease-out;
+  }
+
+  @keyframes slideDown {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .print-btn {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .print-btn:hover {
+    opacity: 0.9;
+  }
+
+
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 300px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-header h3 {
+    margin: 10px 0;
+    color: #333;
+  }
+
+  .modal-icon {
+    font-size: 30px;
+  }
+
+  .modal-btn {
+    background: var(--vg-brown);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 15px;
+  }
+
+
 </style>

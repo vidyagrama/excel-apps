@@ -91,6 +91,13 @@
       const tbody = document.getElementById('recentItemsBody');
       tbody.innerHTML = '';
 
+      // Get session and normalize the role to lowercase for comparison
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const userRole = (session.role || "").toLowerCase();
+
+      // Check if the role is the admin role
+      const isAdmin = (userRole === 'inventory_admin');
+
       if (!data || data.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No items found</td></tr>';
         return;
@@ -274,6 +281,12 @@
             if (res) {
                 const d = res.data; 
                 const f = document.getElementById('entryForm');
+
+                const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+                const userRole = (session.role || "").toLowerCase();
+
+                // Check if the role is the admin role
+                const isAdmin = (userRole === 'inventory_admin');
                 
                 // Extract meaningful data for the message
                 const itemName = d[2];
@@ -289,12 +302,46 @@
                 
                 f.itemName.value = itemName; 
                 f.uom.value = d[3];
-                f.stock.value = currentStock; 
-                f.purchasePrice.value = d[5]; 
-                f.priceMarkupPercentage.value = d[6];
-                f.salePrice.value = d[7]; 
-                f.stockValue.value = d[8]; 
-                f.reorderPoint.value = reorderPoint;
+                f.stock.value = currentStock;
+
+                 // 2. Financial Security Logic
+                const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
+
+                if (isAdmin) {
+                  f.purchasePrice.value = d[5]; 
+                  f.priceMarkupPercentage.value = d[6];
+                  f.salePrice.value = d[7]; 
+                  f.stockValue.value = d[8];
+
+                  // --- ADD THIS FOR ADMIN ---
+                  finFields.forEach(id => {
+                      const el = document.getElementById(id);
+                      if (el) {
+                          el.disabled = false;           // Enable for Admin
+                          el.style.backgroundColor = "white";
+                          el.style.cursor = "text";
+                      }
+                  }); 
+                  
+                } else {
+                  // Mask data for Editor
+                  f.purchasePrice.value = "0.00"; 
+                  f.priceMarkupPercentage.value = "0";
+                  f.salePrice.value = "0.00"; 
+                  f.stockValue.value = "0.00";
+
+                  // --- ADD THIS FOR EDITOR ---
+                  finFields.forEach(id => {
+                      const el = document.getElementById(id);
+                      if (el) {
+                          el.disabled = true;                // Disable for Editor
+                          el.style.backgroundColor = "#f0f0f0"; // Gray background
+                          el.style.cursor = "not-allowed";
+                      }
+                  });
+                  
+                }
+
                 f.moq.value = d[10]; 
                 f.vendorID.value = d[11]; 
                 f.status.value = d[12];
@@ -594,6 +641,13 @@
       subBtn.disabled = true;
       subBtn.innerHTML = "Processing...";
 
+      // Get current user role
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const userRole = (session.role || "").toLowerCase();
+
+      // Check if the role is the admin role
+      const isAdmin = (userRole === 'inventory_admin');
+
       // 1. Manually collect values into a plain object
       // This bypasses the "disabled field" restriction entirely
       const formData = {
@@ -604,8 +658,11 @@
         itemName: formElement.itemName.value,
         uom: formElement.uom.value,
         status: formElement.status.value,
-        purchasePrice: formElement.purchasePrice.value,
-        priceMarkupPercentage: formElement.priceMarkupPercentage.value,
+        
+        // SECURITY: If not admin, send "SKIP" so the backend doesn't overwrite real prices
+        purchasePrice: isAdmin ? formElement.purchasePrice.value : "SKIP",
+        priceMarkupPercentage: isAdmin ? formElement.priceMarkupPercentage.value : "SKIP",
+        
         stock: document.getElementById('stockInput').value,
         reorderPoint: formElement.reorderPoint.value,
         moq: formElement.moq.value,
@@ -638,7 +695,14 @@
     function clearFormToDefault(c) {
       const currentSheet = document.getElementById('mainCategory').value;
       document.getElementById('entryForm').reset();
-      
+
+      // Get current user role
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const userRole = (session.role || "").toLowerCase();
+
+      // Check if the role is the admin role
+      const isAdmin = (userRole === 'inventory_admin');
+
       // --- UNLOCK EVERYTHING ---
       const fieldsToUnlock = [
         document.getElementById('vendorSelect'),
@@ -654,16 +718,17 @@
       });
       // -------------------------
 
+      document.getElementById('rowNumber').value = "";
+      document.getElementById('slNo').value = "";
+
       document.getElementById('mainCategory').value = currentSheet; // Preserve current sheet selection
-      updateSubCategories(); 
+      updateSubCategories(""); 
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
       document.getElementById('submitBtn').style.backgroundColor = "var(--vg-brown)";
       if(c) document.getElementById('searchInput').value = "";
       document.getElementById('markup').value = "20";
       document.getElementById('imagePreviewContainer').style.display = 'none';
       document.getElementById('deleteBtn').style.display = 'none';
-      document.getElementById('rowNumber').value = "";
-      document.getElementById('slNo').value = "";
       document.getElementById('deleteInventoryBtn').style.display = 'none';
 
       const fileInput = document.getElementById('imageFileSelector');
@@ -672,6 +737,28 @@
         fileInput.style.border = "1px solid var(--border-light)";
         fileInput.value = ""; // Clear the actual file selection
       }
+
+      // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
+      const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
+      
+      finFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (isAdmin) {
+            // ADMIN: Full access
+            el.disabled = false; 
+            el.style.backgroundColor = "white";
+            el.style.cursor = "text";
+          } else {
+            // EDITOR: Lockdown
+            el.value = (id === 'markup') ? "0" : "0.00"; // Mask data
+            el.disabled = true; 
+            el.style.backgroundColor = "#f0f0f0"; // Gray out
+            el.style.cursor = "not-allowed";
+          }
+        }
+      });
+
     }
 
     // load and cache vendors list for performance
@@ -713,7 +800,7 @@
       }).checkSkuExists(sku, currentSlNo);
     }
 
-    // Generate adn Save Barcode
+    // Generate and Save Barcode
     function generateAndSaveBarcode() {
       const sku = document.getElementById('skuField').value;
       const itemName = document.getElementsByName('itemName')[0].value;
@@ -778,11 +865,190 @@
 
     //Handle search keys press events
     function handleSearchKeyPress(e) { if (e.keyCode === 13) { e.preventDefault(); findItem(); } }
-    
-    // Window load function.
-    window.onload = function () {
-      // 1. Immediate UI Setup (Zero Latency)
 
+    /********************************************************* Login section */
+    
+    // --- SESSION & UI INITIALIZATION ---
+
+    window.onload = function() {
+      const sessionData = localStorage.getItem('vidyagrama_session');
+      const loginFrame = document.getElementById('loginFrame');
+      const mainApp = document.getElementById('mainApp');
+
+      if (!sessionData) {
+        if (mainApp) mainApp.style.display = 'none';
+        if (loginFrame) loginFrame.style.display = 'block';
+      } else {
+        try {
+          const userSession = JSON.parse(sessionData);
+          
+          // FIX: Dynamically set the name from the parsed JSON object
+          const displayName = userSession.name || userSession.username || "User";
+          const nameDisplay = document.getElementById('displayUserName');
+          
+          if (nameDisplay) {
+            nameDisplay.innerText = displayName;
+          }
+
+          // EXTRA: Update Avatar initial (First letter of name)
+          const avatar = document.querySelector('.avatar-circle');
+          if (avatar && displayName) {
+            avatar.innerText = displayName.charAt(0).toUpperCase();
+          }
+
+          if (loginFrame) loginFrame.style.display = 'none';
+          if (mainApp) mainApp.style.display = 'block';
+
+          initializeDashboard();
+         
+        } catch (e) {
+          console.error("Session error:", e);
+          localStorage.removeItem('vidyagrama_session');
+          location.reload();
+        }
+      }
+    };
+      
+    /**
+    * Helper to show toast message during user logout
+    */
+    function showToast(message) {
+      const toast = document.getElementById('custom-toast');
+      const msgSpan = document.getElementById('toast-message');
+      if (toast && msgSpan) {
+        msgSpan.innerText = message;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 3000);
+      }
+    }
+  
+    /**
+     * Opens the Logout Modal
+     */
+
+    function logoutUser() {
+      try {
+        const modalElement = document.getElementById('logoutModal');
+        // Initialize and show the Bootstrap modal
+        const myModal = new bootstrap.Modal(modalElement);
+        myModal.show();
+      } catch (err) {
+        console.error("Modal Error:", err);
+        if (confirm("Are you sure you want to log out?")) {
+          confirmLogout(); 
+        }
+      }
+    }
+
+    function confirmLogout() {
+      // 1. Immediately hide the modal so the UI doesn't look frozen
+      const modalElem = document.getElementById('logoutModal');
+      const modalInstance = bootstrap.Modal.getInstance(modalElem);
+      if (modalInstance) modalInstance.hide();
+
+      // 2. Clear the session right away 
+      // (Fixes Bug #2: Ensures next person can't access Admin data)
+      const storedSession = localStorage.getItem('vidyagrama_session');
+      localStorage.removeItem('vidyagrama_session');
+
+      let usernameToLog = "Guest";
+      if (storedSession) {
+        try {
+          usernameToLog = JSON.parse(storedSession).username || "Guest";
+        } catch (e) { console.error("Session parse error"); }
+      }
+
+      // 3. LOGGING: Send to Google Sheets and wait for success
+      const currentCategory = document.getElementById('mainCategory').value || "General";
+      
+      google.script.run
+        .withSuccessHandler(() => {
+          // Proceed to clear UI only after server confirms log
+          resetLoginForm();
+        })
+        .withFailureHandler(() => {
+          // Fallback: Logout anyway if server fails
+          resetLoginForm();
+        })
+        .logActivity("LOGOUT", "User performed manual sign-out", currentCategory, usernameToLog);
+
+    }
+
+    function resetLoginForm() {
+      // 1. Reset the Login Button
+      const loginBtn = document.getElementById('loginBtn'); 
+      if (loginBtn) {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = 'Sign In'; 
+      }
+   
+      // Clear login screen
+      clearFormToDefault(true);
+  
+      // 3. Clear Login Fields
+      const userField = document.getElementById('user');
+      const passField = document.getElementById('pass');
+      const statusMsg = document.getElementById('status-message');
+
+      if (userField) userField.value = "";
+      if (passField) passField.value = "";
+      if (statusMsg) statusMsg.innerHTML = "";
+
+      // 4. Switch Frames
+      const mainApp = document.getElementById('mainApp');
+      const loginFrame = document.getElementById('loginFrame');
+      
+      if (mainApp) mainApp.style.display = 'none';
+      if (loginFrame) loginFrame.style.display = 'block';
+
+      window.scrollTo(0,0);
+    }
+
+    /**
+     * Iniitalize dashboard during login
+     */
+    function initializeDashboard(userSession) {
+      // 1. UI Transition
+      document.getElementById('mainApp').style.display = 'block';
+      document.getElementById('loginFrame').style.display = 'none';
+
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const userRole = (session.role || "").toLowerCase();
+
+      // Check if the role is the admin role
+      const isAdmin = (userRole === 'inventory_admin');
+
+      // 2. Set the Welcome Message (FIXED)
+      // Look for the ID you used in your professional header: 'displayUserName'
+      const nameDisplay = document.getElementById('displayUserName');
+      const avatar = document.querySelector('.avatar-circle');
+
+      // Use the 'name' from the backend (Column 3), fallback to username if empty
+      const displayName = userSession.name || userSession.username;
+      
+      if (nameDisplay) {
+        nameDisplay.innerText = displayName;
+      }
+
+      // Update the Avatar Circle with the first letter of the real name
+      if (avatar && displayName) {
+        avatar.innerText = displayName.charAt(0).toUpperCase();
+      }
+
+      // 3. Set the User Role Badge
+      const roleBadge = document.getElementById('userRoleBadge');
+      if (roleBadge && userSession.role) {
+        roleBadge.innerText = userSession.role.toUpperCase();
+
+         // Apply the specific color class
+        if (userSession.role.toLowerCase() === 'admin') {
+          roleBadge.className = 'badge-pill role-admin';
+        } else {
+          roleBadge.className = 'badge-pill role-user';
+        }
+      }
+
+      // 4. Load Inventory Data
       // 1. Fetch Dynamic Mapping from Server
       // This uses the unified cache keys we set up in Code.gs
       google.script.run
@@ -806,10 +1072,34 @@
       // These fire at the same time, whichever finishes first renders first.
       loadRecentItems(); 
       loadVendors();
+
+      // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
+      const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
+      
+      finFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          if (isAdmin) {
+            // ADMIN: Full access
+            el.disabled = false; 
+            el.style.backgroundColor = "white";
+            el.style.cursor = "text";
+          } else {
+            // EDITOR: Lockdown
+            el.value = (id === 'markup') ? "0" : "0.00"; // Mask data
+            el.disabled = true; 
+            el.style.backgroundColor = "#f0f0f0"; // Gray out
+            el.style.cursor = "not-allowed";
+          }
+        }
+      });
       
       // 3. Pre-focus for scanning
       document.getElementById('searchInput').focus();
-    };
+
+    }
+   
+ /***********************************End  Login Section *************************************************************/ 
 
     //This feature is to give user all SKU's while typing
     let skuBuffer = []; // Our temporary storage
@@ -872,6 +1162,6 @@
       }
     });
     // END - SKU list during search 
-
+    
 
 </script>

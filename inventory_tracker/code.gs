@@ -7,7 +7,9 @@ var ID_INVENTORY = "1YDiJsrkNEj4HxDaNlirGIczAX4h7FExpb3XNs9Xu5co";
 var ID_BARCODES = "1xRpSS39qScUQp-0U4yPGRktxKyTSJzlW";
 var ID_BARCODES_PDF = "1DMNF_rgQNLUPTc1P2_kb8Dy4bWUIdLsT";
 
-var TAB_ENABLE_CATEGORY = "enable_maincategory";
+var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
+var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
+var TAB_ADMINS_ACTIVITY_USERS = "users";
 
 var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
 var Default_Sheet = "Shridhanya";
@@ -71,7 +73,7 @@ function onEdit(e) {
     // Check if validation already exists to prevent redundant slow calls
     if (!subCatCell.getDataValidation()) {
       // Pass the sheetName (e.g., "Vastram") to fetch the right list
-      updateSubCategoryDropdown(sheetName, subCatCell,false);
+      updateSubCategoryDropdown(sheetName, subCatCell, false);
     }
   }
 
@@ -92,14 +94,14 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
 
   const cache = CacheService.getScriptCache();
   const cacheKey = "subcats_" + mainCat.toLowerCase().replace(/\s+/g, '_');
-  
+
   // 1. If forceRefresh is true, we ignore the cache and set subCatString to null
   let subCatString = forceRefresh ? null : cache.get(cacheKey);
 
   // 2. Fetch from Admin if not cached OR if we are forcing a refresh
   if (subCatString === null) {
     const adminSS = SpreadsheetApp.openById(ID_ADMINS);
-    const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+    const adminSheet = adminSS.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
     const adminData = adminSheet.getDataRange().getValues();
 
     // Loop through Admin data and update ALL category caches at once
@@ -109,7 +111,7 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
 
       // Update the cache for every category found
       cache.put("subcats_" + catName.toLowerCase().replace(/\s+/g, '_'), catSubs, 1500);
-      
+
       if (catName.toLowerCase() === mainCat.toLowerCase()) {
         subCatString = catSubs;
       }
@@ -138,7 +140,7 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
 function getSubCategoryMap(forceRefresh = false) {
   const cache = CacheService.getScriptCache();
   const cacheKey = "full_subcategory_map";
-  
+
   // 1. Check cache only if we aren't forcing a refresh
   let cachedMap = forceRefresh ? null : cache.get(cacheKey);
 
@@ -150,7 +152,7 @@ function getSubCategoryMap(forceRefresh = false) {
   // 2. Fetch from Admin Sheet if cache is empty or forced
   console.log("Sidebar: Fetching fresh map from Admin Sheet");
   const adminSS = SpreadsheetApp.openById(ID_ADMINS);
-  const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+  const adminSheet = adminSS.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
   const adminData = adminSheet.getDataRange().getValues();
 
   let map = {};
@@ -272,6 +274,25 @@ function processForm(formObject) {
     var rowNumber = formObject.rowNumber;
     var targetRow = rowNumber ? Number(rowNumber) : sheet.getLastRow() + 1;
 
+    // 1. ROLE-BASED DATA PROTECTION LOGIC
+    var finalPurchasePrice = formObject.purchasePrice;
+    var finalMarkup = formObject.priceMarkupPercentage;
+
+    if (rowNumber) {
+      // If updating, check if we need to preserve existing financial data
+      if (finalPurchasePrice === "SKIP" || finalMarkup === "SKIP") {
+        // Fetch only columns F (6) and G (7) from the current row
+        var existingFinData = sheet.getRange(rowNumber, 6, 1, 2).getValues()[0];
+
+        if (finalPurchasePrice === "SKIP") finalPurchasePrice = existingFinData[0];
+        if (finalMarkup === "SKIP") finalMarkup = existingFinData[1];
+      }
+    } else {
+      // If it's a NEW item and the user is an editor, they shouldn't be adding 0s
+      if (finalPurchasePrice === "SKIP") finalPurchasePrice = 0;
+      if (finalMarkup === "SKIP") finalMarkup = 20; // Default markup
+    }
+
     var salePriceFormula = "=F" + targetRow + "*(1 + (G" + targetRow + "/100))";
     var stockValueFormula = "=E" + targetRow + "*F" + targetRow;
 
@@ -283,8 +304,8 @@ function processForm(formObject) {
       formObject.itemName,
       formObject.uom,
       formObject.stock,
-      formObject.purchasePrice,
-      formObject.priceMarkupPercentage,
+      finalPurchasePrice,
+      finalMarkup,
       salePriceFormula,
       stockValueFormula,
       formObject.reorderPoint,
@@ -304,6 +325,9 @@ function processForm(formObject) {
       // APPLY DROPDOWN VALIDATION TO COLUMN B (Index 2)
       updateSubCategoryDropdown(sheetName, sheet.getRange(rowNumber, 2));
 
+      // Log activity for Namaste VinayDev
+      logActivity("UPDATE", "Updated " + formObject.itemName, sheetName);
+
       return "Updated successfully!";
     } else {
       var lastRow = sheet.getLastRow();
@@ -318,7 +342,8 @@ function processForm(formObject) {
 
       // APPLY DROPDOWN VALIDATION TO COLUMN B OF THE NEWLY APPENDED ROW
       var newRowIndex = sheet.getLastRow();
-      updateSubCategoryDropdown(sheetName, sheet.getRange(newRowIndex, 2),false);
+      updateSubCategoryDropdown(sheetName, sheet.getRange(newRowIndex, 2), false);
+      logActivity("ADD", "Added new item: " + formObject.itemName, sheetName);
 
       return "Added successfully!";
     }
@@ -420,7 +445,7 @@ function getNextSku(category) {
 function saveBarcodeToDrive(sku, itemName) {
   try {
     const folder = DriveApp.getFolderById(ID_BARCODES);
-    
+
     // Updated BWIP-JS Parameters:
     // bcid=code128      : Standard industrial barcode
     // scale=4           : High resolution
@@ -429,26 +454,26 @@ function saveBarcodeToDrive(sku, itemName) {
     // paddingheight=10  : Adds white space on top and bottom
     // backgroundcolor=ffffff : Solid white background
     // (Notice: 'includetext' is REMOVED to keep it pure barcode)
-    
+
     const barcodeUrl = "https://bwipjs-api.metafloor.com/?bcid=code128" +
-                       "&text=" + encodeURIComponent(sku) +
-                       "&scale=4" +
-                       "&height=12" + 
-                       "&paddingwidth=2" +
-                       "&paddingheight=3" +
-                       "&backgroundcolor=ffffff";
+      "&text=" + encodeURIComponent(sku) +
+      "&scale=4" +
+      "&height=12" +
+      "&paddingwidth=2" +
+      "&paddingheight=3" +
+      "&backgroundcolor=ffffff";
 
     const response = UrlFetchApp.fetch(barcodeUrl);
-    
+
     // Clean file naming
-   // const safeItemName = itemName.replace(/[^a-z0-9]/gi, '_');
+    // const safeItemName = itemName.replace(/[^a-z0-9]/gi, '_');
     const fileName = `${sku}.png`;
-    
+
     const blob = response.getBlob().setName(fileName);
     const file = folder.createFile(blob);
-    
+
     return file.getUrl();
-    
+
   } catch (e) {
     throw new Error("Barcode Generation Failed: " + e.message);
   }
@@ -474,7 +499,7 @@ function generateBulkBarcodePDF(ids, sheetName) {
     })).filter(item => idSet.has(item.slNo) && item.sku !== "");
 
     if (items.length === 0) return "Error: No barcodes found for selected items.";
-    
+
     const barCodefolder = DriveApp.getFolderById(ID_BARCODES);
 
     const tempDoc = DocumentApp.create('Print_Sheet_' + sheetName);
@@ -507,12 +532,12 @@ function generateBulkBarcodePDF(ids, sheetName) {
           .setSpacingAfter(2); // Tight spacing to the barcode
 
         // 2. MIDDLE: Barcode Image (Centered)
-        const imgPara = cell.appendParagraph(""); 
+        const imgPara = cell.appendParagraph("");
         const img = imgPara.appendInlineImage(blob);
         imgPara.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-        
+
         // Sized for scannability
-        img.setWidth(220).setHeight(80); 
+        img.setWidth(220).setHeight(80);
 
         // 3. BOTTOM: Vidyagrama - SKU (Centered)
         cell.appendParagraph("Vidyagrama - " + item.sku)
@@ -524,7 +549,7 @@ function generateBulkBarcodePDF(ids, sheetName) {
         // Cell Styling for a clean box look
         cell.setPaddingBottom(10).setPaddingTop(10);
         cell.setVerticalAlignment(DocumentApp.VerticalAlignment.CENTER);
-        
+
         addedCount++;
       }
     });
@@ -639,13 +664,13 @@ function processBulkDelete(ids, sheetName) {
     const values = sheet.getDataRange().getValues();
     const idSet = new Set(ids.map(id => id.toString().trim()));
     const folder = DriveApp.getFolderById(ID_BARCODES);
-    
+
     let deletedCount = 0;
 
     // Start from the bottom, stop at the first row after header (index 1)
     for (let i = values.length - 1; i >= 1; i--) {
       let currentId = values[i][0].toString().trim();
-      
+
       if (idSet.has(currentId)) {
         // Barcode Deletion
         var itemName = values[i][2];
@@ -664,8 +689,8 @@ function processBulkDelete(ids, sheetName) {
           // Clear the entire row so the filter ignores it on next refresh
           sheet.getRange(2, 1, 1, sheet.getLastColumn()).clearContent();
         } else {
-           // Delete Row
-           sheet.deleteRow(i + 1);
+          // Delete Row
+          sheet.deleteRow(i + 1);
         }
         deletedCount++;
       }
@@ -704,7 +729,7 @@ function getBulkInventoryData(sheetName) {
 
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
-  
+
   if (!sheet) {
     console.error("Sheet not found: " + sheetName);
     return [];
@@ -725,16 +750,109 @@ function getBulkInventoryData(sheetName) {
   return data.map(function (r) {
     return {
       id: r[0],           // slNo (Internal ID for deletion/updates)
-    subCategory: r[1],  // Column B: Sub-Category
-    name: r[2],         // Column C: Item Name
-    uom: r[3],          // Column D: Unit of Measure
-    stock: r[4],        // Column E: Stock quantity
-    sku: r[15]          // Column P: SKU
+      subCategory: r[1],  // Column B: Sub-Category
+      name: r[2],         // Column C: Item Name
+      uom: r[3],          // Column D: Unit of Measure
+      stock: r[4],        // Column E: Stock quantity
+      sku: r[15]          // Column P: SKU
     };
   }).filter(item => item.slNo !== "");
 }
 
-/********************************************* Test/Debug functions ********************************************************** */
+/********************************************* Login And role bases Accesss */
+/**
+ * Verifies credentials and returns user profile
+ */
+function checkLogin(username, password) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_ADMINS);
+    const sheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_USERS);
+    const data = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(username).trim() &&
+        String(data[i][1]).trim() === String(password).trim()) {
+
+        // Column 3 (Index 3) contains "inventory_admin" or "inventory_editor"
+        const role = String(data[i][3]).trim();
+
+        // Update lastLogin
+        sheet.getRange(i + 1, 6).setValue(new Date());
+
+        // Log the successful login
+        logActivity("LOGIN", `User ${username} logged in`, "Security", username);
+
+        return {
+          success: true,
+          name: data[i][2],
+          role: role,
+          username: username
+        };
+      }
+    }
+    return { success: false, message: "Invalid credentials" };
+  } catch (err) {
+    return { success: false, message: "System error" };
+  }
+}
+
+/**
+ * Updates user password
+ */
+function updatePassword(username, currentPass, newPass) {
+  const ss = SpreadsheetApp.openById(ID_ADMINS);
+  const sheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_USERS);
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === username && data[i][1] === currentPass) {
+      sheet.getRange(i + 1, 2).setValue(newPass);
+      logActivity("PASSWORD_CHANGE", `User ${username} changed their password`, "Users");
+      return "Password updated successfully!";
+    }
+  }
+  throw new Error("Current password incorrect.");
+}
+
+/**
+ * Enhanced logActivity to accept custom usernames
+ */
+function logActivity(action, details, targetSheet, username) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_ADMINS);
+    let logSheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_LOGS);
+
+    if (!logSheet) {
+      logSheet = ss.insertSheet(TAB_ADMINS_ACTIVITY_LOGS);
+      logSheet.appendRow(["Timestamp", "User", "Action", "Details", "Target"]);
+    }
+
+    // 2. AUTO-INSERT ROWS Logic
+    const maxRows = logSheet.getMaxRows();
+    const lastRow = logSheet.getLastRow();
+
+    // If we are within 5 rows of the bottom, add 100 more rows
+    if (maxRows - lastRow < 5) {
+      logSheet.insertRowsAfter(maxRows, 100);
+    }
+
+    // Use the passed username, or fallback to "System/Guest" if null
+    const finalUser = username || "System";
+
+    // Append in your requested order
+    logSheet.appendRow([
+      new Date(),
+      finalUser,    // This will now be vgvdev or vgkrish
+      action,      // e.g., "LOGOUT" or "LOGIN"
+      details,     // e.g., "User performed manual sign-out"
+      targetSheet  // e.g., "Vastram" or "Security"
+    ]);
+  } catch (e) {
+    console.error("Logging failed: " + e.message);
+  }
+}
+
+/*************************************** Test/Debug functions *********************************************/
 /**
  * TEST FUNCTION: debugGetRecentItems
  * Run this to check if your data is being pulled correctly from the sheet.
@@ -815,7 +933,7 @@ function testSubCategoryUpdate() {
   console.log("Starting test for category: " + testCategory);
 
   try {
-    updateSubCategoryDropdown(testCategory, testCell,true);
+    updateSubCategoryDropdown(testCategory, testCell, true);
 
     // Verification
     const validation = testCell.getDataValidation();

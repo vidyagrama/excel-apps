@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <style>
+    :root {
+      --vg-brown: #634121;
+      --vg-amber: #E89F22;
+      --vg-cream: #FAF9F6;
+      --border-light: #e0d7c6;
+      --disabled-tan: #d2b48c;
+    }
+
+    body {
+      background: var(--vg-cream);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #333;
+    }
+
+    .login-card {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 0;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(99, 65, 33, 0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background-color: var(--vg-brown);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-bottom: 4px solid var(--vg-amber);
+    }
+
+    .card-body {
+      padding: 30px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .shadow {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--vg-amber);
+      box-shadow: 0 0 0 2px rgba(232, 159, 34, 0.1);
+    }
+
+    .btn-vg {
+      width: 100%;
+      padding: 12px;
+      background: var(--vg-brown);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+
+    .btn-vg:hover {
+      filter: brightness(1.2);
+    }
+
+    .btn-vg:disabled {
+      background: var(--disabled-tan);
+      cursor: not-allowed;
+    }
+
+    .toggle-link {
+      color: var(--vg-brown);
+      cursor: pointer;
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.85em;
+      text-decoration: underline;
+    }
+
+    .loader {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #FFF;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      animation: rotation 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    #login-status,
+    #reset-status {
+      min-height: 25px;
+      margin-top: 15px;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-card shadow mx-auto" id="loginBox">
+    <div class="card-header text-center py-3">
+      <h5 class="mb-0" style="color: white; font-family: Verdana, Geneva, sans-serif; font-weight: bold;">
+        Vidyagrama Login
+      </h5>
+    </div>
+    <div class="card-body p-4">
+      <label class="fw-bold" style="color: var(--vg-brown); font-size: 0.9rem;">Username</label>
+      <input type="text" id="user" placeholder="Enter username">
+
+      <label class="fw-bold" style="color: var(--vg-brown); font-size: 0.9rem;">Password</label>
+      <input type="password" id="pass" placeholder="••••••••" onkeypress="if(event.keyCode===13) attemptLogin()">
+
+      <button id="loginBtn" onclick="attemptLogin()" class="btn-vg">Sign In</button>
+      <div id="login-status"></div>
+      <span class="toggle-link" onclick="toggleView('pwBox')">Forgot/Change Password?</span>
+    </div>
+  </div>
+
+  <div class="login-card shadow mx-auto hidden" id="pwBox">
+    <div class="card-header text-center py-3" style="background-color: #4d321a;">
+      <h5 class="mb-0" style="color: white; font-family: Verdana, Geneva, sans-serif; font-weight: bold;">
+        Update Password
+      </h5>
+    </div>
+    <div class="card-body p-4">
+      <label class="fw-bold" style="color: var(--vg-brown); font-size: 0.9rem;">Username</label>
+      <input type="text" id="userReset" placeholder="Enter username">
+
+      <label class="fw-bold" style="color: var(--vg-brown); font-size: 0.9rem;">Current Password</label>
+      <input type="password" id="oldPass" placeholder="Current password">
+
+      <label class="fw-bold" style="color: var(--vg-brown); font-size: 0.9rem;">New Password</label>
+      <input type="password" id="newPass" placeholder="New password" onkeypress="if(event.keyCode===13) attemptReset()">
+
+      <button id="resetBtn" onclick="attemptReset()" class="btn-vg" style="background-color: var(--vg-amber);">Update Password</button>
+      <div id="reset-status"></div>
+      <span class="toggle-link" onclick="toggleView('loginBox')">Back to Login</span>
+    </div>
+  </div>
+ 
+  </div>
+
+  <script>
+    function toggleView(viewId) {
+      document.getElementById('loginBox').classList.add('hidden');
+      document.getElementById('pwBox').classList.add('hidden');
+      document.getElementById(viewId).classList.remove('hidden');
+      document.getElementById('login-status').innerText = "";
+      document.getElementById('reset-status').innerText = "";
+    }
+
+    function attemptLogin() {
+      const u = document.getElementById('user').value;
+      const p = document.getElementById('pass').value;
+      const btn = document.getElementById('loginBtn');
+      const status = document.getElementById('login-status');
+      
+      if(!u || !p) {
+        status.innerHTML = "⚠️ Enter username and password.";
+        status.style.color = "var(--vg-amber)";
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.innerHTML = `<span class="loader"></span> Authenticating...`;
+      status.innerText = "";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            localStorage.setItem('vidyagrama_session', JSON.stringify(res));
+            initializeDashboard(res);
+          } else {
+            status.innerHTML = "❌ " + res.message;
+            status.style.color = "red";
+            btn.disabled = false;
+            btn.innerHTML = "Sign In";
+          }
+        })
+        .withFailureHandler(err => {
+          status.innerText = "System Error: " + err;
+          btn.disabled = false;
+          btn.innerHTML = "Sign In";
+        })
+        .checkLogin(u, p);
+    }
+
+    function attemptReset() {
+      const u = document.getElementById('userReset').value;
+      const oldP = document.getElementById('oldPass').value;
+      const newP = document.getElementById('newPass').value;
+      const btn = document.getElementById('resetBtn');
+      const status = document.getElementById('reset-status');
+
+      if(!u || !oldP || !newP) {
+        status.innerHTML = "⚠️ Please fill in all fields.";
+        status.style.color = "var(--vg-amber)";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="loader"></span> Updating...`;
+      status.innerText = "";
+
+      google.script.run
+        .withSuccessHandler(msg => {
+          // Success! Show Toast instead of Alert
+          showToast("✅ " + msg); 
+          
+          // Navigate back to login
+          setTimeout(() => toggleView('loginBox'), 1000);
+          
+          btn.disabled = false;
+          btn.innerHTML = "Update Password";
+        })
+        .withFailureHandler(err => {
+          // Meaningful Error Message Cleanup
+          let cleanMsg = err.toString().replace("ScriptError: Error: ", "").replace("Error: ", "");
+          
+          status.innerHTML = "❌ " + cleanMsg;
+          status.style.color = "red";
+          btn.disabled = false;
+          btn.innerHTML = "Update Password";
+        })
+        .updatePassword(u, oldP, newP);
+    }
+
+    
+  </script>
+</body>
+
+</html>

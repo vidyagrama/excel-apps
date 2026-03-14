@@ -84,7 +84,6 @@
     max-height: 85vh;
   }
 
-
   #bulkItemsTable {
     width: 100%;
     border-collapse: collapse;
@@ -119,7 +118,42 @@
   }
 
   /* Filter Bar */
+  /* 1. The main bar holds the two groups side-by-side */
   .bulk-filter-bar {
+    display: flex;
+    gap: 25px; /* Space between the Sub-Category group and Search group */
+    padding: 15px 20px;
+    background: #fbfaf8;
+    border-bottom: 1px solid #eee;
+    align-items: center; /* Vertically centers the groups */
+  }
+
+  /* 2. This makes the Label and Input stay on the same line */
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between the text and the box */
+    white-space: nowrap; /* Prevents the label from wrapping */
+    flex: 1; /* Allows both groups to share the width equally */
+  }
+
+  /* 3. Adjusting the label so it doesn't have a bottom margin anymore */
+  .filter-group label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 0; /* Removed bottom margin to keep it centered with input */
+    font-weight: 700;
+  }
+
+  /* 4. Optional: ensure the inputs don't get too small */
+  .filter-group select, 
+  .filter-group input {
+    flex: 1; /* Makes the input box fill the remaining space in the group */
+    min-width: 150px;
+  }
+
+ /* .bulk-filter-bar {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 15px;
@@ -133,7 +167,7 @@
     color: #888;
     display: block;
     margin-bottom: 4px;
-  }
+  }*/
 
   /* Table Body */
   .bulk-table-wrapper {
