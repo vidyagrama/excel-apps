@@ -5,12 +5,16 @@ var ID_ORDERS_LINE_ITEMS = "1j5ma5hH1vKaoNW0O3JrYL19FZvPLBXMOyN5_0efP0e8";
 var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
 var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
 
-var TAB_PARENTS = "main";
-var TAB_LINE_ITEMS = "main";
-var TAB_ORDERS = "main";
-var TAB_ENABLE_CATEGORY = "enable_maincategory";
+var TAB_PARENTS_MAIN = "main";
+var TAB_PARENTS_GUEST = "guest";
+var TAB_LINE_ITEMS_MAIN = "main";
+var TAB_ORDERS_MAIN = "main";
+var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
+var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
+var TAB_ADMINS_VARGA = "varga"
 
-var VALID_SHEETS = ["dhanyam", "varnam", "vastram", "gavya", "soaps", "snacks"];
+var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
+var Default_Sheet = "Shridhanya";
 
 function doGet() {
   // 1. Create a template from the file
@@ -30,19 +34,19 @@ function include(filename) {
 
 function getVargas() {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
-  const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
+  const data = ss.getSheetByName(TAB_PARENTS_MAIN).getDataRange().getValues();
   return [...new Set(data.slice(1).map(row => row[1]))].filter(v => v).sort();
 }
 
 function getNamesByVarga(varga) {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
-  const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
+  const data = ss.getSheetByName(TAB_PARENTS_MAIN).getDataRange().getValues();
   return data.filter(row => row[1] === varga).map(row => row[2]);
 }
 
 function validateLogin(varga, name, mobile) {
   const ss = SpreadsheetApp.openById(ID_PARENTS);
-  const data = ss.getSheetByName(TAB_PARENTS).getDataRange().getValues();
+  const data = ss.getSheetByName(TAB_PARENTS_MAIN).getDataRange().getValues();
 
   // Find the user based on your existing column mapping
   const user = data.find(row =>
@@ -52,16 +56,26 @@ function validateLogin(varga, name, mobile) {
   );
 
   if (user) {
-    return {
+
+    const userData = {
       success: true,
       email: user[6],
       discount: user[7] || 0,
       name: user[2],
       id: user[0],
-      // NEW: Adjust the index numbers [8] and [9] if your columns are different
       credit: parseFloat(user[8] || 0),
       balance: parseFloat(user[9] || 0)
     };
+
+    // LOG SUCCESS: Useful to see which Varga/Parent is active
+    logActivity(
+      name,
+      "LOGIN_SUCCESS",
+      `Varga: ${varga}`,
+      "Parents_Main"
+    );
+
+    return userData;
   } else {
     return { success: false };
   }
@@ -69,7 +83,7 @@ function validateLogin(varga, name, mobile) {
 
 function getInventoryData() {
   const adminSS = SpreadsheetApp.openById(ID_ADMINS);
-  const adminSheet = adminSS.getSheetByName(TAB_ENABLE_CATEGORY);
+  const adminSheet = adminSS.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
   const adminData = adminSheet.getDataRange().getValues();
   const now = new Date();
 
@@ -149,8 +163,8 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
     // Wait for up to 30 seconds for other orders to finish writing
     lock.waitLock(30000);
 
-    const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS);
-    const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS);
+    const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS_MAIN);
+    const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS_MAIN);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
     // 1. Handle Screenshot Upload (Happens inside the lock to be safe)
@@ -230,7 +244,7 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
 function sendReceiptEmail(summary, cart) {
   try {
     const parentSS = SpreadsheetApp.openById(ID_PARENTS);
-    const parentData = parentSS.getSheetByName(TAB_PARENTS).getDataRange().getValues();
+    const parentData = parentSS.getSheetByName(TAB_PARENTS_MAIN).getDataRange().getValues();
     const user = parentData.find(r => String(r[0]).trim() === String(summary.customerId).trim());
     const userEmail = user ? user[6] : null;
 
@@ -428,18 +442,12 @@ function saveScreenshotToDrive(base64Data, txnId, customerName) {
 
 function generateOrderId(mainCategory) {
   const ss = SpreadsheetApp.openById(ID_ORDERS);
-  const sheet = ss.getSheetByName(TAB_ORDERS);
+  const sheet = ss.getSheetByName(TAB_ORDERS_MAIN);
 
-  // 1. Clean Category Name (First 3 letters, Uppercase)
   const catCode = mainCategory.substring(0, 3).toUpperCase();
-  
-  // 2. Format Date: YYYYMM (e.g., 202602)
   const dateStr = Utilities.formatDate(new Date(), "GMT+5:30", "yyyyMM");
-  
-  // 3. The Prefix to search for (e.g., "ORD-DHN-202602-")
   const prefix = `ORD-${catCode}-${dateStr}-`;
 
-  // 4. Get all existing Order IDs from Column B
   const lastRow = sheet.getLastRow();
   let nextSerial = 1;
 
@@ -447,7 +455,6 @@ function generateOrderId(mainCategory) {
     // Get only the Order ID column (Column B is index 2)
     const existingIds = sheet.getRange(2, 2, lastRow - 1, 1).getValues().flat();
 
-    // Filter IDs that match our specific Category and Month
     const monthlyCatOrders = existingIds
       .filter(id => id && id.toString().startsWith(prefix))
       .map(id => {
@@ -510,3 +517,105 @@ function checkPaymentInLogs(userEnteredUTR, userExpectedAmount) {
 }
 
 
+/**
+ * Enhanced logActivity to accept custom usernames
+ */
+function logActivity(username, action, details, targetSheet) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_ADMINS);
+    let logSheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_LOGS);
+
+    if (!logSheet) {
+      logSheet = ss.insertSheet(TAB_ADMINS_ACTIVITY_LOGS);
+      logSheet.appendRow(["Timestamp", "User", "Action", "Details", "Target"]);
+    }
+
+    // 2. AUTO-INSERT ROWS Logic
+    const maxRows = logSheet.getMaxRows();
+    const lastRow = logSheet.getLastRow();
+
+    // If we are within 5 rows of the bottom, add 100 more rows
+    if (maxRows - lastRow < 5) {
+      logSheet.insertRowsAfter(maxRows, 100);
+    }
+
+    // Use the passed username, or fallback to "System/Guest" if null
+    const finalUser = username || "System";
+
+    // Append in your requested order
+    logSheet.appendRow([
+      new Date(),
+      finalUser,    // This will now be vgvdev or vgkrish
+      action,      // e.g., "LOGOUT" or "LOGIN"
+      details,     // e.g., "User performed manual sign-out"
+      targetSheet  // e.g., "Vastram" or "Security"
+    ]);
+  } catch (e) {
+    console.error("Logging failed: " + e.message);
+  }
+}
+/*****************************  Guest login ****************************************************************/
+function getEventList() {
+  const ss = SpreadsheetApp.openById(ID_ADMINS);
+  const sheet = ss.getSheetByName("varga");
+  const data = sheet.getDataRange().getValues();
+
+  // Assuming Column A is Varga and Column B is Events
+  // map(row => row[1]) picks the Events column
+  const events = data.slice(1)
+    .map(row => row[1])
+    .filter(val => val && val.toString().trim() !== "");
+
+  // Return unique events only
+  return [...new Set(events)];
+}
+
+/**
+ * Saves guest info to the 'guest' sheet and returns a login object.
+ */
+function registerGuest(event, name, mobile, associate) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_PARENTS);
+    let guestSheet = ss.getSheetByName("guest");
+
+    // Create sheet if it doesn't exist
+    if (!guestSheet) {
+      guestSheet = ss.insertSheet("guest");
+      guestSheet.appendRow(["id", "eventname", "name", "mobile", "associate", "Notes"]);
+      guestSheet.getRange("1:1").setFontWeight("bold");
+    }
+
+    // --- SIMPLE SERIAL NUMBER LOGIC ---
+    // Get the last row number. If it's 1 (header only), start at 1.
+    const lastRow = guestSheet.getLastRow();
+    const guestId = (lastRow === 1) ? 1 : lastRow;
+
+    const timestamp = "Registered: " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+
+    // Append data: id, eventname, name, mobile, associate, Notes
+    guestSheet.appendRow([
+      guestId,    // Simple serial No (1, 2, 3...)
+      event,
+      name,
+      String(mobile),
+      associate ? "Yes" : "No",
+      timestamp
+    ]);
+
+    logActivity(name, "GUEST_SIGNUP", `Event: ${event} | ID: ${guestId}`, "Guest_Sheet");
+
+    return {
+      success: true,
+      name: name,
+      id: guestId,
+      varga: "Guest",
+      event: event,
+      discount: 0,
+      balance: 0,
+      credit: 0,
+      isGuest: true
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
