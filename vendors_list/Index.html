@@ -504,6 +504,10 @@
         .withSuccessHandler(msg => {
           btn.disabled = false;
           btn.innerHTML = "Delete";
+
+          // 1. Refresh the sidebar list immediately to remove the vendor
+          refreshVendorList();
+
           // Use your existing success screen logic
           document.getElementById('msg-body').innerHTML = msg;
           document.getElementById('form-container').style.display = 'none';
