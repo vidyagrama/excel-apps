@@ -67,18 +67,13 @@
             <div class="field">
               <label>Main Category <span style="color:var(--danger-red)">*</span> </label>
               <select name="mainCategory" id="mainCategory" onchange="updateSubCategories(); loadRecentItems();" required>
-                <option value="Shridhanya">Shridhanya</option>
-                <option value="Vastram">Vastram</option>
-                <option value="Varnam">Varnam</option>
-                <option value="GauAmruth">GauAmruth</option>
-                <option value="Tejas">Tejas</option>
-                <option value="Madhuram">Madhuram</option>
+                 <option value="" disabled selected>Loading categories...</option>
               </select>
             </div>
 
             <div class="field">
               <label>Sub Category <span style="color:var(--danger-red)">*</span> </label>
-              <select id="subCategory" name="category" required>
+              <select id="subCategory" name="subCategory" required>
                 <option value="" disabled selected>Select Subcategory</option>
               </select>
             </div>
@@ -87,16 +82,8 @@
 
             <div class="field">
               <label>Unit of Measure <span style="color:var(--danger-red)">*</span> </label>
-              <select name="uom">
-                  <option value="kilogram (kg)">kilogram (kg)</option>
-                  <option value="grams (gms)">grams (gms)</option>
-                  <option value="liter (ltr)">liter (ltr)</option>
-                  <option value="meter (mtr)">meter (mtr)</option>
-                  <option value="piece (pc)">piece (pc)</option>
-                  <option value="box (Bx)">box (Bx)</option>
-                  <option value="bottle (Btl)">bottle (Btl)</option>
-                  <option value="tin (tin)">tin (tin)</option>
-                  <option value="No's">No's</option>
+              <select name="uom" id="uomSelect" required>
+                  <option value="" disabled selected>Select Category first</option>
               </select>
             </div>
             <div class="field">
@@ -127,7 +114,7 @@
               <div>
                 <label>SKU / Barcode <span style="color:var(--danger-red)">*</span> </label>
                 <div style="display: flex; gap: 5px;">
-                  <input type="text" name="sku" id="skuField" oninput="validateSkuLive()" placeholder="Auto-gen">
+                  <input type="text" name="sku" id="skuField" oninput="validateSkuLive()" placeholder="Auto-gen" readonly class="locked-field">
                 </div>
               </div>
             </div>
@@ -144,10 +131,10 @@
             <div class="field full-width" style="border-top: 1px solid #eee; padding-top: 15px;">
               <label>Product Image</label>
               <div style="display: flex; gap: 10px; align-items: center;">
-                <input type="hidden" name="image_url" id="image_url_hidden">
-                <input type="hidden" name="delete_url" id="delete_url_hidden">
+                <input type="hidden" name="image_url" id="image_url">
+                <input type="hidden" name="delete_url" id="delete_url">
                 <input type="file" id="imageFileSelector" accept="image/*" style="flex-grow: 1;" onchange="clearImageWarning()">
-                <button type="button" onclick="uploadToImgBB()" id="uploadBtn" style="width: 100px; background: #2196F3;">Upload</button>
+                <button type="button" onclick="uploadToImageKit()" id="uploadBtn" style="width: 100px; background: #2196F3;">Upload</button>
                 <button type="button" onclick="handleImageDeletion()" id="deleteBtn" style="width: 100px; background: var(--danger-red); display: none;">Remove</button>
               </div>
               <div id="imagePreviewContainer" style="margin-top: 10px; display: none;">

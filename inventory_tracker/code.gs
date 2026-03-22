@@ -10,9 +10,7 @@ var ID_BARCODES_PDF = "1DMNF_rgQNLUPTc1P2_kb8Dy4bWUIdLsT";
 var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
 var TAB_ADMINS_ACTIVITY_USERS = "users";
-
-var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
-var Default_Sheet = "Shridhanya";
+var TAB_VENDORS_MAIN = "main";
 
 function doGet() {
 
@@ -23,7 +21,7 @@ function doGet() {
     .setTitle("Vidyagrama  Inventory Manager")
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
+    .setFaviconUrl('https://ik.imagekit.io/z9zc3r7jmi/Vidyagrama/main/vk_main_icon.png');
 }
 
 /*This requires if you like seperate Styles,Scripts to sepearte html as template loading */
@@ -41,7 +39,8 @@ function onEdit(e) {
   var sheetName = sheet.getName();
 
   // 1. Safety Check: Only run on valid inventory sheets
-  if (VALID_SHEETS.indexOf(sheetName) === -1) return;
+  const config = getCategoryMap();
+  if (config.validSheets.indexOf(sheetName) === -1) return;
 
   var row = range.getRow();
   var col = range.getColumn();
@@ -64,7 +63,6 @@ function onEdit(e) {
 
   // --- PART B: DYNAMIC DROPDOWN (Column B) ---
   const subCatCol = 2; // Column B
-
   // If you edit any column OTHER than the subcategory itself,
   // we ensure the dropdown is present in Column B for that row.
   if (col !== subCatCol) {
@@ -134,6 +132,52 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
 }
 
 /**
+ * NEW: Dynamic fetch all main categories from admin sheet
+ * This replaces the static VALID_SHEETS array.
+ */
+function getCategoryMap(forceRefresh = false) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "full_category_map";
+  let cachedMap = forceRefresh ? null : cache.get(cacheKey);
+
+  if (cachedMap) return JSON.parse(cachedMap);
+
+  try {
+    const adminSs = SpreadsheetApp.openById(ID_ADMINS);
+    const sheet = adminSs.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
+    const data = sheet.getDataRange().getValues();
+
+    let categoryMap = {};
+    let validSheets = [];
+    let shortCodes = {}; // New object for codes
+
+    for (var i = 1; i < data.length; i++) {
+      let mainCat = String(data[i][0]).trim();    // Column A
+      let subCatsRaw = String(data[i][4] || "");  // Column E
+      let shortCode = String(data[i][5]).trim();  // Column F (New!)
+
+      if (mainCat) {
+        categoryMap[mainCat] = subCatsRaw.split(',').map(s => s.trim()).filter(String);
+        validSheets.push(mainCat);
+        shortCodes[mainCat] = shortCode || mainCat.substring(0, 2).toUpperCase();
+      }
+    }
+
+    const configResult = {
+      categoryMap: categoryMap,
+      validSheets: validSheets,
+      shortCodes: shortCodes, // Include in result
+      defaultSheet: validSheets.length > 0 ? validSheets[0] : ""
+    };
+
+    cache.put(cacheKey, JSON.stringify(configResult), 1500);
+    return configResult;
+  } catch (e) {
+    return { categoryMap: {}, validSheets: [], shortCodes: {}, error: e.toString() };
+  }
+}
+
+/**
  * Fetches the full subcategory map with an optional cache bypass
  * @param {boolean} forceRefresh - If true, ignores cache and fetches from Admin Sheet
  */
@@ -160,11 +204,15 @@ function getSubCategoryMap(forceRefresh = false) {
   for (let i = 1; i < adminData.length; i++) {
     let catName = String(adminData[i][0]).trim();
     let catSubs = String(adminData[i][4] || ""); // Column E
+    let catUOMs = String(adminData[i][6] || "").trim(); // Column G (UOM)
 
-    if (catName) {
-      map[catName] = catSubs.split(',')
-        .map(s => s.trim())
-        .filter(String);
+   if (catName) {
+      map[catName] = {
+       // Split subcategories
+        subs: catSubs.split(',').map(s => s.trim()).filter(String),
+        // Split UOMs
+        uoms: catUOMs.split(',').map(u => u.trim()).filter(String)
+      };
     }
   }
 
@@ -176,7 +224,10 @@ function getSubCategoryMap(forceRefresh = false) {
 
 /*Fetch Recent item list */
 function getRecentItems(sheetName) {
-  var targetSheet = sheetName || Default_Sheet;
+
+  const config = getCategoryMap();
+
+  var targetSheet = sheetName || config.defaultSheet;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(targetSheet);
   if (!sheet) return [];
@@ -211,9 +262,12 @@ function getRecentItems(sheetName) {
 // Search across ALL defined sheets to find the item
 function searchItem(searchText) {
   var cleanSearch = searchText.toString().trim().toLowerCase();
+  const config = getCategoryMap();
+  const sheets = config.validSheets;
 
-  for (var s = 0; s < VALID_SHEETS.length; s++) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VALID_SHEETS[s]);
+  for (var s = 0; s < sheets.length; s++) {
+    var sheetName = sheets[s];
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
     if (!sheet) continue;
     var data = sheet.getDataRange().getValues();
 
@@ -227,7 +281,7 @@ function searchItem(searchText) {
           }
           return cellValue;
         });
-        return { row: i + 1, data: cleanData, sheetName: VALID_SHEETS[s] };
+        return { row: i + 1, data: cleanData, sheetName: sheetName };
       }
     }
   }
@@ -238,9 +292,12 @@ function searchItem(searchText) {
 function checkSkuExists(sku, currentSlNo) {
   if (!sku) return null;
   var cleanSku = sku.toString().trim().toLowerCase();
+  const config = getCategoryMap();
+  const sheets = config.validSheets;
 
-  for (var s = 0; s < VALID_SHEETS.length; s++) {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(VALID_SHEETS[s]);
+  for (var s = 0; s < sheets.length; s++) {
+    var sheetName = sheets[s];
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
     if (!sheet) continue;
     var data = sheet.getDataRange().getValues();
 
@@ -249,7 +306,7 @@ function checkSkuExists(sku, currentSlNo) {
       var slNoInSheet = data[i][0].toString();
 
       if (skuInSheet === cleanSku && slNoInSheet !== currentSlNo) {
-        return { name: data[i][2], sheet: VALID_SHEETS[s] };
+        return { name: data[i][2], sheet: sheetName };
       }
     }
   }
@@ -358,7 +415,7 @@ function processForm(formObject) {
 function getVendorList() {
   try {
     const ss = SpreadsheetApp.openById(ID_VENDORS);
-    const sheet = ss.getSheetByName('main');
+    const sheet = ss.getSheetByName(TAB_VENDORS_MAIN);
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
     return data.map(row => ({ id: row[0].toString(), name: row[1].toString() })).filter(v => v.id !== "");
   } catch (e) { return []; }
@@ -366,7 +423,9 @@ function getVendorList() {
 
 /*We are not using this function, its used by Admin portal */
 function getSheetSummary(sheetName) {
-  var targetSheet = sheetName || Default_Sheet;
+  const config = getCategoryMap();
+
+  var targetSheet = sheetName || config.defaultSheet;
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(targetSheet);
   if (!sheet) return { totalValue: 0, lowStockCount: 0 };
 
@@ -397,28 +456,25 @@ function getSheetSummary(sheetName) {
 function getNextSku(category) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(category);
-  if (!sheet) return "VG??-007";
 
-  // 1. Define Short Codes
-  const shortCodes = {
-    'Shridhanya': 'SD',
-    'Varnam': 'VN',
-    'Vastram': 'VS',
-    'GauAmruth': 'GA',
-    'Tejas': 'TJ',
-    'Madhuram': 'MD'
-  };
+  // 1. Fetch dynamic codes from your mapping function
+  const config = getCategoryMap();
+  const codes = config.shortCodes || {};
 
-  const prefix = "VG" + (shortCodes[category] || category.substring(0, 2).toUpperCase()) + "-";
+  // Determine Prefix (Fallback to first 2 letters if code is missing in Admin sheet)
+  const code = codes[category] || category.substring(0, 2).toUpperCase();
+  const prefix = "VG" + code + "-";
+
+  if (!sheet) return prefix + "007";
+
   const lastRow = sheet.getLastRow();
-
-  // 2. Default if sheet is empty (starting at 007)
+  // 2. Default if sheet is empty
   if (lastRow < 2) return prefix + "007";
 
   // 3. Get all SKUs from Column P (Index 15)
   const skuValues = sheet.getRange(2, 16, lastRow - 1, 1).getValues().flat();
 
-  let maxNum = 6; // Start below 007 so the first increment hits 007
+  let maxNum = 6;
 
   skuValues.forEach(sku => {
     if (sku && typeof sku === 'string' && sku.includes('-')) {
@@ -430,10 +486,11 @@ function getNextSku(category) {
     }
   });
 
-  // 4. Increment and Pad with zeros (e.g., 008, 012, 105)
+  // 4. Increment and Pad
   const nextNum = (maxNum + 1).toString().padStart(3, '0');
   return prefix + nextNum;
 }
+
 
 /* Save Barcode to backend google drive */
 /**
@@ -657,26 +714,30 @@ function processBulkDelete(ids, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return "Error: Sheet not found.";
 
+  // --- CONFIGURATION ---
+  const privateKey = "private_cdbgV+TsvNJm1OJ23oErePr/48o=";
+  const authHeader = "Basic " + Utilities.base64Encode(privateKey + ":");
+
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
 
     const values = sheet.getDataRange().getValues();
     const idSet = new Set(ids.map(id => id.toString().trim()));
-    const folder = DriveApp.getFolderById(ID_BARCODES);
+    const folder = DriveApp.getFolderById(ID_BARCODES); // Existing barcode folder
 
     let deletedCount = 0;
 
-    // Start from the bottom, stop at the first row after header (index 1)
     for (let i = values.length - 1; i >= 1; i--) {
       let currentId = values[i][0].toString().trim();
 
       if (idSet.has(currentId)) {
-        // Barcode Deletion
-        var itemName = values[i][2];
-        var sku = values[i][15];
+        // 1. DATA EXTRACTION
+        var sku = values[i][15];      // Column P
+        var fileId = values[i][17];   // Column R (Where we stored the ImageKit fileId)
 
-        if (sku && itemName) {
+        // 2. DELETE LOCAL BARCODE (Google Drive)
+        if (sku) {
           var fileNameToDelete = sku + ".png";
           var files = folder.getFilesByName(fileNameToDelete);
           while (files.hasNext()) {
@@ -684,18 +745,31 @@ function processBulkDelete(ids, sheetName) {
           }
         }
 
-        // Inside your processBulkDelete loop for the last row:
-        if (sheet.getLastRow() === 2) {
-          // Clear the entire row so the filter ignores it on next refresh
+        // 3. DELETE FROM IMAGEKIT (Cloud)
+        if (fileId) {
+          try {
+            var options = {
+              "method": "delete",
+              "headers": { "Authorization": authHeader },
+              "muteHttpExceptions": true
+            };
+            UrlFetchApp.fetch("https://api.imagekit.io/v1/files/" + fileId, options);
+          } catch (err) {
+            console.error("ImageKit Delete Error for fileId " + fileId + ": " + err);
+          }
+        }
+
+        // 4. DELETE ROW FROM SHEET
+        if (sheet.getLastRow() === 2 && i === 1) {
           sheet.getRange(2, 1, 1, sheet.getLastColumn()).clearContent();
         } else {
-          // Delete Row
           sheet.deleteRow(i + 1);
         }
         deletedCount++;
       }
     }
-    // Safety: Only re-index if there is at least one data row remaining
+
+    // Re-indexing logic
     var lastRowAfterDelete = sheet.getLastRow();
     if (deletedCount > 0 && lastRowAfterDelete > 1) {
       var range = sheet.getRange(2, 1, lastRowAfterDelete - 1, 1);
@@ -706,9 +780,9 @@ function processBulkDelete(ids, sheetName) {
       range.setValues(newSlNos);
     }
 
-    return "Successfully deleted " + deletedCount + " items.";
+    return "Successfully deleted " + deletedCount + " items and associated images.";
+
   } catch (e) {
-    // If the error persists, it may be due to row protections
     return "Error: " + e.message;
   } finally {
     lock.releaseLock();
@@ -852,14 +926,73 @@ function logActivity(action, details, targetSheet, username) {
   }
 }
 
+/** ImageKit Actions */
+
+/**
+ * Searches ImageKit for a file by name to retrieve its unique fileId
+ */
+function getImageKitMetadata(sku) {
+  const privateKey = "private_cdbgV+TsvNJm1OJ23oErePr/48o=";
+  const authHeader = "Basic " + Utilities.base64Encode(privateKey + ":");
+
+  // Search for the file matching the SKU name
+  const url = `https://api.imagekit.io/v1/files?name=${sku}&path=/Vidyagrama/Inventory/`;
+
+  try {
+    const response = UrlFetchApp.fetch(url, {
+      method: "get",
+      headers: { "Authorization": authHeader },
+      muteHttpExceptions: true
+    });
+
+    const results = JSON.parse(response.getContentText());
+
+    if (results && results.length > 0) {
+      // Return the first match's ID and URL
+      return {
+        fileId: results[0].fileId,
+        url: results[0].url
+      };
+    }
+    return null;
+  } catch (e) {
+    console.error("Metadata fetch error: " + e.message);
+    return null;
+  }
+}
+
+/**
+ * Clears the image columns for a specific item after ImageKit deletion
+ * @param {string} sheetName - The category sheet (e.g., 'Dhanyam')
+ * @param {number} row - The row number returned by searchItem
+ */
+function clearImageInSheet(sheetName, row) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) {
+    throw new Error("Sheet '" + sheetName + "' not found.");
+  }
+
+  // Assuming SKU is Col 16 (Index 15), we clear Col 17 and 18
+  // getRange(row, column, numRows, numColumns)
+  const imageRange = sheet.getRange(row, 17, 1, 2);
+
+  imageRange.clearContent();
+
+  return "Successfully unlinked image from " + sheetName + " row " + row;
+}
+
 /*************************************** Test/Debug functions *********************************************/
 /**
  * TEST FUNCTION: debugGetRecentItems
  * Run this to check if your data is being pulled correctly from the sheet.
  */
 function debugGetRecentItems() {
+
   // 1. Set the sheet you want to test
-  var testSheet = Default_Sheet;
+  const config = getCategoryMap();
+  var testSheet = config.defaultSheet;
 
   try {
     console.log("--- Starting Test for: " + testSheet + " ---");
@@ -946,3 +1079,4 @@ function testSubCategoryUpdate() {
     console.error("TEST CRASHED: " + e.message);
   }
 }
+

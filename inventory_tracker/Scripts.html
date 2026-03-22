@@ -43,46 +43,62 @@
     }
     
     // Update sub categories based on main categories and also the SKU for next new item
-    function updateSubCategories(selectedSub) {
+    // Loading UOM based on categories from admin sheet directly, removed hardcoded values
+    function updateSubCategories(selectedSub, selectedUom) {
       const main = document.getElementById('mainCategory').value;
       const subSelect = document.getElementById('subCategory');
-      const rowNum = document.getElementById('rowNumber').value;
       const skuField = document.getElementById('skuField');
+      const uomSelect = document.getElementsByName('uom')[0];
 
-      // 1. Update Sub-Categories from Dynamic Map
+      // 1. Reset Selects
       subSelect.innerHTML = '<option value="" disabled selected>Select Subcategory</option>';
-      
-      // Use the global window.subCategoryMap populated during window.onload
-      const currentMap = window.subCategoryMap || {}; 
+      uomSelect.innerHTML = '<option value="" disabled selected>Select Unit</option>'; 
 
-      if (currentMap[main]) {
-        currentMap[main].forEach(opt => {
-          let el = document.createElement("option");
-          el.value = opt; 
-          el.textContent = opt;
-          subSelect.appendChild(el);
+      const currentMap = window.subCategoryMap || {}; 
+      const catData = currentMap[main];
+
+      if (catData) {
+        // 2. Populate Sub-Categories
+        catData.subs.forEach(opt => {
+          subSelect.add(new Option(opt, opt));
         });
-        
-        // Set the value if we are editing an existing record
+
+        // 3. Populate UOMs (Loop through the array)
+        if (catData.uoms && catData.uoms.length > 0) {
+          catData.uoms.forEach(unit => {
+            let opt = new Option(unit, unit);
+            uomSelect.add(opt);
+          });
+
+          // Logic: Prioritize existing record's UOM, otherwise pick the first available one
+          if (selectedUom) {
+            uomSelect.value = selectedUom;
+          } else if (catData.uoms.length === 1) {
+            // If there's only one option (e.g., just 'kg'), select it automatically
+            uomSelect.selectedIndex = 1; 
+          }
+        } else {
+          uomSelect.add(new Option("No's", "No's"));
+        }
+
+        // 4. Mode Detection (Update vs New)
         if (selectedSub) {
           subSelect.value = selectedSub;
+          console.log("Update Mode: Preserving existing SKU.");
+        } else {
+          console.log("New Item Mode: Generating fresh SKU.");
+          skuField.value = "Generating..."; 
+          google.script.run
+            .withSuccessHandler(nextSku => {
+              skuField.value = nextSku;
+              checkExistingImage(nextSku);
+            })
+            .getNextSku(main);
         }
       } else {
-        // Optional: If map isn't loaded yet, add a placeholder
         let loadingEl = document.createElement("option");
-        loadingEl.textContent = "Loading categories...";
+        loadingEl.textContent = "Select a Main Category first...";
         subSelect.appendChild(loadingEl);
-      }
-
-      // 2. Automatic SKU Generation
-      // Only generate a new SKU if we are NOT in update mode (rowNumber is empty)
-      if (!rowNum && main) {
-        skuField.value = "Generating..."; 
-        google.script.run
-          .withSuccessHandler(nextSku => {
-            skuField.value = nextSku;
-          })
-          .getNextSku(main);
       }
     }
 
@@ -109,10 +125,10 @@
         if (isLow) row.classList.add('low-stock-row');
 
         row.onclick = () => {
-          if (item.sheetOrigin) {
+          /*if (item.sheetOrigin) {
             document.getElementById('mainCategory').value = item.sheetOrigin;
-            updateSubCategories();
-          }
+            updateSubCategories("");
+          }*/
           document.getElementById('searchInput').value = item.sku || item.slNo;
           findItem();
         };
@@ -171,6 +187,16 @@
           
           try {
             renderTable(fullInventoryData);
+
+            // --- THE FIX ---
+            // After deleting/refreshing, we want the form to be ready for a NEW item.
+            // Calling this with "" triggers the "New Item Mode" logic inside updateSubCategories.
+            const currentMain = document.getElementById('mainCategory').value;
+            if (currentMain) {
+              console.log("Refreshing SKU logic for category:", currentMain);
+              updateSubCategories(""); 
+            }
+
             console.log("Step 4: Table rendered");
           } catch (e) {
             console.error("Crash inside renderTable:", e);
@@ -341,7 +367,6 @@
                   });
                   
                 }
-
                 f.moq.value = d[10]; 
                 f.vendorID.value = d[11]; 
                 f.status.value = d[12];
@@ -352,8 +377,12 @@
                 // Image loading logic
                 f.image_url.value = d[16] || "";
                 f.delete_url.value = d[17] || "";
+                const latestImageUrl = d[16] + "?t=" + new Date().getTime();
+
+                updateImageInputState();
+
                 if (d[16]) {
-                    document.getElementById('imgPreview').src = d[16];
+                    document.getElementById('imgPreview').src = latestImageUrl;
                     document.getElementById('imagePreviewContainer').style.display = 'block';
                     document.getElementById('deleteBtn').style.display = 'block';
                 } else {
@@ -366,18 +395,19 @@
                 document.getElementById('submitBtn').style.backgroundColor = "var(--success-green)";
 
                 // --- LOCK CATEGORIES & VENDOR FOR UPDATE ---
-                const vSelect = document.getElementById('vendorSelect');
+                //const vSelect = document.getElementById('vendorSelect');
                 const skuField = document.getElementById('skuField');
                 const mainCat = document.getElementById('mainCategory');
                 const subCat = document.getElementById('subCategory');
 
                 // Apply disabled/readOnly
-                [vSelect, mainCat, subCat].forEach(el => {
+               /* [vSelect, mainCat, subCat].forEach(el => {
                   el.disabled = true;
                   el.style.backgroundColor = "#f0f0f0";
-                });
+                });*/
                 skuField.readOnly = true;
                 skuField.style.backgroundColor = "#f0f0f0";
+                skuField.style.cursor = "not-allowed";
                 // -------------------------------------------
 
                 
@@ -410,60 +440,225 @@
     }
 
     // Upload selected item image.
-    async function uploadToImgBB() {
+    async function uploadToImageKit() {
       const fileInput = document.getElementById('imageFileSelector');
       const sku = document.getElementById('skuField').value;
-      const sheetName = document.getElementById('mainCategory').value; // Get folder name
-      const itemName = document.getElementsByName('itemName')[0].value;
+      const sheetName = document.getElementById('mainCategory').value;
       const btn = document.getElementById('uploadBtn');
-      
-      // VALIDATION: Check if file is selected
-      if (!fileInput.files || fileInput.files.length === 0) {
-        showStatus("❌ Please select a product image first!", "#dc3545");
-        fileInput.style.outline = "2px solid red";
-        return;
-      }
-      
-      if (!sku) {
-        showStatus("❌ SKU is required for naming the image!", "#dc3545");
-        return;
+
+      if (!fileInput.files || fileInput.files.length === 0 || !sku) {
+          showStatus("❌ Missing File or SKU", "#dc3545");
+          return;
       }
 
-      clearImageWarning();
-
-      fileInput.style.outline = "none";
       btn.innerHTML = "Uploading...";
-      
-      // Create an organized filename: e.g., "dhanyam_VG-RICE-123.png"
-      const organizedName = `${sheetName.toUpperCase()}_${sku}`;
+      const privateKey = "private_cdbgV+TsvNJm1OJ23oErePr/48o=";
+      const publicKey = "public_mOLZLqdmiHFXNwD5DIWuTL6U3fA=";
 
       const formData = new FormData();
-      formData.append("image", fileInput.files[0]);
-      formData.append("name", organizedName); // This organizes it in your ImgBB dashboard
+      formData.append("file", fileInput.files[0]);
+      formData.append("fileName", sku); // Filename will be just the SKU
+      formData.append("folder", "/Vidyagrama/Inventory");
+      formData.append("useUniqueFileName", "false");
+      formData.append("overwriteFile", "true");
+      formData.append("publicKey", publicKey);
+
+      const authHeader = "Basic " + btoa(privateKey + ":");
 
       try {
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=f54eb6c9064b8717c21c9d293fa04e2d`, { 
-          method: "POST", 
-          body: formData 
-        });
-        const result = await response.json();
-        
-        if (result.success) {
-          document.getElementById('image_url_hidden').value = result.data.url;
-          document.getElementById('delete_url_hidden').value = result.data.delete_url;
-          document.getElementById('imgPreview').src = result.data.url;
-          document.getElementById('imagePreviewContainer').style.display = 'block';
-          document.getElementById('deleteBtn').style.display = 'block';
-          showStatus(`Image stored in virtual folder: ${sheetName}`, "var(--success-green)");
-        }
-      } catch (e) { 
-        showStatus("Upload Error", "#dc3545"); 
+          const response = await fetch(`https://upload.imagekit.io/api/v1/files/upload`, {
+              method: "POST",
+              headers: {
+                  "Authorization": authHeader,
+                  "Accept": "application/json"
+              },
+              body: formData
+          });
+
+          const result = await response.json();
+
+          // --- THE FIX IS HERE ---
+          if (response.ok && result.url) {
+
+            // Create a unique timestamp to bypass CDN/Browser cache
+              const cacheBuster = "?t=" + new Date().getTime();
+              const freshUrl = result.url + cacheBuster;
+
+              // Update hidden inputs
+              document.getElementById('image_url').value = result.url;
+              document.getElementById('delete_url').value = result.fileId;
+              
+              // Update Preview (Thumbnail)
+              const previewImg = document.getElementById('imgPreview');
+              previewImg.src = freshUrl; // Use result.url directly from the object
+              
+              // Show the container
+              document.getElementById('imagePreviewContainer').style.display = 'block';
+              document.getElementById('deleteBtn').style.display = 'block';
+
+              updateImageInputState();
+              
+              showStatus(`✅ Image saved for SKU: ${sku}`, "var(--success-green)");
+          } else {
+              throw new Error(result.message || "Upload failed");
+          }
+      } catch (e) {
+          console.error("ImageKit Error:", e);
+          showStatus("Upload Error: " + e.message, "#dc3545");
+      } finally {
+          btn.innerHTML = "Upload";
       }
-      btn.innerHTML = "Upload";
+  }
+
+    /*Delete image from imageKit*/
+    async function deleteFromImageKit() {
+      const fileId = document.getElementById('delete_url').value;
+      const row = document.getElementById('rowNumber').value;
+      const sheet = document.getElementById('mainCategory').value;
+      const btn = document.getElementById('deleteBtn');
+      const privateKey = "private_cdbgV+TsvNJm1OJ23oErePr/48o=";
+
+      if (!fileId) return showStatus("❌ No image record found.", "#dc3545");
+
+      btn.innerHTML = "Deleting ..";
+      btn.disabled = true;
+
+      try {
+        const authHeader = "Basic " + btoa(privateKey + ":");
+        const response = await fetch(`https://api.imagekit.io/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: { "Authorization": authHeader }
+        });
+
+        if (response.status === 204 || response.ok) {
+          // --- CLOUD DELETED, NOW UPDATE GOOGLE SHEET ---
+          if (row && sheet) {
+            google.script.run
+              .withSuccessHandler(() => {
+                // Clear the UI only after the sheet is updated
+                resetImageUI();
+                showStatus("🗑️ Image removed from Cloud & Sheet", "orange");
+              })
+              .clearImageInSheet(sheet, row); // Call the server-side function
+          } else {
+            // Fallback for new items not yet saved to a row
+            resetImageUI();
+            showStatus("🗑️ Image deleted. (Item not yet in sheet)", "orange");
+          }
+        } else {
+          const error = await response.json();
+          throw new Error(error.message || "Delete failed");
+        }
+      } catch (e) {
+        console.error("Delete Error:", e);
+        showStatus("Delete Error: " + e.message, "#dc3545");
+      } finally {
+        btn.innerHTML = "Delete Image";
+        btn.disabled = false;
+      }
     }
+
+    // Helper to keep code clean
+    function resetImageUI() {
+      document.getElementById('imgPreview').src = "";
+      document.getElementById('imagePreviewContainer').style.display = 'none';
+      document.getElementById('image_url').value = "";
+      document.getElementById('delete_url').value = "";
+      document.getElementById('imageFileSelector').value = "";
+
+      document.getElementById('imagePreviewContainer').style.display = 'none';
+      document.getElementById('deleteBtn').style.display = 'none';
+
+      updateImageInputState();
+    }
+
+    // helper function to update imaginput state button
+    function updateImageInputState() {
+      const fileInput = document.getElementById('imageFileSelector');
+      const imageUrl = document.getElementById('image_url').value;
+      const uploadBtn = document.getElementById('uploadBtn');
+
+      if (imageUrl && imageUrl.trim() !== "") {
+          // IMAGE EXISTS: Lock the input and the upload button
+          fileInput.disabled = true;
+          fileInput.style.opacity = "0.6";
+          fileInput.style.cursor = "not-allowed";
+          
+          if(uploadBtn) uploadBtn.disabled = true;
+          
+          console.log("Input Locked: Image already exists.");
+      } else {
+          // NO IMAGE: Enable the input
+          fileInput.disabled = false;
+          fileInput.style.opacity = "1";
+          fileInput.style.cursor = "pointer";
+          
+          if(uploadBtn) uploadBtn.disabled = false;
+          
+          console.log("Input Enabled: Ready for new upload.");
+      }
+  }
+
+  async function checkExistingImage(sku) {
+    if (!sku || sku === "Generating...") return;
+
+    const folderPath = "Vidyagrama/Inventory/";
+    // Use the SKU and a timestamp to avoid stale cache data
+    const imageUrl = `https://ik.imagekit.io/z9zc3r7jmi/${folderPath}${sku}?t=${new Date().getTime()}`;
+
+    const imgPreview = document.getElementById('imgPreview');
+    const container = document.getElementById('imagePreviewContainer');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const imageUrlField = document.getElementById('image_url');
+    const deleteUrlField = document.getElementById('delete_url');
+
+    try {
+      // 1. We use HEAD to check existence without downloading the full image bytes
+      const response = await fetch(imageUrl, { method: 'HEAD' });
+
+      if (response.ok) {
+        // --- IMAGE FOUND (200 OK) ---
+        imgPreview.src = imageUrl;
+        container.style.display = 'block';
+        imageUrlField.value = imageUrl;
+
+        // Now fetch the fileId from the backend securely
+        google.script.run
+          .withSuccessHandler(fileData => {
+            if (fileData && fileData.fileId) {
+              deleteUrlField.value = fileData.fileId;
+              console.log("✅ Verified ImageKit ID:", fileData.fileId);
+
+              if (deleteBtn) deleteBtn.style.display = 'block';
+
+              updateImageInputState(); 
+              showStatus("✨ Existing image found for this SKU", "var(--success-green)");
+            }
+            else {
+                // FALSE POSITIVE: Backend found nothing, hide the ghost image
+                console.warn("Ghost image detected. No metadata found for:", sku);
+                resetImageUI();
+              }
+          })
+          .getImageKitMetadata(sku);
+
+      } else {
+        // --- IMAGE NOT FOUND (404) ---
+        // We don't throw an error here; we just treat it as a "No Image" state
+        console.log(`ℹ️ No image found for SKU: ${sku} (Status: ${response.status})`);
+        resetImageUI();
+      }
+    } catch (err) {
+      // --- NETWORK ERROR (Offline or Blocked) ---
+      console.warn("⚠️ Network error while checking image:", err.message);
+      resetImageUI();
+    }
+  }
 
     // 1. TRIGGER FOR IMAGE REMOVAL
     function handleImageDeletion() {
+      console.log("handleImageDeletion()"); // Check your browser console (F12) for this
+
       const itemName = document.getElementsByName('itemName')[0].value || "this item";
       
       document.getElementById('modalTitle').innerText = "Remove Image?";
@@ -480,69 +675,57 @@
 
     // Close the message modal
     function closeModal() {
+      console.log("closeModal()"); // Check your browser console (F12) for this
       document.getElementById('customModal').style.display = 'none';
+      
     }
 
-    // THE "YES" BUTTON HANDLER
+    // Execute modal action on delete image and delte inventory item
     function executeModalAction() {
-      const mode = document.getElementById('modalActionType').value;
-      closeModal();
+        console.log("Execute button clicked");
+        const mode = document.getElementById('modalActionType').value;
+        closeModal();
 
-      if (mode === "IMAGE") {
-        // Process Image Removal (UI only until 'Update' is clicked)
-        document.getElementById('image_url_hidden').value = "";
-        document.getElementById('delete_url_hidden').value = "";
-        document.getElementById('imgPreview').src = "";
-        document.getElementById('imagePreviewContainer').style.display = 'none';
-        document.getElementById('deleteBtn').style.display = 'none';
-        showStatus("Image unlinked. Click Update to save.", "var(--vg-amber)");
-        
-      } else if (mode === "INVENTORY") {
-        // Process Full Row Deletion (Actually hits the Spreadsheet)
-        const itemName = document.getElementsByName('itemName')[0].value;
-        const row = document.getElementById('rowNumber').value;
-        const sheet = document.getElementById('mainCategory').value;
-        const delBtn = document.getElementById('deleteInventoryBtn');
+        if (mode === "IMAGE") {
+            deleteFromImageKit(); // Added await here too for safety
+            
+        } else if (mode === "INVENTORY") {
+            const itemName = document.getElementsByName('itemName')[0].value;
+            const row = document.getElementById('rowNumber').value;
+            const sheet = document.getElementById('mainCategory').value;
+            const delBtn = document.getElementById('deleteInventoryBtn');
+            const fileId = document.getElementById('delete_url').value;
 
-        if (!row) return showStatus("Error: No item selected to delete", "red");
+            if (!row) return showStatus("Error: No item selected to delete", "red");
 
-        // UI Feedback: Show user something is happening
-        delBtn.disabled = true;
-        delBtn.innerHTML = "Deleting...";
+            delBtn.disabled = true;
 
-        google.script.run
-          .withSuccessHandler(res => {
-            // RESET SCREEN AFTER SUCCESS
-            showStatus(`🗑️ ${itemName}: ${res}`, "var(--danger-red)");
-            clearFormToDefault(true); // Resets form and search input
-            loadRecentItems();        // Refreshes sidebar list
-            delBtn.disabled = false;
-            delBtn.innerHTML = "Delete Item";
-          })
-          .withFailureHandler(err => {
-            showStatus("Error deleting: " + err, "red");
-            delBtn.disabled = false;
-            delBtn.innerHTML = "Delete Item";
-          })
-          .deleteItemRecord(sheet, row); // This must match your function in code.gs
-      }
+            // --- STEP 1: Cloud Deletion ---
+            if (fileId) {
+                delBtn.innerHTML = "1/2 Deleting image..."; 
+                deleteFromImageKit();
+            }
+
+            // --- STEP 2: Spreadsheet Deletion ---
+            delBtn.innerHTML = "2/2 Deleting Record..."; 
+
+            google.script.run
+                .withSuccessHandler(res => {
+                    showStatus(`🗑️ ${itemName}: ${res}`, "var(--danger-red)");
+                    clearFormToDefault(true); 
+                    loadRecentItems();        
+                    delBtn.disabled = false;
+                    delBtn.innerHTML = "Delete Item";
+                })
+                .withFailureHandler(err => {
+                    showStatus("Error deleting: " + err, "red");
+                    delBtn.disabled = false;
+                    delBtn.innerHTML = "Delete Item";
+                })
+                .deleteItemRecord(sheet, row); 
+        }
     }
-
-    // Delete confimation from message modal
-    function confirmDelete() {
-      // Clear the form data
-      document.getElementById('image_url_hidden').value = "";
-      document.getElementById('delete_url_hidden').value = "";
-      
-      // Update UI
-      document.getElementById('imagePreviewContainer').style.display = 'none';
-      document.getElementById('deleteBtn').style.display = 'none';
-      document.getElementById('imgPreview').src = "";
-      document.getElementById('imageFileSelector').value = "";
-      
-      closeModal();
-      showStatus("Image unlinked. Click 'Update' to finalize changes.", "var(--vg-amber)");
-    }
+    
 
     // Calculate Auto fields
     function calculateAutoFields() {
@@ -670,8 +853,8 @@
         expiryDate: formElement.expiryDate.value,
         vendorID: document.getElementById('vendorSelect').value,
         sku: document.getElementById('skuField').value,
-        image_url: document.getElementById('image_url_hidden').value,
-        delete_url: document.getElementById('delete_url_hidden').value
+        image_url: document.getElementById('image_url').value,
+        delete_url: document.getElementById('delete_url').value
       };
 
       // 2. Send the clean object, not the HTML element
@@ -693,6 +876,7 @@
 
     // Clear the form to default
     function clearFormToDefault(c) {
+      console.log("clearFormToDefault()"); // Check your browser console (F12) for this
       const currentSheet = document.getElementById('mainCategory').value;
       document.getElementById('entryForm').reset();
 
@@ -722,7 +906,7 @@
       document.getElementById('slNo').value = "";
 
       document.getElementById('mainCategory').value = currentSheet; // Preserve current sheet selection
-      updateSubCategories(""); 
+      updateSubCategories(); 
       document.getElementById('submitBtn').innerHTML = "Add to Inventory";
       document.getElementById('submitBtn').style.backgroundColor = "var(--vg-brown)";
       if(c) document.getElementById('searchInput').value = "";
@@ -732,11 +916,21 @@
       document.getElementById('deleteInventoryBtn').style.display = 'none';
 
       const fileInput = document.getElementById('imageFileSelector');
+      const uploadBtn = document.getElementById('uploadBtn');
+      
       if (fileInput) {
         fileInput.style.outline = "none";
         fileInput.style.border = "1px solid var(--border-light)";
         fileInput.value = ""; // Clear the actual file selection
       }
+
+      fileInput.disabled = false;
+      fileInput.style.opacity = "1";
+      fileInput.style.cursor = "pointer";
+      
+      if(uploadBtn) uploadBtn.disabled = false;
+
+      resetImageUI();
 
       // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
       const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
@@ -1001,6 +1195,9 @@
       if (mainApp) mainApp.style.display = 'none';
       if (loginFrame) loginFrame.style.display = 'block';
 
+      updateImageInputState();
+
+
       window.scrollTo(0,0);
     }
 
@@ -1048,27 +1245,36 @@
         }
       }
 
-      // 4. Load Inventory Data
-      // 1. Fetch Dynamic Mapping from Server
-      // This uses the unified cache keys we set up in Code.gs
-      google.script.run
-        .withSuccessHandler(function(serverMap) {
-          // Store the dynamic map globally in the sidebar
-          window.subCategoryMap = serverMap;
-          
-          // 2. Immediate UI Setup (Now with real data)
-          updateSubCategories(); 
-          
-          console.log("Subcategory map loaded from Admin Sheet.");
+       // 4.Fetch main categoreis from admin sheet
+        google.script.run
+            .withSuccessHandler(config => {
+              // Store map globally
+              window.subCategoryMap = config.categoryMap;
+              const validSheets = config.validSheets;
+
+              // 3. Populate the Main Category Dropdown
+              const mainCatSelect = document.getElementById('mainCategory');
+              if (mainCatSelect && validSheets) {
+                mainCatSelect.innerHTML = ""; // Clear placeholder
+                validSheets.forEach(sheetName => {
+                  let opt = document.createElement('option');
+                  opt.value = sheetName;
+                  opt.textContent = sheetName;
+                  mainCatSelect.appendChild(opt);
+                });
+
+                //5.  --- TRIGGER SUBCATEGORY LOAD ONLY AFTER MAIN CATS EXIST ---
+                fetchSubCategoryData();
+
+              }
         })
-        .withFailureHandler(function(err) {
-          console.error("Failed to load dynamic categories: " + err);
-          // Optional: Fallback to a hardcoded map if server fails
+        .withFailureHandler(err => {
+          console.error("Config load failed:", err);
         })
-        .getSubCategoryMap(true);
+        .getCategoryMap(true); // Call your Apps Script function
 
       
-      // 2. Parallel Data Fetching
+      // 6. Parallel Data Fetching
       // These fire at the same time, whichever finishes first renders first.
       loadRecentItems(); 
       loadVendors();
@@ -1094,9 +1300,29 @@
         }
       });
       
-      // 3. Pre-focus for scanning
+      // 7. Pre-focus for scanning
       document.getElementById('searchInput').focus();
 
+      // 8 . Disable editing SKU field
+      document.getElementById('skuField').readOnly = true;
+      document.getElementById('skuField').style.backgroundColor = "#f0f0f0"; // Visual cue it's locked
+      document.getElementById('skuField').style.cursor = "not-allowed";
+
+    }
+
+    // Separate this into a function to keep it clean
+    function fetchSubCategoryData() {
+      google.script.run
+        .withSuccessHandler(function(serverMap) {
+          window.subCategoryMap = serverMap;
+          
+          // Now that the mainCategory dropdown definitely has a value, 
+          // this will correctly trigger the subcategories and the SKU generation
+          updateSubCategories(); 
+          
+          console.log("Subcategory map and initial SKU loaded.");
+        })
+        .getSubCategoryMap(true);
     }
    
  /***********************************End  Login Section *************************************************************/ 
@@ -1162,6 +1388,5 @@
       }
     });
     // END - SKU list during search 
-    
 
 </script>
