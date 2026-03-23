@@ -524,4 +524,132 @@
     box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
     /* Subtle brown glow */
   }
+
+  .inventory-img {
+    transition: opacity 0.3s ease-in-out;
+    background-color: #f8f9fa;
+    /* Prevents white flashes while loading */
+  }
+
+  /* 1. Improved Image Loading State */
+  .inventory-img {
+    height: 140px !important;
+    /* Forces consistent height for all 68 items */
+    width: 100%;
+    object-fit: cover;
+    background-color: #f0f0f0;
+    display: block;
+    opacity: 0.9;
+    /* Slight transparency until fully loaded if you use the JS onload */
+    transition: opacity 0.4s ease-in;
+  }
+
+  /* 2. Sold Out Overlay (If you remove the stock > 0 filter) */
+  .out-of-stock {
+    position: relative;
+    filter: grayscale(0.8);
+    opacity: 0.7;
+    pointer-events: none;
+    /* Prevents adding to cart */
+  }
+
+  .out-of-stock::after {
+    content: "SOLD OUT";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    padding: 5px 15px;
+    font-weight: bold;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    z-index: 2;
+  }
+
+  /* 3. Ensure the Refresh Icon Spins */
+  .btn-vg-refresh.spinning i {
+    animation: rotation 1s infinite linear;
+    display: inline-block;
+    /* Required for transform/rotation to work */
+  }
+
+  /* 4. Category Header styling for the grid */
+  .grid-category-header {
+    width: 100%;
+    padding: 10px 5px;
+    margin-top: 20px;
+    border-bottom: 2px solid var(--vg-amber);
+    color: var(--vg-brown);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /*For low stock indication*/
+  /* Container for the stock badges on the image */
+  .stock-badge-container {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    z-index: 2;
+  }
+
+  /* Professional pill-shaped badges */
+  .stock-badge-container .badge {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+    border-radius: 50px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Subtle label for healthy stock levels */
+  .stock-label {
+    font-size: 0.7rem;
+    color: #666;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+  }
+
+  /* Visual cue for low stock cards */
+  .low-stock-border {
+    border-bottom: 3px solid var(--vg-amber) !important;
+  }
+
+  /* Gray out out-of-stock items */
+  .out-of-stock {
+    opacity: 0.7;
+    filter: grayscale(0.5);
+  }
+
+  /*Toggle filter*/
+  /* Pre-order Button Styling */
+  /* Pre-order Button Styling */
+  .btn-outline-primary {
+    border: 1px solid var(--vg-brown) !important;
+    color: var(--vg-brown) !important;
+    background: transparent !important;
+  }
+
+  .btn-outline-primary:hover {
+    background: var(--vg-brown) !important;
+    color: white !important;
+  }
+
+  /* Toggle Switch Color */
+  .form-check-input:checked {
+    background-color: var(--vg-amber) !important;
+    border-color: var(--vg-amber) !important;
+  }
+
+  /* Subtle visual cue for pre-order cards */
+  .pre-order-card {
+    border: 1px dashed #0d6efd !important;
+    background-color: #f0f7ff !important;
+  }
 </style>

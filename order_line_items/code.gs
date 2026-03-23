@@ -13,8 +13,6 @@ var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
 var TAB_ADMINS_VARGA = "varga"
 
-var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
-var Default_Sheet = "Shridhanya";
 
 function doGet() {
   // 1. Create a template from the file
@@ -82,19 +80,22 @@ function validateLogin(varga, name, mobile) {
 }
 
 function getInventoryData() {
+  // Fetch dynamic categories
+  const categoryConfig = getCategoryMap();
+  const currentValidSheets = categoryConfig.validSheets;
+
   const adminSS = SpreadsheetApp.openById(ID_ADMINS);
   const adminSheet = adminSS.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
   const adminData = adminSheet.getDataRange().getValues();
+
+  // Get current date once outside the loop
   const now = new Date();
+  const nowStr = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
 
   // 1. Get list of currently ACTIVE categories (Normalized to lowercase)
   const activeCategories = adminData.slice(1).reduce((acc, row) => {
     const category = String(row[0]).toLowerCase().trim();
     const status = String(row[1]).toLowerCase().trim();
-
-    // 2. Get current date in YYYY-MM-DD format based on Script timezone
-    const now = new Date();
-    const nowStr = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
 
     // Check if cells are empty
     if (!row[2] || !row[3]) return acc;
@@ -104,10 +105,7 @@ function getInventoryData() {
       const fromStr = Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy-MM-dd");
       const toStr = Utilities.formatDate(new Date(row[3]), Session.getScriptTimeZone(), "yyyy-MM-dd");
 
-      // Debugging: View this in the "Executions" tab of Apps Script
-      console.log(`Checking ${category}: Status=${status}, Now=${nowStr}, Range=${fromStr} to ${toStr}`);
-
-      // 4. Compare strings (alphabetical comparison works for yyyy-mm-dd)
+      // 4. Compare strings
       if (status === 'enable' && nowStr >= fromStr && nowStr <= toStr) {
         acc.push(category);
       }
@@ -121,16 +119,16 @@ function getInventoryData() {
   const ss = SpreadsheetApp.openById(ID_INVENTORY);
   let allItems = [];
 
-  // 2. Normalize VALID_SHEETS for comparison
-  const normalizedValidSheets = VALID_SHEETS.map(s => s.toLowerCase().trim());
+  // 2. Normalize valid sheets for comparison
+  const normalizedValidSheets = currentValidSheets.map(s => s.toLowerCase().trim());
 
-  normalizedValidSheets.forEach(sheetName => {
+  // FIXED: Added 'index' to the forEach parameters
+  normalizedValidSheets.forEach((sheetName, index) => {
     // Compare lowercase sheet name against our active list
     if (activeCategories.indexOf(sheetName) === -1) return;
 
     // Use the actual sheet name from the valid list to open the tab
-    // (Google Sheets tab names themselves are case-sensitive)
-    const originalSheetName = VALID_SHEETS[normalizedValidSheets.indexOf(sheetName)];
+    const originalSheetName = currentValidSheets[index];
     const sheet = ss.getSheetByName(originalSheetName);
 
     if (!sheet) return;
@@ -147,8 +145,8 @@ function getInventoryData() {
       stock: parseFloat(row[4]) || 0,
       salePrice: parseFloat(row[7]) || 0,
       moq: parseFloat(row[10]) || 0.5,
-      imageUrl: row[16] || "https://via.placeholder.com/150"
-    })).filter(item => item.sku && item.sku !== "undefined" && item.stock > 0);
+      imageUrl: (row[16] || "https://via.placeholder.com/150") + "?v=" + new Date().getTime()
+    })).filter(item => item.sku && item.sku !== "undefined");
 
     allItems = allItems.concat(items);
   });
@@ -162,6 +160,9 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
   try {
     // Wait for up to 30 seconds for other orders to finish writing
     lock.waitLock(30000);
+
+    // Fetch dynamic categories for validation
+    const currentValidSheets = getCategoryMap().validSheets;
 
     const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS_MAIN);
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS_MAIN);
@@ -204,7 +205,7 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
 
     // 3. Inventory Sync (Optimization: Minimize setValues calls)
     fullCart.forEach(cartItem => {
-      if (VALID_SHEETS.indexOf(cartItem.mainCategory) === -1) return;
+      if (currentValidSheets.indexOf(cartItem.mainCategory) === -1) return;
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
       if (!targetSheet) return;
 
@@ -618,4 +619,174 @@ function registerGuest(event, name, mobile, associate) {
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+
+/*********************Get Category from admin sheet************************/
+
+/**
+ * NEW: Dynamic fetch all main categories from admin sheet
+ * This replaces the static VALID_SHEETS array.
+ */
+function getCategoryMap(forceRefresh = false) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "full_category_map";
+  let cachedMap = forceRefresh ? null : cache.get(cacheKey);
+
+  if (cachedMap) return JSON.parse(cachedMap);
+
+  try {
+    const adminSs = SpreadsheetApp.openById(ID_ADMINS);
+    const sheet = adminSs.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
+    const data = sheet.getDataRange().getValues();
+
+    let categoryMap = {};
+    let validSheets = [];
+    let shortCodes = {}; // New object for codes
+
+    for (var i = 1; i < data.length; i++) {
+      let mainCat = String(data[i][0]).trim();    // Column A
+      let subCatsRaw = String(data[i][4] || "");  // Column E
+      let shortCode = String(data[i][5]).trim();  // Column F (New!)
+
+      if (mainCat) {
+        categoryMap[mainCat] = subCatsRaw.split(',').map(s => s.trim()).filter(String);
+        validSheets.push(mainCat);
+        shortCodes[mainCat] = shortCode || mainCat.substring(0, 2).toUpperCase();
+      }
+    }
+
+    const configResult = {
+      categoryMap: categoryMap,
+      validSheets: validSheets,
+      shortCodes: shortCodes, // Include in result
+      defaultSheet: validSheets.length > 0 ? validSheets[0] : ""
+    };
+
+    cache.put(cacheKey, JSON.stringify(configResult), 1500);
+    return configResult;
+  } catch (e) {
+    return { categoryMap: {}, validSheets: [], shortCodes: {}, error: e.toString() };
+  }
+}
+
+
+/**************************************Debug functions*******************/
+
+/**
+ * Test function to verify the dynamic category mapping.
+ * Run this from the Apps Script editor's function dropdown.
+ */
+function debugCategoryMap() {
+  console.log("--- Starting Category Map Debug ---");
+
+  try {
+    // We pass 'true' to force a fresh fetch from the sheet, ignoring the cache
+    const config = getCategoryMap(true);
+
+    if (config.error) {
+      console.error("Error found in mapping: " + config.error);
+      return;
+    }
+
+    console.log("1. Valid Sheets (Tabs found): " + JSON.stringify(config.validSheets));
+    console.log("2. Short Codes (Column F mapping): " + JSON.stringify(config.shortCodes));
+
+    // Check specific categories
+    config.validSheets.forEach(cat => {
+      const subs = config.categoryMap[cat] || [];
+      const code = config.shortCodes[cat];
+      console.log(`> Category: [${cat}] | Code: [${code}] | Sub-Cats: ${subs.length} items`);
+      if (subs.length > 0) console.log(`  Detail: ${subs.join(" | ")}`);
+    });
+
+    console.log("3. Default Sheet set to: " + config.defaultSheet);
+    console.log("--- Debug Complete ---");
+
+  } catch (e) {
+    console.error("Critical Failure in Debugger: " + e.toString());
+  }
+}
+
+/**
+ * Test function to debug the Inventory loading logic.
+ * Helps identify if a category is missing due to dates, status, or tab naming.
+ */
+function debugInventoryLoading() {
+  console.log("--- Starting Inventory Debug ---");
+
+  try {
+    // 1. Check Category Mapping first
+    const config = getCategoryMap(true); // Force refresh
+    const validSheets = config.validSheets;
+    console.log("Registered Categories in Admin:", validSheets.join(", "));
+
+    // 2. Run the actual inventory fetch
+    const startTime = new Date().getTime();
+    const items = getInventoryData();
+    const endTime = new Date().getTime();
+
+    // 3. Analyze Results
+    if (items.length === 0) {
+      console.warn("RESULT: No items returned! Check 'enable_maincategory' dates and status.");
+    } else {
+      console.log(`RESULT: Found ${items.length} total items in ${(endTime - startTime) / 1000}s`);
+
+      // Count items per category to see what's actually loading
+      const counts = items.reduce((acc, item) => {
+        acc[item.mainCategory] = (acc[item.mainCategory] || 0) + 1;
+        return acc;
+      }, {});
+
+      console.log("Items loaded per Category:");
+      Object.keys(counts).forEach(cat => {
+        console.log(` > ${cat}: ${counts[cat]} items`);
+      });
+
+      // 4. Sample Item Check (Check if image/SKU mapping is correct)
+      const sample = items[0];
+      console.log("Sample Item Mapping:", {
+        Name: sample.itemName,
+        SKU: sample.sku,
+        Price: sample.salePrice,
+        Img: sample.imageUrl.substring(0, 30) + "..."
+      });
+    }
+
+  } catch (e) {
+    console.error("Critical Failure in Inventory Debugger: " + e.toString());
+  }
+  console.log("--- Debug Complete ---");
+}
+
+function auditInventoryData() {
+  const allItems = getInventoryData();
+  const ss = SpreadsheetApp.openById(ID_INVENTORY);
+  const config = getCategoryMap();
+
+  console.log("--- Inventory Audit Started ---");
+  console.log("Total items successfully loaded: " + allItems.length);
+
+  config.validSheets.forEach(sheetName => {
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+
+    const data = sheet.getDataRange().getValues().slice(1);
+    console.log(`Checking Sheet: ${sheetName} (Total Rows: ${data.length})`);
+
+    data.forEach((row, i) => {
+      const rowNum = i + 2;
+      const sku = String(row[15]);
+      const stock = parseFloat(row[4]) || 0;
+      const name = row[2] || "Unnamed Item";
+
+      let issues = [];
+      if (!sku || sku === "undefined") issues.push("Missing/Invalid SKU (Col P)");
+      if (stock <= 0) issues.push("Zero/Negative Stock (Col E)");
+
+      if (issues.length > 0) {
+        console.warn(`Row ${rowNum} [${name}]: SKIPPED due to: ${issues.join(" & ")}`);
+      }
+    });
+  });
 }

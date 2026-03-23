@@ -79,7 +79,14 @@
     <div id="shop-section" class="hidden">
       <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
         <h6 id="welcome-msg" class="mb-0 fw-bold"></h6>
-        <div class="d-flex gap-2">
+        <div class="d-flex align-items-center gap-3">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="shortage-toggle" onchange="filterItems()">
+            <label class="form-check-label small fw-bold" for="shortage-toggle" style="color:var(--vg-brown); cursor:pointer;">
+              Low Stocks Only
+            </label>
+          </div>
+
           <button class="btn btn-vg-refresh btn-sm d-flex align-items-center" onclick="refreshData()">
             <i class="material-icons" style="font-size: 16px; margin-right: 4px;">sync</i> Refresh
           </button>

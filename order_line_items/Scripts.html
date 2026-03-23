@@ -225,35 +225,77 @@
     filterItems();
   }
 
-  function filterItems() {
-    const q = document.getElementById('search-bar').value.toLowerCase();
-    const mainC = document.getElementById('main-cat-filter').value;
-    const subC = document.getElementById('sub-cat-filter').value;
+   function filterItems() {
+    const searchBar = document.getElementById('search-bar');
+    const mainCatFilter = document.getElementById('main-cat-filter');
+    const subCatFilter = document.getElementById('sub-cat-filter');
+    const shortageToggle = document.getElementById('shortage-toggle');
+
+    // Safety: If elements aren't loaded yet, don't run
+    if (!searchBar || !mainCatFilter || !subCatFilter) return;
+
+    const searchTerm = searchBar.value.toLowerCase();
+    const mainCat = mainCatFilter.value;
+    const subCat = subCatFilter.value;
+    const shortageOnly = shortageToggle ? shortageToggle.checked : false;
+
     const filtered = fullInventory.filter(i => {
-      const matchSearch = i.itemName.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q));
-      const matchMain = (mainC === "All" || i.mainCategory === mainC);
-      const matchSub = (subC === "All" || i.subCategory === subC);
-      return matchSearch && matchMain && matchSub;
+      // 1. Search Filter
+      const matchesSearch = i.itemName.toLowerCase().includes(searchTerm) || 
+                            (i.sku && i.sku.toLowerCase().includes(searchTerm));
+      
+      // 2. Category Filters
+      const matchesMain = (mainCat === 'All' || i.mainCategory === mainCat);
+      const matchesSub = (subCat === 'All' || i.subCategory === subCat);
+      
+      // 3. Shortage Filter (The Logic Fix)
+      // Convert to number; default to 0 if empty/null
+      const stockLevel = parseFloat(i.stock) || 0; 
+      const isShortageItem = stockLevel <= 5; 
+      
+      const matchesShortage = shortageOnly ? isShortageItem : true;
+      //console.log("Item:", i.itemName, "Stock:", stockLevel, "Is Shortage:", isShortageItem);
+
+      return matchesSearch && matchesMain && matchesSub && matchesShortage;
     });
+
     renderInventory(filtered);
   }
 
   function renderInventory(items) {
     const grid = document.getElementById('inventory-grid');
 
-    if (items.length === 0) { 
-      grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found.</div>'; 
-      return; 
+    if (items.length === 0) {
+      grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found matching your filters.</div>';
+      return;
     }
 
     grid.innerHTML = items.map(i => {
       const itemMoq = i.moq || 0.5;
-      // FIX: Define formattedBadge INSIDE the map loop
       const formattedBadge = toTitleCase(i.mainCategory);
+      const stock = parseFloat(i.stock) || 0;
+      
+      let stockStatus = '';
+      let btnText = 'Add';
+      let btnClass = 'btn-success'; // Standard green/brown
+      let cardClass = '';
+
+      if (stock <= 0) {
+        stockStatus = `<span class="badge bg-primary position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1;">PRE-ORDER</span>`;
+        btnText = 'Pre-order';
+        btnClass = 'btn-outline-primary'; // Different style for pre-order
+        cardClass = 'pre-order-card';
+      } else if (stock <= 5) {
+        stockStatus = `<span class="badge bg-warning text-dark position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1;">LOW STOCK: ${stock}</span>`;
+        cardClass = 'low-stock-card';
+      } else {
+        stockStatus = `<span class="badge bg-success position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1; opacity:0.8;">${stock} IN STOCK</span>`;
+      }
 
       return `
       <div class="col-6 col-md-4">
-        <div class="item-card p-2 text-center d-flex flex-column shadow-sm">
+        <div class="item-card p-2 text-center d-flex flex-column shadow-sm h-100 ${cardClass}" style="position:relative;">
+          ${stockStatus}
           <div class="text-end">
             <span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">
               ${formattedBadge}
@@ -266,7 +308,9 @@
           <div class="mt-auto">
             <div class="d-flex gap-1">
               <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
-              <button id="btn-${i.sku}" class="btn btn-sm btn-success" onclick="addToCart('${i.sku}')">Add</button>
+              <button id="btn-${i.sku}" class="btn btn-sm ${btnClass} w-100" onclick="addToCart('${i.sku}')">
+                ${btnText}
+              </button>
             </div>
             <span class="moq-label">Min: ${itemMoq} ${i.uom}</span>
           </div>
