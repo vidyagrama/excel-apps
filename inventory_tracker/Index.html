@@ -101,7 +101,7 @@
             </div>
             <div class="field"><label>Sale Price (Auto)</label><input type="number" step="0.01" name="salePrice" id="sPrice" readonly>
             </div>
-            <div class="field"><label>Current Stock</label><input type="number" name="stock" id="stockInput" required oninput="calculateAutoFields()">
+            <div class="field"><label>Current Stock</label><input type="number" name="stock" id="stockInput" step="0.01" oninput="calculateAutoFields()">
             </div>
             <div class="field"><label>Stock Value (Auto)</label><input type="number" step="0.01" name="stockValue" id="valOutput" readonly>
             </div>
@@ -111,11 +111,10 @@
             <div class="field"><label>Mfg Date</label><input type="date" name="mfgDate"></div>
             <div class="field"><label>Expiry Date</label><input type="date" name="expiryDate"></div>
             <div class="field">
-              <div>
-                <label>SKU / Barcode <span style="color:var(--danger-red)">*</span> </label>
-                <div style="display: flex; gap: 5px;">
-                  <input type="text" name="sku" id="skuField" oninput="validateSkuLive()" placeholder="Auto-gen" readonly class="locked-field">
-                </div>
+              <label>SKU / Barcode <span style="color:var(--danger-red)">*</span></label>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="text" id="skuField" name="sku" style="flex: 1;">
+                <span id="barcodeStatus" style="display: inline-block; min-width: 20px; font-weight: bold;"></span>
               </div>
             </div>
             <div class="field full-width">

@@ -92,6 +92,14 @@
             .withSuccessHandler(nextSku => {
               skuField.value = nextSku;
               checkExistingImage(nextSku);
+
+              // 2. NEW: Check for Google Drive Barcode
+              google.script.run
+                .withSuccessHandler(exists => {
+                  updateBarcodeStatus(exists);
+                })
+                .checkBarcodeExists(nextSku);
+
             })
             .getNextSku(main);
         }
@@ -374,20 +382,43 @@
                 f.expiryDate.value = d[14]; 
                 f.sku.value = d[15];
                 
-                // Image loading logic
-                f.image_url.value = d[16] || "";
-                f.delete_url.value = d[17] || "";
-                const latestImageUrl = d[16] + "?t=" + new Date().getTime();
+               // --- Updated Image Loading Logic ---
+                const dbImageUrl = d[16] || "";
+                const dbFileId = d[17] || "";
+                const currentSku = d[15];
 
-                updateImageInputState();
+                f.sku.value = currentSku;
+                f.image_url.value = dbImageUrl;
+                f.delete_url.value = dbFileId;
 
-                if (d[16]) {
+                if (dbImageUrl && dbImageUrl.trim() !== "") {
+                    // SCENARIO 1: Image exists in Database
+                    const latestImageUrl = dbImageUrl + "?t=" + new Date().getTime();
                     document.getElementById('imgPreview').src = latestImageUrl;
                     document.getElementById('imagePreviewContainer').style.display = 'block';
                     document.getElementById('deleteBtn').style.display = 'block';
+                    updateImageInputState();
+                } else if (currentSku) {
+                    // SCENARIO 2: Database is empty, but we have a SKU
+                    console.log("Empty DB URL. Double-checking ImageKit for SKU:", currentSku);
+                    
+                    // This function will fetch the URL AND the fileId (metadata) 
+                    // and populate the hidden form fields automatically.
+                    checkExistingImage(currentSku);
                 } else {
+                    // SCENARIO 3: No Image and No SKU
                     document.getElementById('imagePreviewContainer').style.display = 'none';
                     document.getElementById('deleteBtn').style.display = 'none';
+                    updateImageInputState();
+                }
+
+                // Also trigger the Barcode check while we are at it
+                if (currentSku) {
+                    google.script.run
+                      .withSuccessHandler(exists => {
+                        updateBarcodeStatus(exists);
+                      })
+                      .checkBarcodeExists(currentSku);
                 }
 
                 // Update UI Button
@@ -405,9 +436,9 @@
                   el.disabled = true;
                   el.style.backgroundColor = "#f0f0f0";
                 });*/
-                skuField.readOnly = true;
+                /*skuField.readOnly = false;
                 skuField.style.backgroundColor = "#f0f0f0";
-                skuField.style.cursor = "not-allowed";
+                skuField.style.cursor = "not-allowed";*/
                 // -------------------------------------------
 
                 
@@ -438,6 +469,41 @@
       fileInput.style.border = "1px solid var(--border-light)";
       fileInput.style.outline = "none";
     }
+
+
+    // Attach listener to SKU field
+    document.getElementById('skuField').addEventListener('change', function() {
+        const manualSku = this.value;
+        
+        if (manualSku && manualSku !== "Generating...") {
+            console.log("SKU manually changed to:", manualSku);
+            
+            // 1. Check for Photo in ImageKit
+            checkExistingImage(manualSku);
+            
+            // 2. Check for Barcode in Google Drive
+            google.script.run
+              .withSuccessHandler(exists => {
+                updateBarcodeStatus(exists);
+              })
+              .checkBarcodeExists(manualSku);
+        }
+    });
+
+    function updateBarcodeStatus(exists) {
+      const statusEl = document.getElementById('barcodeStatus');
+      if (!statusEl) return;
+
+      if (exists) {
+        statusEl.innerHTML = '✅'; 
+        statusEl.style.display = 'inline-block';
+        statusEl.style.color = 'green';
+      } else {
+        statusEl.innerHTML = ''; 
+        statusEl.style.display = 'none';
+      }
+    }
+
 
     // Upload selected item image.
     async function uploadToImageKit() {
@@ -610,7 +676,7 @@
     const container = document.getElementById('imagePreviewContainer');
     const deleteBtn = document.getElementById('deleteBtn');
     const imageUrlField = document.getElementById('image_url');
-    const deleteUrlField = document.getElementById('delete_url');
+    const deleteUrlField = document.getElementById('delete_url'); 
 
     try {
       // 1. We use HEAD to check existence without downloading the full image bytes
@@ -621,6 +687,12 @@
         imgPreview.src = imageUrl;
         container.style.display = 'block';
         imageUrlField.value = imageUrl;
+
+        // CLEAN THE URL: Save only the base path to the database
+        const cleanUrl = imageUrl.split('?')[0]; 
+        imageUrlField.value = cleanUrl; 
+        console.log("💾 Clean URL for DB:", cleanUrl);
+        
 
         // Now fetch the fileId from the backend securely
         google.script.run
@@ -1304,9 +1376,9 @@
       document.getElementById('searchInput').focus();
 
       // 8 . Disable editing SKU field
-      document.getElementById('skuField').readOnly = true;
+      /*document.getElementById('skuField').readOnly = false;
       document.getElementById('skuField').style.backgroundColor = "#f0f0f0"; // Visual cue it's locked
-      document.getElementById('skuField').style.cursor = "not-allowed";
+      document.getElementById('skuField').style.cursor = "not-allowed";*/
 
     }
 

@@ -536,6 +536,40 @@ function saveBarcodeToDrive(sku, itemName) {
   }
 }
 
+
+/** Barcode check **/
+/**
+ * Checks if a Barcode image exists in a specific Google Drive Folder
+ */
+function checkBarcodeExists(sku) {
+  try {
+    // Replace with your actual Folder ID from Google Drive URL
+    const folder = DriveApp.getFolderById(ID_BARCODES); 
+    const files = folder.getFilesByName(sku + ".png"); 
+    return files.hasNext(); 
+  } catch (e) {
+    console.error("Drive Error:", e);
+    return false;
+  }
+}
+
+// Function to update the visual status of the barcode
+function updateBarcodeStatus(exists) {
+  const statusEl = document.getElementById('barcodeStatus');
+  if (!statusEl) return;
+
+  if (exists) {
+    // Show a green tick if it exists in Drive
+    statusEl.innerHTML = '✅'; 
+    statusEl.title = "Barcode exists in Drive";
+    statusEl.style.display = 'inline-block';
+  } else {
+    // Hide it or show a placeholder if it doesn't exist
+    statusEl.innerHTML = ''; 
+    statusEl.style.display = 'none';
+  }
+}
+
 /**
  * GENERATE BULK PDF: Prints all barcodes in the current sheet
  */
