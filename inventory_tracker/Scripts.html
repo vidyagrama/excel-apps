@@ -866,28 +866,18 @@
         }
       };
 
-      if (!isUpdate) {
-        // FLOW FOR NEW ITEMS
-        subBtn.innerHTML = `Saving Barcode for ${itemName}...`;
-        const sku = document.getElementById('skuField').value;
+      generateAndSaveBarcode();
 
-        google.script.run
-          .withSuccessHandler(() => {
-            subBtn.innerHTML = `Adding ${itemName} to Inventory...`;
-            // Pass itemName to the next step
-            submitFormData(this, itemName);
-          })
-          .withFailureHandler((err) => {
-            showStatus(`Failed to save barcode for ${itemName}: ` + err.message, "#dc3545");
-            subBtn.disabled = false;
-            subBtn.innerHTML = "Add to Inventory";
-          })
-          .saveBarcodeToDrive(sku, itemName);
-      } else {
-        // FLOW FOR UPDATES
+      if(isUpdate){
         subBtn.innerHTML = `Updating ${itemName}...`;
         submitFormData(this, itemName);
       }
+      else{
+        subBtn.innerHTML = `Adding ${itemName} to Inventory...`;
+         // Pass itemName to the next step
+        submitFormData(this, itemName);
+      }
+
     });
 
     // Submit main data for ADD/ UPDATE Inventory
@@ -942,6 +932,7 @@
           showStatus(`Error processing ${itemName}: ` + err, "#dc3545");
           subBtn.disabled = false;
           subBtn.innerHTML = "Add to Inventory";
+          clearFormToDefault(true);
         })
         .processForm(formData); // Pass the object here
     }
@@ -1070,26 +1061,43 @@
     function generateAndSaveBarcode() {
       const sku = document.getElementById('skuField').value;
       const itemName = document.getElementsByName('itemName')[0].value;
-      const btn = document.getElementById('saveBarcodeBtn');
+      const btn = document.getElementById('submitBtn');
 
-      if (!sku || !itemName) return showStatus("Need SKU and Item Name!", "#dc3545");
+      if (!sku || !itemName) {
+        return showStatus("Need SKU and Item Name!", "#dc3545");
+      }
 
-      btn.innerHTML = "Saving...";
+      btn.innerHTML = "Checking Drive...";
       btn.disabled = true;
 
+      // STEP 1: Check if it already exists
       google.script.run
-        .withSuccessHandler(url => {
-          showStatus("Barcode saved to Drive!", "var(--success-green)");
-          btn.innerHTML = "Save Barcode";
-          btn.disabled = false;
-          // Optional: Open the image in a new tab
-          window.open(url, '_blank');
+        .withSuccessHandler(exists => {
+          if (exists) {
+            //showStatus("✅ Barcode already exists in Drive!", "var(--vg-amber)");
+            updateBarcodeStatus(true); // Ensure the tickmark shows up
+            btn.disabled = false;
+
+          } else {
+            // STEP 2: Does not exist, proceed to generate
+            btn.innerHTML = "Generating...";
+            google.script.run
+              .withSuccessHandler(url => {
+                showStatus("Barcode created and saved!", "var(--success-green)");
+                updateBarcodeStatus(true);
+                btn.innerHTML = "Saving Barcode";
+                btn.disabled = false;
+               // window.open(url, '_blank');
+              })
+              .withFailureHandler(err => {
+                showStatus("Generation failed: " + err, "#dc3545");
+                btn.disabled = false;
+                btn.innerHTML = "Generation failed!";
+              })
+              .saveBarcodeToDrive(sku, itemName);
+          }
         })
-        .withFailureHandler(err => {
-          showStatus(err.message, "#dc3545");
-          btn.disabled = false;
-        })
-        .saveBarcodeToDrive(sku, itemName);
+        .checkBarcodeExists(sku);
     }
 
     function showCustomAlert(msg) {

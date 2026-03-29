@@ -61,20 +61,6 @@ function onEdit(e) {
     }
   }
 
-  // --- PART B: DYNAMIC DROPDOWN (Column B) ---
-  const subCatCol = 2; // Column B
-  // If you edit any column OTHER than the subcategory itself,
-  // we ensure the dropdown is present in Column B for that row.
-  if (col !== subCatCol) {
-    const subCatCell = sheet.getRange(row, subCatCol);
-
-    // Check if validation already exists to prevent redundant slow calls
-    if (!subCatCell.getDataValidation()) {
-      // Pass the sheetName (e.g., "Vastram") to fetch the right list
-      updateSubCategoryDropdown(sheetName, subCatCell, false);
-    }
-  }
-
 }
 
 /**
@@ -117,18 +103,6 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
     console.log("Subcategory cache refreshed from Admin Sheet for: " + mainCat);
   }
 
-  // 3. Apply validation
-  if (subCatString) {
-    const options = subCatString.split(',').map(item => item.trim()).filter(String);
-    const rule = SpreadsheetApp.newDataValidation()
-      .requireValueInList(options, true)
-      .setAllowInvalid(false)
-      .build();
-
-    cell.setDataValidation(rule);
-  } else {
-    cell.clearDataValidations();
-  }
 }
 
 /**
