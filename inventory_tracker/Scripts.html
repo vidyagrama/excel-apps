@@ -54,59 +54,58 @@
       subSelect.innerHTML = '<option value="" disabled selected>Select Subcategory</option>';
       uomSelect.innerHTML = '<option value="" disabled selected>Select Unit</option>'; 
 
-      const currentMap = window.subCategoryMap || {}; 
+      // DEBUG: Let's see the entire map in the console
+      const currentMap = window.subCategoryMap || window.categoryMap || {}; 
+      console.log("🔍 Current Category Map Keys:", Object.keys(currentMap));
+      
       const catData = currentMap[main];
 
-      if (catData) {
-        // 2. Populate Sub-Categories
-        catData.subs.forEach(opt => {
-          subSelect.add(new Option(opt, opt));
-        });
-
-        // 3. Populate UOMs (Loop through the array)
-        if (catData.uoms && catData.uoms.length > 0) {
-          catData.uoms.forEach(unit => {
-            let opt = new Option(unit, unit);
-            uomSelect.add(opt);
+      if (catData && Array.isArray(catData.subs)) {
+          console.log("✅ Match found for:", main);
+          
+          // 2. Populate Sub-Categories
+          catData.subs.forEach(opt => {
+              subSelect.add(new Option(opt, opt));
           });
 
-          // Logic: Prioritize existing record's UOM, otherwise pick the first available one
-          if (selectedUom) {
-            uomSelect.value = selectedUom;
-          } else if (catData.uoms.length === 1) {
-            // If there's only one option (e.g., just 'kg'), select it automatically
-            uomSelect.selectedIndex = 1; 
+          // 3. Populate UOMs
+          if (catData.uoms && catData.uoms.length > 0) {
+              catData.uoms.forEach(unit => {
+                  uomSelect.add(new Option(unit, unit));
+              });
+              if (selectedUom) {
+                  uomSelect.value = selectedUom;
+              } else if (catData.uoms.length === 1) {
+                  uomSelect.selectedIndex = 1; 
+              }
+          } else {
+              uomSelect.add(new Option("No's", "No's"));
           }
-        } else {
-          uomSelect.add(new Option("No's", "No's"));
-        }
 
-        // 4. Mode Detection (Update vs New)
-        if (selectedSub) {
-          subSelect.value = selectedSub;
-          console.log("Update Mode: Preserving existing SKU.");
-        } else {
-          console.log("New Item Mode: Generating fresh SKU.");
-          skuField.value = "Generating..."; 
-          google.script.run
-            .withSuccessHandler(nextSku => {
-              skuField.value = nextSku;
-              checkExistingImage(nextSku);
-
-              // 2. NEW: Check for Google Drive Barcode
+          // 4. Mode Detection (Update vs New)
+          if (selectedSub) {
+              subSelect.value = selectedSub;
+          } else {
+              skuField.value = "Generating...";
+              const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
               google.script.run
-                .withSuccessHandler(exists => {
-                  updateBarcodeStatus(exists);
-                })
-                .checkBarcodeExists(nextSku);
-
-            })
-            .getNextSku(main);
-        }
+                  .withSuccessHandler(nextSku => {
+                      skuField.value = nextSku;
+                      google.script.run
+                          .withSuccessHandler(exists => updateBarcodeStatus(exists))
+                          .checkBarcodeExists(nextSku);
+                  })
+                  .getNextSku(main, session.username);
+          }
       } else {
-        let loadingEl = document.createElement("option");
-        loadingEl.textContent = "Select a Main Category first...";
-        subSelect.appendChild(loadingEl);
+          // ERROR HANDLING: If GauAmruth is missing from the map
+          console.error("❌ CRITICAL: '" + main + "' is missing from the subCategoryMap.");
+          console.log("Available Keys are:", Object.keys(currentMap));
+          
+          let errorEl = new Option("Category Mapping Missing!", "");
+          subSelect.appendChild(errorEl);
+          
+          if (!selectedSub) skuField.value = "ERROR: No Map";
       }
     }
 
@@ -133,10 +132,10 @@
         if (isLow) row.classList.add('low-stock-row');
 
         row.onclick = () => {
-          /*if (item.sheetOrigin) {
+          if (item.sheetOrigin) {
             document.getElementById('mainCategory').value = item.sheetOrigin;
-            updateSubCategories("");
-          }*/
+            //updateSubCategories();
+          }
           document.getElementById('searchInput').value = item.sku || item.slNo;
           findItem();
         };
@@ -168,12 +167,17 @@
     }
 
     // Spinning refresh button feature added
-    function loadRecentItems() {
+    function loadRecentItems(specificSheet = null) {
       //const sheetName = document.getElementById('mainCategory').value;
+
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const currentUser = session.username;
 
       const icon = document.getElementById('refreshIcon');
       const btn = document.getElementById('refreshBtn');
       const catEl = document.getElementById('mainCategory');
+
+      console.log("🔄 Loading Recent Items for:", specificSheet || "Default Sheet");
       
       if (!catEl) {
         console.error("Crash: Cannot find 'mainCategory' element");
@@ -183,12 +187,30 @@
       const sheetName = catEl.value;
       console.log("Step 2: Sheet to fetch:", sheetName);
 
+      // PRIORITY: 1. Passed argument -> 2. Dropdown value -> 3. User Default (handled by backend)
+      let sheetToFetch = null;
+      
+      if (specificSheet && typeof specificSheet === 'string') {
+        sheetToFetch = specificSheet;
+      } else if (catEl && catEl.value) {
+        sheetToFetch = catEl.value;
+      }
+
+      console.log("🔄 Loading Recent Items. Target:", sheetToFetch || "User Default", "| User:", currentUser);
+
+      // Guard: If the UI isn't ready yet, don't crash
+      if (!catEl && !specificSheet) {
+        console.warn("UI not ready. mainCategory element missing.");
+        return;
+      }
+
       if (icon) icon.classList.add('spinning');
       if (btn) btn.disabled = true;
 
       google.script.run
         .withSuccessHandler((items) => {
           console.log("Step 3: Server returned data", items);
+          console.log("✅ Server returned", items ? items.length : 0, "items");
           
           // Safety check for the global variable
           fullInventoryData = items || [];
@@ -202,7 +224,7 @@
             const currentMain = document.getElementById('mainCategory').value;
             if (currentMain) {
               console.log("Refreshing SKU logic for category:", currentMain);
-              updateSubCategories(""); 
+              updateSubCategories(); 
             }
 
             console.log("Step 4: Table rendered");
@@ -214,12 +236,12 @@
           if (btn) btn.disabled = false;
         })
         .withFailureHandler((err) => {
-          console.error("Step 3 (Failed): Server error:", err);
+          console.error("❌ Server error during refresh:", err);
           if (icon) icon.classList.remove('spinning');
           if (btn) btn.disabled = false;
           showStatus("Refresh failed: " + err, "var(--danger-red)");
         })
-        .getRecentItems(sheetName);
+        .getRecentItems(sheetToFetch,currentUser);
 
     }
 
@@ -303,7 +325,18 @@
     // Find item based on search criteria
     function findItem() {
         const term = document.getElementById('searchInput').value;
-        if (!term) return;
+        const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+        const currentUser = session.username; // Get username from session
+
+
+        console.log("🔍 Search Initiated. Term:", term);
+
+        if (!term) {
+            console.warn("⚠️ Search aborted: No term entered.");
+            return;
+        }
+          
+
         const searchBtn = document.getElementById('mainSearchBtn');
         searchBtn.innerHTML = "Searching...";
         searchBtn.disabled = true;
@@ -312,9 +345,16 @@
             searchBtn.innerHTML = "Search";
             searchBtn.disabled = false;
             
+            console.log("📦 Server Response:", res);
+
             if (res) {
+
+              console.log("✅ Item Found in Sheet:", res.sheetName);
+              console.log("📍 Row Index:", res.row);
+
                 const d = res.data; 
                 const f = document.getElementById('entryForm');
+                const catEl = document.getElementById('mainCategory');
 
                 const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
                 const userRole = (session.role || "").toLowerCase();
@@ -332,8 +372,18 @@
                 document.getElementById('rowNumber').value = res.row;
                 document.getElementById('slNo').value = d[0];
                 f.mainCategory.value = category;
-                updateSubCategories(d[1]);
-                
+                updateSubCategories(d[1],d[3]); // d[1] is Subcat, d[3] is UOM
+
+                // 2. LOCK the category dropdown
+                if (catEl) {
+                    catEl.disabled = true;
+                    catEl.style.backgroundColor = "#f0f0f0";
+                    catEl.style.cursor = "not-allowed";
+                    catEl.title = "Category locked during update";
+                } else {
+                    console.error("Logic Error: mainCategory element not found in DOM");
+                }
+                          
                 f.itemName.value = itemName; 
                 f.uom.value = d[3];
                 f.stock.value = currentStock;
@@ -459,7 +509,7 @@
                 showStatus(`❌ No item found matching "${term}"`, "#dc3545");
                 clearFormToDefault(false);
             }
-        }).searchItem(term);
+        }).searchItem(term,currentUser);
     }
 
     // Clear image warning in the file selector once item image is uploaded succesfully
@@ -666,66 +716,66 @@
   }
 
   async function checkExistingImage(sku) {
-    if (!sku || sku === "Generating...") return;
+      if (!sku || sku === "Generating...") return;
 
-    const folderPath = "Vidyagrama/Inventory/";
-    // Use the SKU and a timestamp to avoid stale cache data
-    const imageUrl = `https://ik.imagekit.io/z9zc3r7jmi/${folderPath}${sku}?t=${new Date().getTime()}`;
+      const folderPath = "Vidyagrama/Inventory/";
+      // Use the SKU and a timestamp to avoid stale cache data
+      const imageUrl = `https://ik.imagekit.io/z9zc3r7jmi/${folderPath}${sku}?t=${new Date().getTime()}`;
 
-    const imgPreview = document.getElementById('imgPreview');
-    const container = document.getElementById('imagePreviewContainer');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const imageUrlField = document.getElementById('image_url');
-    const deleteUrlField = document.getElementById('delete_url'); 
+      const imgPreview = document.getElementById('imgPreview');
+      const container = document.getElementById('imagePreviewContainer');
+      const deleteBtn = document.getElementById('deleteBtn');
+      const imageUrlField = document.getElementById('image_url');
+      const deleteUrlField = document.getElementById('delete_url'); 
 
-    try {
-      // 1. We use HEAD to check existence without downloading the full image bytes
-      const response = await fetch(imageUrl, { method: 'HEAD' });
+      try {
+        // 1. We use HEAD to check existence without downloading the full image bytes
+        const response = await fetch(imageUrl, { method: 'HEAD' });
 
-      if (response.ok) {
-        // --- IMAGE FOUND (200 OK) ---
-        imgPreview.src = imageUrl;
-        container.style.display = 'block';
-        imageUrlField.value = imageUrl;
+        if (response.ok) {
+          // --- IMAGE FOUND (200 OK) ---
+          imgPreview.src = imageUrl;
+          container.style.display = 'block';
+          imageUrlField.value = imageUrl;
 
-        // CLEAN THE URL: Save only the base path to the database
-        const cleanUrl = imageUrl.split('?')[0]; 
-        imageUrlField.value = cleanUrl; 
-        console.log("💾 Clean URL for DB:", cleanUrl);
-        
+          // CLEAN THE URL: Save only the base path to the database
+          const cleanUrl = imageUrl.split('?')[0]; 
+          imageUrlField.value = cleanUrl; 
+          console.log("💾 Clean URL for DB:", cleanUrl);
+          
 
-        // Now fetch the fileId from the backend securely
-        google.script.run
-          .withSuccessHandler(fileData => {
-            if (fileData && fileData.fileId) {
-              deleteUrlField.value = fileData.fileId;
-              console.log("✅ Verified ImageKit ID:", fileData.fileId);
+          // Now fetch the fileId from the backend securely
+          google.script.run
+            .withSuccessHandler(fileData => {
+              if (fileData && fileData.fileId) {
+                deleteUrlField.value = fileData.fileId;
+                console.log("✅ Verified ImageKit ID:", fileData.fileId);
 
-              if (deleteBtn) deleteBtn.style.display = 'block';
+                if (deleteBtn) deleteBtn.style.display = 'block';
 
-              updateImageInputState(); 
-              showStatus("✨ Existing image found for this SKU", "var(--success-green)");
-            }
-            else {
-                // FALSE POSITIVE: Backend found nothing, hide the ghost image
-                console.warn("Ghost image detected. No metadata found for:", sku);
-                resetImageUI();
+                updateImageInputState(); 
+                showStatus("✨ Existing image found for this SKU", "var(--success-green)");
               }
-          })
-          .getImageKitMetadata(sku);
+              else {
+                  // FALSE POSITIVE: Backend found nothing, hide the ghost image
+                  console.warn("Ghost image detected. No metadata found for:", sku);
+                  resetImageUI();
+                }
+            })
+            .getImageKitMetadata(sku);
 
-      } else {
-        // --- IMAGE NOT FOUND (404) ---
-        // We don't throw an error here; we just treat it as a "No Image" state
+        } else {
+          // --- IMAGE NOT FOUND (404) ---
+          // We don't throw an error here; we just treat it as a "No Image" state
+          console.log(`ℹ️ No image found for SKU: ${sku} (Status: ${response.status})`);
+          resetImageUI();
+        }
+      } catch (err) {
+        // --- NETWORK ERROR (Offline or Blocked) ---
         console.log(`ℹ️ No image found for SKU: ${sku} (Status: ${response.status})`);
         resetImageUI();
       }
-    } catch (err) {
-      // --- NETWORK ERROR (Offline or Blocked) ---
-      console.warn("⚠️ Network error while checking image:", err.message);
-      resetImageUI();
     }
-  }
 
     // 1. TRIGGER FOR IMAGE REMOVAL
     function handleImageDeletion() {
@@ -939,83 +989,83 @@
 
     // Clear the form to default
     function clearFormToDefault(c) {
-      console.log("clearFormToDefault()"); // Check your browser console (F12) for this
-      const currentSheet = document.getElementById('mainCategory').value;
-      document.getElementById('entryForm').reset();
+      console.log("🧹 Clearing form to default state...");
 
-      // Get current user role
-      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
-      const userRole = (session.role || "").toLowerCase();
+      const f = document.getElementById('entryForm');
+      if (!f) return;
 
-      // Check if the role is the admin role
-      const isAdmin = (userRole === 'inventory_admin');
+      // 1. Capture the category BEFORE reset so we don't lose the user's current workspace
+      const catEl = document.getElementById('mainCategory');
+      const currentSheet = catEl ? catEl.value : "";
 
-      // --- UNLOCK EVERYTHING ---
+      // 2. Full Reset
+      f.reset();
+
+      // 3. Unlock all "Business Logic" fields
       const fieldsToUnlock = [
-        document.getElementById('vendorSelect'),
-        document.getElementById('mainCategory'),
-        document.getElementById('subCategory'),
-        document.getElementById('skuField')
+        'vendorSelect',
+        'mainCategory',
+        'subCategory',
+        'skuField',
+        'imageFileSelector'
       ];
 
-      fieldsToUnlock.forEach(el => {
-        el.disabled = false;
-        el.readOnly = false;
-        el.style.backgroundColor = "white";
+      fieldsToUnlock.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.disabled = false;
+          el.readOnly = false;
+          el.style.backgroundColor = "white";
+          el.style.cursor = "default";
+          el.style.opacity = "1";
+        }
       });
-      // -------------------------
 
+      // 4. Restore the Category and Refresh Sub-Categories
+      if (catEl && currentSheet) {
+        catEl.value = currentSheet;
+        // We pass empty strings to trigger "New Item Mode" (Generating SKU)
+        updateSubCategories("", ""); 
+      }
+
+      // 5. Reset Hidden Tracking Fields
       document.getElementById('rowNumber').value = "";
       document.getElementById('slNo').value = "";
 
-      document.getElementById('mainCategory').value = currentSheet; // Preserve current sheet selection
-      updateSubCategories(); 
-      document.getElementById('submitBtn').innerHTML = "Add to Inventory";
-      document.getElementById('submitBtn').style.backgroundColor = "var(--vg-brown)";
-      if(c) document.getElementById('searchInput').value = "";
+      // 6. UI Button State Reset
+      const submitBtn = document.getElementById('submitBtn');
+      if (submitBtn) {
+        submitBtn.innerHTML = "Add to Inventory";
+        submitBtn.style.backgroundColor = "var(--vg-brown)";
+      }
+
+      // 7. Cleanup Display Elements
+      if (c) document.getElementById('searchInput').value = "";
       document.getElementById('markup').value = "20";
       document.getElementById('imagePreviewContainer').style.display = 'none';
       document.getElementById('deleteBtn').style.display = 'none';
       document.getElementById('deleteInventoryBtn').style.display = 'none';
 
-      const fileInput = document.getElementById('imageFileSelector');
-      const uploadBtn = document.getElementById('uploadBtn');
+      // 8. Image & Financial Lockdown (Role-Based)
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+      const isAdmin = (session.role || "").toLowerCase() === 'inventory_admin';
       
-      if (fileInput) {
-        fileInput.style.outline = "none";
-        fileInput.style.border = "1px solid var(--border-light)";
-        fileInput.value = ""; // Clear the actual file selection
-      }
-
-      fileInput.disabled = false;
-      fileInput.style.opacity = "1";
-      fileInput.style.cursor = "pointer";
-      
-      if(uploadBtn) uploadBtn.disabled = false;
-
-      resetImageUI();
-
-      // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
       const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
-      
       finFields.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
           if (isAdmin) {
-            // ADMIN: Full access
-            el.disabled = false; 
+            el.disabled = false;
             el.style.backgroundColor = "white";
-            el.style.cursor = "text";
           } else {
-            // EDITOR: Lockdown
-            el.value = (id === 'markup') ? "0" : "0.00"; // Mask data
-            el.disabled = true; 
-            el.style.backgroundColor = "#f0f0f0"; // Gray out
-            el.style.cursor = "not-allowed";
+            el.value = (id === 'markup') ? "0" : "0.00";
+            el.disabled = true;
+            el.style.backgroundColor = "#f4f4f4";
           }
         }
       });
 
+      resetImageUI();
     }
 
     // load and cache vendors list for performance
@@ -1045,6 +1095,8 @@
     function validateSkuLive() {
       const sku = document.getElementById('skuField').value;
       const currentSlNo = document.getElementById('slNo').value;
+      const session = JSON.parse(localStorage.getItem('vidyagrama_session') || '{}');
+
       if (!sku) return;
 
       google.script.run.withSuccessHandler(duplicate => {
@@ -1054,7 +1106,7 @@
         } else {
           document.getElementById('skuField').style.borderColor = "var(--border-light)";
         }
-      }).checkSkuExists(sku, currentSlNo);
+      }).checkSkuExists(sku, currentSlNo,session.username);
     }
 
     // Generate and Save Barcode
@@ -1346,42 +1398,44 @@
                 //5.  --- TRIGGER SUBCATEGORY LOAD ONLY AFTER MAIN CATS EXIST ---
                 fetchSubCategoryData();
 
+                
+                // 6. Parallel Data Fetching
+                // These fire at the same time, whichever finishes first renders first.
+                loadRecentItems(); 
+                loadVendors();
+
+                // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
+                const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
+                
+                finFields.forEach(id => {
+                  const el = document.getElementById(id);
+                  if (el) {
+                    if (isAdmin) {
+                      // ADMIN: Full access
+                      el.disabled = false; 
+                      el.style.backgroundColor = "white";
+                      el.style.cursor = "text";
+                    } else {
+                      // EDITOR: Lockdown
+                      el.value = (id === 'markup') ? "0" : "0.00"; // Mask data
+                      el.disabled = true; 
+                      el.style.backgroundColor = "#f0f0f0"; // Gray out
+                      el.style.cursor = "not-allowed";
+                    }
+                  }
+                });
+                
+                // 7. Pre-focus for scanning
+                document.getElementById('searchInput').focus();
+
               }
         })
         .withFailureHandler(err => {
           console.error("Config load failed:", err);
         })
-        .getCategoryMap(true); // Call your Apps Script function
+        .getCategoryMap(userSession.username, true); // Call your Apps Script function
 
       
-      // 6. Parallel Data Fetching
-      // These fire at the same time, whichever finishes first renders first.
-      loadRecentItems(); 
-      loadVendors();
-
-      // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
-      const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];
-      
-      finFields.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          if (isAdmin) {
-            // ADMIN: Full access
-            el.disabled = false; 
-            el.style.backgroundColor = "white";
-            el.style.cursor = "text";
-          } else {
-            // EDITOR: Lockdown
-            el.value = (id === 'markup') ? "0" : "0.00"; // Mask data
-            el.disabled = true; 
-            el.style.backgroundColor = "#f0f0f0"; // Gray out
-            el.style.cursor = "not-allowed";
-          }
-        }
-      });
-      
-      // 7. Pre-focus for scanning
-      document.getElementById('searchInput').focus();
 
       // 8 . Disable editing SKU field
       /*document.getElementById('skuField').readOnly = false;

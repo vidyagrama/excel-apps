@@ -9,7 +9,7 @@ var ID_BARCODES_PDF = "1DMNF_rgQNLUPTc1P2_kb8Dy4bWUIdLsT";
 
 var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
-var TAB_ADMINS_ACTIVITY_USERS = "users";
+var TAB_ADMINS_USERS = "users";
 var TAB_VENDORS_MAIN = "main";
 
 function doGet() {
@@ -106,31 +106,55 @@ function updateSubCategoryDropdown(mainCat, cell, forceRefresh = false) {
 }
 
 /**
- * NEW: Dynamic fetch all main categories from admin sheet
- * This replaces the static VALID_SHEETS array.
+ * Dynamic fetch filtered by user access.
+ * Column Index 4 is assumed to be the "Category" access column in your Users sheet.
  */
-function getCategoryMap(forceRefresh = false) {
+function getCategoryMap(username, forceRefresh = false) {
   const cache = CacheService.getScriptCache();
-  const cacheKey = "full_category_map";
+  const cacheKey = "category_map_" + username; // Unique cache per user
   let cachedMap = forceRefresh ? null : cache.get(cacheKey);
 
   if (cachedMap) return JSON.parse(cachedMap);
 
   try {
     const adminSs = SpreadsheetApp.openById(ID_ADMINS);
-    const sheet = adminSs.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
-    const data = sheet.getDataRange().getValues();
+    
+    // --- STEP 1: Get User Permissions ---
+    const userSheet = adminSs.getSheetByName(TAB_ADMINS_USERS);
+    const userData = userSheet.getDataRange().getValues();
+    let allowedList = [];
+    let userRole = "";
+
+    for (let i = 1; i < userData.length; i++) {
+      if (String(userData[i][0]).trim() === String(username).trim()) {
+        userRole = String(userData[i][3]).trim();
+        // Assuming Column E (Index 4) holds "Shridhãnya, Organic Grains"
+        let rawCats = String(userData[i][4] || ""); 
+        allowedList = rawCats.split(',').map(s => s.trim()).filter(String);
+        break;
+      }
+    }
+
+    // --- STEP 2: Get Full Category Data ---
+    const catSheet = adminSs.getSheetByName(TAB_ADMINS_ENABLE_CATEGORY);
+    const catData = catSheet.getDataRange().getValues();
 
     let categoryMap = {};
     let validSheets = [];
-    let shortCodes = {}; // New object for codes
+    let shortCodes = {};
 
-    for (var i = 1; i < data.length; i++) {
-      let mainCat = String(data[i][0]).trim();    // Column A
-      let subCatsRaw = String(data[i][4] || "");  // Column E
-      let shortCode = String(data[i][5]).trim();  // Column F (New!)
+    for (var i = 1; i < catData.length; i++) {
+      let mainCat = String(catData[i][0]).trim();
 
-      if (mainCat) {
+      // 1. Check if the User has "All" in their category column
+      // 2. OR check if the specific category name is in their allowed list
+      const hasGlobalAccess = allowedList.some(item => item.toLowerCase() === 'all');
+      const isAllowed = hasGlobalAccess || allowedList.includes(mainCat);
+
+      if (mainCat && isAllowed) {
+        let subCatsRaw = String(catData[i][4] || "");
+        let shortCode = String(catData[i][5]).trim();
+
         categoryMap[mainCat] = subCatsRaw.split(',').map(s => s.trim()).filter(String);
         validSheets.push(mainCat);
         shortCodes[mainCat] = shortCode || mainCat.substring(0, 2).toUpperCase();
@@ -140,13 +164,16 @@ function getCategoryMap(forceRefresh = false) {
     const configResult = {
       categoryMap: categoryMap,
       validSheets: validSheets,
-      shortCodes: shortCodes, // Include in result
+      shortCodes: shortCodes,
       defaultSheet: validSheets.length > 0 ? validSheets[0] : ""
     };
 
+    // Cache the filtered result for 25 minutes
     cache.put(cacheKey, JSON.stringify(configResult), 1500);
     return configResult;
+
   } catch (e) {
+    console.error("Error in getCategoryMap:", e);
     return { categoryMap: {}, validSheets: [], shortCodes: {}, error: e.toString() };
   }
 }
@@ -197,9 +224,9 @@ function getSubCategoryMap(forceRefresh = false) {
 }
 
 /*Fetch Recent item list */
-function getRecentItems(sheetName) {
+function getRecentItems(sheetName,username) {
 
-  const config = getCategoryMap();
+  const config = getCategoryMap(username);
 
   var targetSheet = sheetName || config.defaultSheet;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -233,57 +260,96 @@ function getRecentItems(sheetName) {
   }).filter(item => item.slNo !== "");
 }
 
-// Search across ALL defined sheets to find the item
-function searchItem(searchText) {
-  var cleanSearch = searchText.toString().trim().toLowerCase();
-  const config = getCategoryMap();
+/* Search across ALL defined sheets to find the item */
+function searchItem(searchText, username) {
+  const cleanSearch = searchText.toString().trim().toLowerCase();
+  
+  // DEBUG 1: Check what the backend received
+  Logger.log("🔍 Backend Search Started. Term: " + cleanSearch + " | User: " + username);
+
+  // CRITICAL FIX: Pass the username so the search knows which sheets this user can access
+  const config = getCategoryMap(username);
   const sheets = config.validSheets;
+
+  Logger.log("Sheets to search: " + sheets.join(", "));
 
   for (var s = 0; s < sheets.length; s++) {
     var sheetName = sheets[s];
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
-    if (!sheet) continue;
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    
+    if (!sheet) {
+      Logger.log("⚠️ Sheet not found: " + sheetName);
+      continue;
+    }
+
     var data = sheet.getDataRange().getValues();
+    Logger.log("Searching in: " + sheetName + " (" + data.length + " rows)");
 
     for (var i = 1; i < data.length; i++) {
+      // Column 16 (Index 15) is SKU
       var skuInSheet = (data[i][15] || "").toString().trim().toLowerCase();
+      
+      // DEBUG 2: Occasional log to see what is being compared (don't log every row to avoid lag)
+      if (i === 1) Logger.log("First SKU in " + sheetName + ": " + skuInSheet);
 
       if (skuInSheet === cleanSearch) {
+        Logger.log("✅ MATCH FOUND! Sheet: " + sheetName + " | Row: " + (i + 1));
+        
         var cleanData = data[i].map(function (cellValue) {
           if (cellValue instanceof Date) {
             return Utilities.formatDate(cellValue, Session.getScriptTimeZone(), "yyyy-MM-dd");
           }
           return cellValue;
         });
+        
         return { row: i + 1, data: cleanData, sheetName: sheetName };
       }
     }
   }
+  
+  Logger.log("❌ No match found for: " + cleanSearch);
   return null;
 }
 
 /* Check SKU exists in sheets */
-function checkSkuExists(sku, currentSlNo) {
+function checkSkuExists(sku, currentSlNo, username) {
   if (!sku) return null;
+  
   var cleanSku = sku.toString().trim().toLowerCase();
-  const config = getCategoryMap();
-  const sheets = config.validSheets;
+  // Ensure currentSlNo is a string for accurate comparison
+  var targetSlNo = (currentSlNo || "").toString().trim();
+
+  Logger.log("🛡️ SKU Conflict Check: " + cleanSku + " | Ignoring SlNo: " + targetSlNo);
+
+  const config = getCategoryMap(username);
+  const sheets = config.validSheets || [];
 
   for (var s = 0; s < sheets.length; s++) {
     var sheetName = sheets[s];
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheets[s]);
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) continue;
+
     var data = sheet.getDataRange().getValues();
 
     for (var i = 1; i < data.length; i++) {
+      // Column P (Index 15) is SKU
       var skuInSheet = (data[i][15] || "").toString().trim().toLowerCase();
-      var slNoInSheet = data[i][0].toString();
+      // Column A (Index 0) is SlNo - Stringify to avoid Number vs String issues
+      var slNoInSheet = (data[i][0] || "").toString().trim();
 
-      if (skuInSheet === cleanSku && slNoInSheet !== currentSlNo) {
-        return { name: data[i][2], sheet: sheetName };
+      // LOGIC: If SKU matches AND it's NOT the item we are currently editing
+      if (skuInSheet === cleanSku && slNoInSheet !== targetSlNo) {
+        Logger.log("⚠️ CONFLICT FOUND: " + data[i][2] + " in " + sheetName);
+        return { 
+          name: data[i][2], 
+          sheet: sheetName,
+          row: i + 1 
+        };
       }
     }
   }
+
+  Logger.log("✅ No SKU conflicts found.");
   return null;
 }
 
@@ -396,7 +462,7 @@ function getVendorList() {
 }
 
 /*We are not using this function, its used by Admin portal */
-function getSheetSummary(sheetName) {
+/*function getSheetSummary(sheetName) {
   const config = getCategoryMap();
 
   var targetSheet = sheetName || config.defaultSheet;
@@ -424,20 +490,24 @@ function getSheetSummary(sheetName) {
     totalValue: totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     lowStockCount: lowStockCount
   };
-}
+}*/
 
 /*This helps to generate SKU for the next new item based on main category */
-function getNextSku(category) {
+function getNextSku(category,username) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(category);
 
+  Logger.log("🛠️ Generating SKU for Category: " + category + " | User: " + username);
+
   // 1. Fetch dynamic codes from your mapping function
-  const config = getCategoryMap();
+  const config = getCategoryMap(username);
   const codes = config.shortCodes || {};
 
   // Determine Prefix (Fallback to first 2 letters if code is missing in Admin sheet)
   const code = codes[category] || category.substring(0, 2).toUpperCase();
   const prefix = "VG" + code + "-";
+
+  Logger.log("Using Prefix: " + prefix);
 
   if (!sheet) return prefix + "007";
 
@@ -464,7 +534,6 @@ function getNextSku(category) {
   const nextNum = (maxNum + 1).toString().padStart(3, '0');
   return prefix + nextNum;
 }
-
 
 /* Save Barcode to backend google drive */
 /**
@@ -848,7 +917,7 @@ function getBulkInventoryData(sheetName) {
 function checkLogin(username, password) {
   try {
     const ss = SpreadsheetApp.openById(ID_ADMINS);
-    const sheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_USERS);
+    const sheet = ss.getSheetByName(TAB_ADMINS_USERS);
     const data = sheet.getDataRange().getValues();
 
     for (let i = 1; i < data.length; i++) {
@@ -883,7 +952,7 @@ function checkLogin(username, password) {
  */
 function updatePassword(username, currentPass, newPass) {
   const ss = SpreadsheetApp.openById(ID_ADMINS);
-  const sheet = ss.getSheetByName(TAB_ADMINS_ACTIVITY_USERS);
+  const sheet = ss.getSheetByName(TAB_ADMINS_USERS);
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
@@ -1086,5 +1155,37 @@ function testSubCategoryUpdate() {
   } catch (e) {
     console.error("TEST CRASHED: " + e.message);
   }
+}
+
+/**
+ * TEST SUITE: Run this in the Apps Script Editor to verify permissions
+ */
+function test_getCategoryMap_Permissions() {
+  const testUsers = [
+    "vgvdev",    // Replace with a real username marked 'inventory_admin'
+    "vgyashu",   // Replace with a real username with limited categories
+    "vgwinni"   // A user that doesn't exist in the sheet
+  ];
+
+  testUsers.forEach(username => {
+    console.log(`--- Testing Access for: ${username} ---`);
+    
+    // We pass true to forceRefresh to bypass the cache during testing
+    const result = getCategoryMap(username, true); 
+    
+    if (result.error) {
+      console.error(`❌ Error for ${username}: ${result.error}`);
+    } else {
+      console.log(`✅ Role Detected: ${result.role || "None"}`);
+      console.log(`✅ Allowed Categories: ${result.validSheets.join(", ") || "NONE"}`);
+      
+      // Check if sub-categories are loading correctly for the first allowed category
+      if (result.validSheets.length > 0) {
+        const firstCat = result.validSheets[0];
+        console.log(`✅ Sub-categories for ${firstCat}: ${result.categoryMap[firstCat].length} items found.`);
+      }
+    }
+    console.log("------------------------------------------");
+  });
 }
 
