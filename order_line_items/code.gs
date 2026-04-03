@@ -4,6 +4,7 @@ var ID_INVENTORY = "1YDiJsrkNEj4HxDaNlirGIczAX4h7FExpb3XNs9Xu5co";
 var ID_ORDERS_LINE_ITEMS = "1j5ma5hH1vKaoNW0O3JrYL19FZvPLBXMOyN5_0efP0e8";
 var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
 var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
+var ID_LEDGER = "17BBdRWeZZCCa7WmhNnIc-P_Vau3n9WkVZaR3XCB8Pck";
 
 var TAB_PARENTS_MAIN = "main";
 var TAB_PARENTS_GUEST = "guest";
@@ -11,8 +12,10 @@ var TAB_LINE_ITEMS_MAIN = "main";
 var TAB_ORDERS_MAIN = "main";
 var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
-var TAB_ADMINS_VARGA = "varga"
+var TAB_ADMINS_VARGA = "varga";
+var TAB_LEDGER_MAIN_LEDGER = "main_ledger";
 
+//var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
 
 function doGet() {
   // 1. Create a template from the file
@@ -472,9 +475,9 @@ function generateOrderId(mainCategory) {
   return prefix + ("000" + nextSerial).slice(-3);
 }
 
-function checkPaymentInLogs(userEnteredUTR, userExpectedAmount) {
+function checkPaymentInLogs(userEnteredUTR, userExpectedAmount,userName) {
   try {
-    const ss = SpreadsheetApp.openById("1bqvra9w6O4QV_qebmcrnpwbsMtwk9QDTcKTAcmjh9bw")
+    const ss = SpreadsheetApp.openById("1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY")
     const sheet = ss.getSheetByName("Sheet1");
     if (!sheet) return { status: "ERROR", message: "Log sheet not found." };
 
@@ -502,8 +505,27 @@ function checkPaymentInLogs(userEnteredUTR, userExpectedAmount) {
           const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
 
           // Check if amount matches (within 1 Rupee tolerance)
-          if (Math.abs(smsAmount - searchAmount) < 1.0) {
-            return { status: "SUCCESS", message: "Verified! Received Rs." + smsAmount };
+          if (Math.abs(smsAmount - searchAmount) < 1.0) 
+          {
+            const ledgerResult = logToMainLedger({
+                date: new Date(),
+                mainCategory: "OnlineSales",         // Adjust based on your business logic,
+                type: "Income",
+                subType: "Online Order",       // Parent or Guest payment based on login information
+                referenceID: "ORDER No",      // Fetch the master order no if possible  
+                txnID: searchUTR,              // The UTR provided by user
+                entityName: userName,      // Ideally pass this from the frontend
+                amount: smsAmount,
+                paymentMode: "UPI/Online",
+                status: "Cleared",
+                notes: "Auto-verified via SMS Log"
+            });
+            //return { status: "SUCCESS", message: "Verified! Received Rs." + smsAmount };
+           return { 
+            status: "SUCCESS", 
+            message: "Verified! Received Rs." + smsAmount + (ledgerResult ? " and Ledger Updated." : " (Ledger Failed)")
+          };
+            
           } else {
             return { status: "MISMATCH", message: "Found Ref, but amount is Rs." + smsAmount };
           }
@@ -517,6 +539,55 @@ function checkPaymentInLogs(userEnteredUTR, userExpectedAmount) {
   }
 }
 
+/*Log transaction details to main ledger */
+function logToMainLedger(data) {
+  try {
+    const ss = SpreadsheetApp.openById(ID_LEDGER);
+    const sheet = ss.getSheetByName(TAB_LEDGER_MAIN_LEDGER); 
+
+    const dr = (data.type === "Expense") ? data.amount : "";
+    const cr = (data.type === "Income") ? data.amount : "";
+    
+    const formData = [
+      data.date,         // Date
+      data.mainCategory, // Category
+      data.type,         // Type (Income/Expense)
+      data.subType,      // SubType
+      data.referenceID,  // Ref ID
+      data.txnID || "",  // Txn ID
+      data.entityName,   // Entity Name
+      dr,                // Debit
+      cr,                // Credit
+      data.paymentMode,  // Mode
+      data.status,       // Status
+      data.notes         // Notes
+    ];
+
+    // 1. Find the REAL next row based on Column B (Main Category) 
+    // instead of sheet.getLastRow()
+    var lastRow = sheet.getLastRow();
+    var targetRow = 2; // Default to row 2 if sheet is empty
+
+  
+    if (lastRow > 0) {
+      var columnValues = sheet.getRange(1, 2, lastRow, 1).getValues(); // Look at Column B
+      for (var i = columnValues.length - 1; i >= 0; i--) {
+        if (columnValues[i][0] !== "") {
+          targetRow = i + 2; // Set target to the row after the last data
+          break;
+        }
+      }
+    }
+
+   // 2. Use setValues instead of appendRow to respect the targetRow
+    sheet.getRange(targetRow, 1, 1, 12).setValues([formData]);
+   
+    return true;
+  } catch (e) {
+    console.error("Ledger Update Error: " + e.toString());
+    return false;
+  }
+}
 
 /**
  * Enhanced logActivity to accept custom usernames
@@ -574,53 +645,47 @@ function getEventList() {
 /**
  * Saves guest info to the 'guest' sheet and returns a login object.
  */
-function registerGuest(event, name, mobile, associate) {
+function registerGuest(event, month, guestName, mobile, futureAssociate) {
   try {
     const ss = SpreadsheetApp.openById(ID_PARENTS);
-    let guestSheet = ss.getSheetByName("guest");
+    let guestSheet = ss.getSheetByName(TAB_PARENTS_GUEST);
 
-    // Create sheet if it doesn't exist
-    if (!guestSheet) {
-      guestSheet = ss.insertSheet("guest");
-      guestSheet.appendRow(["id", "eventname", "name", "mobile", "associate", "Notes"]);
-      guestSheet.getRange("1:1").setFontWeight("bold");
-    }
-
-    // --- SIMPLE SERIAL NUMBER LOGIC ---
     // Get the last row number. If it's 1 (header only), start at 1.
     const lastRow = guestSheet.getLastRow();
     const guestId = (lastRow === 1) ? 1 : lastRow;
 
     const timestamp = "Registered: " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
-
-    // Append data: id, eventname, name, mobile, associate, Notes
+    
+    // Column 1: Event, Column 2: Name, Column 3: Month, Column 4: Mobile, etc.
+    // Based on your request, Month goes to Column 3
     guestSheet.appendRow([
-      guestId,    // Simple serial No (1, 2, 3...)
-      event,
-      name,
-      String(mobile),
-      associate ? "Yes" : "No",
+      guestId,
+      event,           // Col 2
+      month,       // Col 3
+      guestName,           // Col 4
+      String(mobile),          // Col 5
+      futureAssociate ? "Yes" : "No",
       timestamp
     ]);
 
-    logActivity(name, "GUEST_SIGNUP", `Event: ${event} | ID: ${guestId}`, "Guest_Sheet");
+    // FIX: Changed 'name' to 'guestName' to match your parameter
+    logActivity(guestName, "GUEST_SIGNUP", `Event: ${event} | ID: ${guestId} | Month: ${month}`, "Guest_Sheet");
 
-    return {
-      success: true,
-      name: name,
+    return { 
+      success: true, 
+      name: guestName, 
       id: guestId,
       varga: "Guest",
-      event: event,
-      discount: 0,
-      balance: 0,
+      event: event, 
+      discount: 0, 
+      balance: 0, 
       credit: 0,
-      isGuest: true
+      isGuest: true 
     };
   } catch (e) {
-    return { success: false, error: e.message };
+    return { success: false, error: e.toString() };
   }
 }
-
 
 /*********************Get Category from admin sheet************************/
 

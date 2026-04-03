@@ -652,4 +652,43 @@
     border: 1px dashed #0d6efd !important;
     background-color: #f0f7ff !important;
   }
+
+  /*Bar code scanning and adding items to Cart*/
+  .input-group .btn-outline-secondary {
+    border-color: #ced4da;
+    background-color: #f8f9fa;
+    color: var(--vg-brown); /* Matches your Vidyagrama theme */
+  }
+
+  .input-group .btn-outline-secondary:hover {
+    background-color: var(--vg-amber);
+    color: white;
+  }
+
+  /* Flash effect for the cart when an item is added */
+  .cart-updated {
+    animation: flash-border 0.6s ease-out;
+  }
+
+  @keyframes flash-border {
+    0% { box-shadow: 0 0 0px var(--vg-amber); }
+    50% { box-shadow: 0 0 15px var(--vg-amber); }
+    100% { box-shadow: 0 0 0px var(--vg-amber); }
+  }
+
+  /*Haptic feedback battery optimization*/
+  #scan-toast {
+    position: fixed;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(40, 167, 69, 0.9);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 30px;
+    z-index: 10000;
+    display: none;
+    font-weight: bold;
+  }
+
 </style>

@@ -62,6 +62,22 @@
       }
     });
 
+    // Add this inside window.onload in scripts.html
+    const searchBar = document.getElementById('search-bar');
+    if (searchBar) {
+      searchBar.addEventListener('keypress', (e) => {
+        // 13 is the 'Enter' key, which almost all barcode guns send after a scan
+        if (e.key === 'Enter') {
+          const sku = searchBar.value.trim();
+          if (sku.length > 2) {
+            handleScannedItem(sku); // Reusing your existing logic
+            searchBar.value = "";   // CLEAR for next item immediately
+            e.preventDefault();     // Prevent form submission/refresh
+          }
+        }
+      });
+    }
+
   };
 
   function loadInitialData() {
@@ -104,10 +120,11 @@
     if (currentMode === 'guest') {
       // --- GUEST PATH ---
       const ev = document.getElementById('event').value;
+      const month = document.getElementById('guest-month').value;
       const gn = document.getElementById('guest-name-input').value;
       const asc = document.getElementById('future-associate').checked;
 
-      if (!ev || !gn) {
+      if (!ev || !month || !gn) {
         resetLoginBtn(loginBtn);
         return showAlert("Fill all guest fields", "error");
       }
@@ -115,7 +132,7 @@
       google.script.run.withSuccessHandler(res => {
         if (res.success) { currentUser = res; startShop(); }
         else { showAlert("Registration Failed", "error"); resetLoginBtn(loginBtn); }
-      }).registerGuest(ev, gn, m, asc);
+      }).registerGuest(ev,month, gn, m, asc);
 
     } else {
       // --- PARENT PATH ---
@@ -647,11 +664,11 @@
     const amount = parseFloat(amountStr) || 0;
 
     if (amount <= 0) {
-      alert("Total must be greater than zero.");
+      showAlert("Total must be greater than zero. Add items to your cart first! 🛒", "error");
       return;
     }
 
-    const upiId = "9035734752@icici";
+    const upiId = "gokripa@icici";
     const name = "Vidyakshetra";
     const amountFixed = amount.toFixed(2);
     
@@ -718,6 +735,8 @@
     const btn = document.getElementById('place-order-btn');
     const uploadSection = document.getElementById('manual-upload-section');
 
+    const userName = currentUser ? currentUser.name : "Unknown Guest";
+
     // Reset UI
     btn.classList.add('disabled');
     btn.disabled = true;
@@ -754,7 +773,7 @@
         err.innerText = "System Error. Please upload screenshot instead.";
         uploadSection.style.display = 'block';
       })
-      .checkPaymentInLogs(tid, amount);
+      .checkPaymentInLogs(tid, amount,userName);
   }
 
   /***********************Logout Model **********************************/
@@ -844,5 +863,134 @@
       });
     }).getEventList(); // This needs to be added to your Code.gs
   }
+
+  /******************************* Adding Items to Cart via Barcode Scanner *************************************/
+let html5QrCode;
+let isScanning = false;
+let audioCtx;
+
+async function startScanner() {
+  if (isScanning) return;
+  isScanning = true;
+
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  document.getElementById('scanner-wrapper').style.display = 'block';
+
+  if (html5QrCode) {
+    try { await html5QrCode.clear(); } catch(e) {}
+  }
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  const qrConfig = { 
+    fps: 30, 
+    qrbox: { width: 280, height: 120 }, 
+    aspectRatio: 1.777778,
+    formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128 ],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  };
+
+  html5QrCode.start(
+    { facingMode: "environment" },  
+    qrConfig, 
+    (txt) => {
+      if (txt.length > 2) { 
+        handleScannedItem(txt); // Calls our new logic above
+        stopScanner(); 
+        isScanning = false; 
+      }
+    }
+  ).catch(err => {
+    isScanning = false;
+    console.error("Camera Error:", err);
+    alert("Camera could not start. Please check permissions.");
+    document.getElementById('scanner-wrapper').style.display = 'none';
+  });
+}
+
+function handleScannedItem(sku) {
+  const item = fullInventory.find(i => i.sku === sku);
+
+  if (item) {
+    const minQty = item.moq || 0.5;
+    const qtyInput = document.getElementById('qty-' + sku);
+
+    // Physical Feedback
+    if ("vibrate" in navigator) navigator.vibrate(100); 
+    playBeep();
+
+    if (qtyInput) {
+      qtyInput.value = minQty;
+      addToCart(sku);
+    } else {
+      addDirectlyToCart(item, minQty);
+    }
+
+    // PROFESSIONAL TOUCH: Clear the search bar every time an item is found
+    // This ensures that even if you scanned via camera, the search text is wiped
+    const searchBar = document.getElementById('search-bar');
+    if (searchBar) {
+      searchBar.value = "";
+      filterItems(); // Reset the grid to show all items again
+    }
+    
+    showAlert(`Added ${minQty} ${item.uom || ''} of ${item.itemName}`, "success");
+  } else {
+    // Double vibrate on error
+    if ("vibrate" in navigator) navigator.vibrate([50, 100, 50]);
+    showAlert("Barcode not recognized: " + sku, "error");
+    
+    // Clear search even on error so they can try again
+    const searchBar = document.getElementById('search-bar');
+    if (searchBar) searchBar.value = "";
+  }
+}
+
+// Helper for when the item isn't rendered in the current filtered list
+function addDirectlyToCart(item, qty) {
+  const existingItem = cart.find(cartItem => cartItem.sku === item.sku);
+  if (existingItem) {
+    existingItem.quantity = parseFloat((existingItem.quantity + qty).toFixed(2));
+    existingItem.fullSubtotal = (existingItem.quantity * parseFloat(existingItem.salePrice)).toFixed(2);
+  } else {
+    cart.push({ 
+      ...item, 
+      cartId: Date.now() + Math.random(), 
+      quantity: qty, 
+      fullSubtotal: (qty * parseFloat(item.salePrice)).toFixed(2) 
+    });
+  }
+  updateCartUI();
+  
+  // Animate the sidebar to show something happened
+  const cartSidebar = document.getElementById('cart-sidebar');
+  cartSidebar.classList.add('cart-updated');
+  setTimeout(() => cartSidebar.classList.remove('cart-updated'), 600);
+}
+
+function stopScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      html5QrCode.clear();
+      document.getElementById('scanner-wrapper').style.display = 'none';
+      isScanning = false;
+    }).catch(err => console.error("Stop Error:", err));
+  }
+}
+
+function playBeep() {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
     
 </script>
