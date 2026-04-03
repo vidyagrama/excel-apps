@@ -553,8 +553,16 @@
     }
   }
 
-  function closeSuccessModal() { successModal.hide(); hardReset(); }
+ // function closeSuccessModal() { successModal.hide(); hardReset(); }
 
+ // Replace your old function with this:
+function closeSuccessModal() { 
+  successModal.hide(); 
+  softReset(); // Keeps user logged in
+}
+
+
+  /*Reset completely so that next user can logout with fresh data*/
   function hardReset() {
     // 1. Reset Global Data Variables
     cart = []; 
@@ -646,6 +654,45 @@
     // 6. Reload Varga dropdown for the next user
     loadInitialData();
   }
+
+  /*Soft reset, user can still place multiple orders in the same session*/
+  function softReset() {
+    // 1. Clear Data
+    cart = [];
+    
+    // 2. Clear UI Inputs
+    document.getElementById('order-notes').value = "";
+    document.getElementById('search-bar').value = "";
+    if (document.getElementById('txn-id-input')) document.getElementById('txn-id-input').value = "";
+    if (document.getElementById('screenshot-file')) document.getElementById('screenshot-file').value = "";
+    
+    // 3. Reset UI States
+    const err = document.getElementById('verify-error');
+    if (err) { err.innerText = ""; err.style.color = ""; }
+
+    const verifyBox = document.getElementById('verify-box');
+    if (verifyBox) verifyBox.style.display = 'none';
+
+    const manualSection = document.getElementById('manual-upload-section');
+    if (manualSection) manualSection.style.display = 'none';
+
+    // 4. Reset Button
+    const btn = document.getElementById('place-order-btn');
+    if (btn) {
+      btn.classList.add('disabled');
+      btn.disabled = true;
+      btn.innerHTML = "Place Order";
+      btn.style.setProperty("background-color", "var(--vg-amber)", "important");
+    }
+
+    // 5. Update Inventory & Cart UI
+    updateCartUI();
+    filterItems(); // This brings back the full item list
+    
+    // Optional: Auto-focus the search bar for the next scan
+    document.getElementById('search-bar').focus();
+  }
+
 
   function toTitleCase(str) {
     if (!str) return "General"; // Fallback for empty categories
