@@ -62,6 +62,9 @@
 
       if (catData && Array.isArray(catData.subs)) {
           console.log("✅ Match found for:", main);
+
+          // load vendors fresh when there is change in main category
+          loadVendors(null, true);
           
           // 2. Populate Sub-Categories
           catData.subs.forEach(opt => {
@@ -715,6 +718,7 @@
       }
   }
 
+  /*Check exisisting image exists in the Imagekit server for the selected SKU*/
   async function checkExistingImage(sku) {
       if (!sku || sku === "Generating...") return;
 
@@ -1070,25 +1074,85 @@
 
     // load and cache vendors list for performance
     let cachedVendors = null;
-    function loadVendors() {
+
+    function loadVendors(selectedVendorId = null, forceFetch = false) {
+      console.log("📡 loadVendors: Initiating...");
+
+      // Reset cache if forceFetch is true
+      if (forceFetch) {
+        console.log("🔄 Force Reset: Clearing cachedVendors to fetch fresh data.");
+        cachedVendors = null;
+      }
+
       if (cachedVendors) {
-        renderVendorSelect(cachedVendors);
+        console.log("♻️ Using existing cache for vendors.");
+        refreshFilteredVendors(selectedVendorId);
         return;
       }
-      
-      google.script.run.withSuccessHandler(vendors => {
-        cachedVendors = vendors;
-        renderVendorSelect(vendors);
-      }).getVendorList();
+
+      console.log("☁️ Fetching fresh Vendor List from Server...");
+      google.script.run
+        .withSuccessHandler(vendors => {
+          console.log("✅ Server Response: Received", vendors ? vendors.length : 0, "vendors.");
+          if (vendors && vendors.length > 0) console.table(vendors);
+          
+          cachedVendors = vendors;
+          refreshFilteredVendors(selectedVendorId);
+        })
+        .withFailureHandler(err => {
+          console.error("❌ Failed to load vendors:", err);
+        })
+        .getVendorList();
     }
 
-    function renderVendorSelect(vendors) {
+    /*Refresh vendors based on the main category selected, so that they can only see those vendors in the respective category*/
+    function refreshFilteredVendors(selectedVendorId = null) {
+      const mainCat = document.getElementById('mainCategory').value;
       const select = document.getElementById('vendorSelect');
+      
+      console.log(`🎯 Filtering Vendors for Category: "${mainCat}"`);
+
+      if (!select) {
+        console.error("Missing DOM element: 'vendorSelect'");
+        return;
+      }
+
+      // Clear and set default - matching your renderVendorSelect style
       select.innerHTML = '<option value="">-- Select Vendor --</option>';
-      vendors.forEach(v => {
-        const opt = document.createElement('option');
-        opt.value = v.id; opt.innerHTML = v.name; select.appendChild(opt);
+
+      if (!cachedVendors || !Array.isArray(cachedVendors)) {
+        console.warn("⚠️ No cached vendors available to filter.");
+        return;
+      }
+
+      // 1. Logic: Filter based on category match (Column D from your sheet)
+      const filtered = cachedVendors.filter(v => {
+        const vCat = (v.category || "").trim();
+        return vCat === mainCat || vCat === "All";
       });
+
+      console.log(`📊 Filter Result: Found ${filtered.length} matching vendors.`);
+
+      if (filtered.length > 0) {
+        // 2. Populate - Matching the logic in renderVendorSelect
+        filtered.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.id;       // Use ID to match renderVendorSelect
+          opt.innerHTML = v.name; // Use innerHTML to match renderVendorSelect
+          select.appendChild(opt);
+        });
+        
+        // 3. Pre-selection for Update Mode
+        if (selectedVendorId) {
+          console.log(`📍 Pre-selecting Vendor ID: ${selectedVendorId}`);
+          select.value = selectedVendorId;
+        }
+      } else {
+        const opt = document.createElement('option');
+        opt.innerHTML = "No vendors for this category";
+        opt.disabled = true;
+        select.appendChild(opt);
+      }
     }
 
     // Function to check for duplicates while typing/scanning
@@ -1402,7 +1466,7 @@
                 // 6. Parallel Data Fetching
                 // These fire at the same time, whichever finishes first renders first.
                 loadRecentItems(); 
-                loadVendors();
+               // loadVendors(null, true)
 
                 // --- FINANCIAL FIELD LOCKDOWN LOGIC ---
                 const finFields = ['pPrice', 'markup', 'sPrice', 'valOutput'];

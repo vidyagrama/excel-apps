@@ -43,7 +43,7 @@
     <div class="bulk-footer">
       <div id="selectedCountMsg">0 items selected</div>
       <div class="bulk-btn-group">
-        <button class="bulk-action-btn print-btn-v" onclick="generateBulkBarcodes()">
+        <button class="bulk-action-btn print-btn-v" onclick="generateBulkBarcodes(this)">
           <span>🖨️</span> Print Barcodes
         </button>
         <button class="bulk-action-btn delete-btn-v" onclick="triggerBulkDelete()">
@@ -226,7 +226,7 @@
   }
 
 
-  /* Fixed Window Size & Standard Layout */
+   /* Fixed Window Size & Standard Layout */
   .bulk-window-fixed {
     width: 90%;
     max-width: 900px;
@@ -348,9 +348,11 @@
   }
 
   .bulk-action-btn:disabled {
-    background-color: #ccc;
+    background-color: #bdc3c7 !important; /* Neutral Grey */
+    color: #7f8c8d !important;
     cursor: not-allowed;
-    transform: none;
+    transform: none !important; /* Remove the hover "lift" effect */
+    box-shadow: none !important;
   }
 
   //For statu bar message
@@ -456,10 +458,15 @@
     const subCatDropdown = document.getElementById('bulkSubCategoryFilter');
     const mainFormSubCat = document.getElementById('subCategory');
     
-    // Copy options from your main form's subcategory dropdown
+    if (!subCatDropdown || !mainFormSubCat) return;
+
     subCatDropdown.innerHTML = '<option value="">All Sub-Categories</option>';
+    
     Array.from(mainFormSubCat.options).forEach(opt => {
-      if(opt.value) {
+      // Only copy valid subcategories. Skip placeholders and error messages.
+      const isError = opt.text.includes("Missing") || opt.text.includes("Select");
+      
+      if(opt.value && !isError) {
         const newOpt = document.createElement('option');
         newOpt.value = opt.value;
         newOpt.text = opt.text;
@@ -648,10 +655,11 @@
   }
 
   // Generate Bulk Bar Codes for the selected Main Category
-  function generateBulkBarcodes() {
+  function generateBulkBarcodes(btn) {
     const checkboxes = document.querySelectorAll('.bulk-cb:checked');
     const selectedIds = Array.from(checkboxes).map(cb => cb.value);
     const sheetName = document.getElementById('currentMainCatDisplay').innerText;
+    const printBtn = btn || document.querySelector('.print-btn-v');
 
     if (selectedIds.length === 0) {
       showStatus("Please select items to print.", "error");
@@ -661,12 +669,17 @@
     showStatus("Generating PDF... please wait.", "info");
     
     // Disable button to prevent double clicks
-    const printBtn = document.querySelector('.print-btn-v');
+    const originalText = printBtn.innerHTML;
+
     printBtn.disabled = true;
+    printBtn.innerHTML = "<span>⏳</span> Generating...";
+    showStatus("Creating PDF with " + selectedIds.length + " barcodes...", "info");
+
 
     google.script.run
       .withSuccessHandler(function(url) {
         printBtn.disabled = false;
+        printBtn.innerHTML = originalText;
         if (url.startsWith("http")) {
           showStatus("PDF Generated Successfully!", "success");
           window.open(url, '_blank'); // Opens the PDF in a new tab
@@ -676,6 +689,7 @@
       })
       .withFailureHandler(function(err) {
         printBtn.disabled = false;
+        printBtn.innerHTML = originalText;
         showStatus("Failed to generate PDF.", "error");
       })
       .generateBulkBarcodePDF(selectedIds, sheetName);

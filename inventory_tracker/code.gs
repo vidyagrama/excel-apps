@@ -452,13 +452,17 @@ function processForm(formObject) {
 }
 
 /* Get Vendors list from Vendors google sheet */
+
 function getVendorList() {
-  try {
-    const ss = SpreadsheetApp.openById(ID_VENDORS);
-    const sheet = ss.getSheetByName(TAB_VENDORS_MAIN);
-    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    return data.map(row => ({ id: row[0].toString(), name: row[1].toString() })).filter(v => v.id !== "");
-  } catch (e) { return []; }
+  const ss = SpreadsheetApp.openById(ID_VENDORS);
+  const sheet = ss.getSheetByName(TAB_VENDORS_MAIN);
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues(); // Get 3 columns
+  
+  return data.map(row => ({
+    id: row[0],
+    name: row[1],
+    category: row[3] // This is the key for filtering
+  })).filter(v => v.id !== "");
 }
 
 /*We are not using this function, its used by Admin portal */
