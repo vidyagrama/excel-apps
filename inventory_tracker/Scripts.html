@@ -44,7 +44,7 @@
     
     // Update sub categories based on main categories and also the SKU for next new item
     // Loading UOM based on categories from admin sheet directly, removed hardcoded values
-    function updateSubCategories(selectedSub, selectedUom) {
+    function updateSubCategories(selectedSub, selectedUom,selectedVendorId) {
       const main = document.getElementById('mainCategory').value;
       const subSelect = document.getElementById('subCategory');
       const skuField = document.getElementById('skuField');
@@ -64,7 +64,7 @@
           console.log("✅ Match found for:", main);
 
           // load vendors fresh when there is change in main category
-          loadVendors(null, true);
+          loadVendors(selectedVendorId, true);
           
           // 2. Populate Sub-Categories
           catData.subs.forEach(opt => {
@@ -375,7 +375,7 @@
                 document.getElementById('rowNumber').value = res.row;
                 document.getElementById('slNo').value = d[0];
                 f.mainCategory.value = category;
-                updateSubCategories(d[1],d[3]); // d[1] is Subcat, d[3] is UOM
+                updateSubCategories(d[1],d[3],d[11]); // d[1] is Subcat, d[3] is UOM , d[11] is vendor id
 
                 // 2. LOCK the category dropdown
                 if (catEl) {
@@ -428,6 +428,7 @@
                   });
                   
                 }
+
                 f.moq.value = d[10]; 
                 f.vendorID.value = d[11]; 
                 f.status.value = d[12];

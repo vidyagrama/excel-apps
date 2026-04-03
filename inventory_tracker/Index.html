@@ -95,9 +95,9 @@
                   <option value="Sold out">Sold out</option>
               </select>
             </div>
-            <div class="field"><label>Purchase Price <span style="color:var(--danger-red)">*</span> </label><input type="number" step="0.01" name="purchasePrice" id="pPrice" required oninput="calculateAutoFields()">
+            <div class="field"><label>Purchase Price <span style="color:var(--danger-red)">*</span> </label><input type="number" step="0.01" name="purchasePrice" value="0" id="pPrice" required oninput="calculateAutoFields()">
             </div>
-            <div class="field"><label>Markup %</label><input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="20" oninput="calculateAutoFields()">
+            <div class="field"><label>Markup %</label><input type="number" step="0.1" name="priceMarkupPercentage" id="markup" value="0" oninput="calculateAutoFields()">
             </div>
             <div class="field"><label>Sale Price (Auto)</label><input type="number" step="0.01" name="salePrice" id="sPrice" readonly>
             </div>
