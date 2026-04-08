@@ -185,11 +185,16 @@
                 Pay Now <span id="pay-amt-label">₹0</span>
               </button>
 
-              <div id="verify-box" style="display:none;">
+             <div id="verify-box" style="display:none;">
+                <button id="auto-verify-btn" class="btn btn-success w-100 mb-2 d-flex align-items-center justify-content-center gap-2" onclick="handleVerification()">
+                  <i class="material-icons">fact_check</i> Click to Verify Payment
+                </button>
+
                 <div class="input-group input-group-sm mb-1">
-                  <input type="text" id="txn-id-input" class="form-control" placeholder="Enter UPI Transaction ID">
-                  <button class="btn btn-success" onclick="verifyTxn()">Verify</button>
+                  <input type="text" id="txn-id-input" class="form-control" placeholder="UTR (Locked)" disabled>
+                  <button id="manual-verify-btn" class="btn btn-secondary" onclick="handleVerification(true)" disabled>Verify ID</button>
                 </div>
+                
                 <small id="verify-error" style="font-size: 0.75rem; display: block; margin-top: 5px;"></small>
               </div>
 

@@ -5,6 +5,7 @@ var ID_ORDERS_LINE_ITEMS = "1j5ma5hH1vKaoNW0O3JrYL19FZvPLBXMOyN5_0efP0e8";
 var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
 var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
 var ID_LEDGER = "17BBdRWeZZCCa7WmhNnIc-P_Vau3n9WkVZaR3XCB8Pck";
+var ID_SMS = "1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY";
 
 var TAB_PARENTS_MAIN = "main";
 var TAB_PARENTS_GUEST = "guest";
@@ -14,6 +15,7 @@ var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
 var TAB_ADMINS_VARGA = "varga";
 var TAB_LEDGER_MAIN_LEDGER = "main_ledger";
+var TAB_SMS_SHEET = "Sheet1";
 
 //var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
 
@@ -475,69 +477,106 @@ function generateOrderId(mainCategory) {
   return prefix + ("000" + nextSerial).slice(-3);
 }
 
-function checkPaymentInLogs(userEnteredUTR, userExpectedAmount, userName) {
+/* Auto verify transactions maid through UPI payments*/
+function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
+  // Always clean up before checking
+    cleanupSmsSheet();
+
   try {
     const ss = SpreadsheetApp.openById("1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY");
     const sheet = ss.getSheetByName("Sheet1");
-    if (!sheet) return { status: "ERROR", message: "Log sheet not found." };
-
     const data = sheet.getDataRange().getValues();
-    const searchUTR = userEnteredUTR.toString().trim();
     const searchAmount = parseFloat(userExpectedAmount);
 
-    // Loop newest to oldest
+    let matches = [];
+
+    // Loop through logs (Newest to Oldest)
     for (let i = data.length - 1; i >= 1; i--) {
-      
-      // 1. FAST FILTER: Check Column B (Index 1) for the ICICI Sender ID
+      // 1. Skip if already verified
+      if (data[i][2] === "Verified") continue; 
+
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
-      
-      // We check if it CONTAINS 'ICICI' to handle AX-ICICIT, JX-ICICIT, etc.
-      if (!sender.includes("AX-ICICIT-S")) {
-        continue; // Skip this row immediately if it's not from the bank
-      }
+      if (!sender.includes("AX-ICICIT-S")) continue;
 
-      // 2. DATA RETRIEVAL: Only process the message if the sender matched
       const message = data[i][3] ? data[i][3].toString() : "";
+      const amtMatch = message.match(/Rs\.?\s?([0-9,.]+)/i);
 
-      // 3. UTR MATCH
-      if (message.includes(searchUTR)) {
+      if (amtMatch) {
+        const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
         
-        // 4. AMOUNT EXTRACTION
-        const amtMatch = message.match(/Rs\.?\s?([0-9,.]+)/i);
+        if (Math.abs(smsAmount - searchAmount) < 1.0) {
+         // 2. Extract Transaction ID (Handles "UPI:462960315285-ICICI")
+        // This captures the digits immediately after 'UPI:'
+        const utrMatch = message.match(/UPI:\s?(\d+)/i);
+        const fullUTR = utrMatch ? utrMatch[1] : "UNKNOWN";
 
-        if (amtMatch) {
-          const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
-
-          if (Math.abs(smsAmount - searchAmount) < 1.0) {
-            // Log to Ledger
-            logToMainLedger({
-                date: new Date(),
-                mainCategory: "OnlineSales",
-                type: "Income",
-                subType: "Online Order",
-                referenceID: "UPI-AUTO",
-                txnID: searchUTR,
-                entityName: userName,
-                amount: smsAmount,
-                paymentMode: "UPI/Online",
-                status: "Cleared",
-                notes: "Auto-verified via ICICI Sender: " + sender
+          // Filter by last 4 if provided
+          if (last4 === "" || fullUTR.endsWith(last4)) {
+            matches.push({ 
+              utr: fullUTR, 
+              sender: sender, 
+              amount: smsAmount, 
+              rowIndex: i + 1 // Store the 1-based row index for updating
             });
-
-            return { 
-              status: "SUCCESS", 
-              message: "Verified! Received Rs." + smsAmount
-            };
-          } else {
-            return { status: "MISMATCH", message: "Found UTR, but SMS says Rs." + smsAmount };
           }
         }
       }
     }
-    return { status: "NOT_FOUND", message: "UTR not found in recent ICICI logs." };
+
+    // --- LOGIC GATE ---
+    if (matches.length === 0) {
+      return { status: "NOT_FOUND", message: "No matching payment found yet." };
+    }
+
+    if (matches.length === 1) {
+      const result = matches[0];
+      
+      // A. Update the SMS Log Sheet (Column C)
+      sheet.getRange(result.rowIndex, 3).setValue("Verified");
+
+      // B. Update the Main Ledger
+      logToMainLedger({
+        date: new Date(),
+        mainCategory: "OnlineSales",
+        type: "Income",
+        subType: "Online Order",
+        referenceID: "UPI-AUTO",
+        txnID: result.utr,
+        entityName: userName,
+        amount: result.amount,
+        paymentMode: "UPI/Online",
+        status: "Cleared",
+        notes: "Auto-verified. Row: " + result.rowIndex
+      });
+
+      return { status: "SUCCESS", txnId: result.utr, message: "Verified! Received Rs." + result.amount };
+    }
+
+    if (matches.length > 1) {
+      return { status: "DUPLICATES", message: "Multiple payments found. Please enter last 4 digits." };
+    }
 
   } catch (e) {
-    return { status: "ERROR", message: "Verification Error: " + e.toString() };
+    return { status: "ERROR", message: e.toString() };
+  }
+}
+
+/**
+ * BUG FIX 2: Maintains only the last 20 transactions in the SMS Log Sheet
+ */
+function cleanupSmsSheet() {
+  const ss = SpreadsheetApp.openById(ID_SMS);
+  const sheet = ss.getSheetByName(TAB_SMS_SHEET);
+  const lastRow = sheet.getLastRow();
+  const maxRowsToKeep = 20;
+
+  // Row 1 is header, so we check if there are more than 21 rows total
+  if (lastRow > maxRowsToKeep + 1) {
+    const rowsToDelete = lastRow - (maxRowsToKeep + 1);
+    
+    // Delete from Row 2 (the oldest records) downward
+    sheet.deleteRows(2, rowsToDelete);
+    console.log("Cleanup: Deleted " + rowsToDelete + " old SMS rows.");
   }
 }
 
@@ -869,8 +908,8 @@ function debug_TestPaymentSystem() {
 
   // TEST VERIFICATION LOGIC (checkPaymentInLogs)
   console.log("Step : Running verification for UTR: " + testUTR);
-  const result = checkPaymentInLogs(testUTR, testAmount, testUser);
-  
+  const result = autoCheckPayment(testAmount, testUser,"4316");
+   
   console.log("Verification Result Status: " + result.status);
   console.log("Verification Result Message: " + result.message);
 
