@@ -496,7 +496,12 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
       if (data[i][2] === "Verified") continue; 
 
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
-      if (!sender.includes("AX-ICICIT-S")) continue;
+      const allowedSenders = ["AD-ICICIT-S", "AX-ICICIT-S"];
+
+      //Strict Check: If the sender is NOT in our list, skip it
+      if (!allowedSenders.includes(sender)) {
+        continue; 
+      }
 
       const message = data[i][3] ? data[i][3].toString() : "";
       const amtMatch = message.match(/Rs\.?\s?([0-9,.]+)/i);

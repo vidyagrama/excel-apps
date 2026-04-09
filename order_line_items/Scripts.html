@@ -186,6 +186,13 @@
       const err = document.getElementById('verify-error');
       const placeOrderBtn = document.getElementById('place-order-btn');
 
+      // --- BUG FIX: HIDE MANUAL UPLOAD SECTION ---
+      const manualUpload = document.getElementById('manual-upload-section');
+      if (manualUpload) {
+        manualUpload.style.display = 'none';
+        verificationRetries = 0;
+      }
+
       if (vBox) vBox.style.display = 'none';
       if (gate) gate.style.display = 'none';
       if (err) err.innerText = '';
