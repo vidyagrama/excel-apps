@@ -62,6 +62,7 @@ function validateLogin(varga, name, mobile) {
 
     const userData = {
       success: true,
+      varga: varga,
       email: user[6],
       discount: user[7] || 0,
       name: user[2],
@@ -179,8 +180,8 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       screenshotUrl = saveScreenshotToDrive(base64Image, txnId, summary.customerName);
     }
 
-    const orderStatus = (paymentMode === "Auto-Verified") ? "Received" : "Pending";
-    const paymentStatus = (paymentMode === "Auto-Verified") ? "Paid" : "Unpaid";
+    const orderStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Received" : "Pending";
+    const paymentStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Paid" : "Unpaid";
     const categoriesInCart = [...new Set(fullCart.map(item => item.mainCategory))];
     let generatedOrderIds = [];
 
@@ -199,10 +200,21 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
       liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
+      let notes = "";
+      notes = (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl;
+
+
+      if (paymentMode == "Cash") {
+        notes = (summary.notes || "") + "Cash Recived";
+
+      } else if (paymentMode == "Gift") {
+        notes = (summary.notes || "") + "Billed to Vidyakshetra Gift";
+      }
+
       const ordRow = [[
         "P0", catOrderId, summary.customerId, summary.customerName,
-        new Date(), orderStatus, summary.finalTotal, paymentStatus,
-        (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl
+        new Date(), orderStatus, summary.finalTotal, paymentStatus, notes
+
       ]];
       const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
       ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
@@ -480,7 +492,7 @@ function generateOrderId(mainCategory) {
 /* Auto verify transactions maid through UPI payments*/
 function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
   // Always clean up before checking
-    cleanupSmsSheet();
+  cleanupSmsSheet();
 
   try {
     const ss = SpreadsheetApp.openById("1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY");
@@ -493,14 +505,14 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
     // Loop through logs (Newest to Oldest)
     for (let i = data.length - 1; i >= 1; i--) {
       // 1. Skip if already verified
-      if (data[i][2] === "Verified") continue; 
+      if (data[i][2] === "Verified") continue;
 
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
       const allowedSenders = ["AD-ICICIT-S", "AX-ICICIT-S"];
 
       //Strict Check: If the sender is NOT in our list, skip it
       if (!allowedSenders.includes(sender)) {
-        continue; 
+        continue;
       }
 
       const message = data[i][3] ? data[i][3].toString() : "";
@@ -508,19 +520,19 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
 
       if (amtMatch) {
         const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
-        
+
         if (Math.abs(smsAmount - searchAmount) < 1.0) {
-         // 2. Extract Transaction ID (Handles "UPI:462960315285-ICICI")
-        // This captures the digits immediately after 'UPI:'
-        const utrMatch = message.match(/UPI:\s?(\d+)/i);
-        const fullUTR = utrMatch ? utrMatch[1] : "UNKNOWN";
+          // 2. Extract Transaction ID (Handles "UPI:462960315285-ICICI")
+          // This captures the digits immediately after 'UPI:'
+          const utrMatch = message.match(/UPI:\s?(\d+)/i);
+          const fullUTR = utrMatch ? utrMatch[1] : "UNKNOWN";
 
           // Filter by last 4 if provided
           if (last4 === "" || fullUTR.endsWith(last4)) {
-            matches.push({ 
-              utr: fullUTR, 
-              sender: sender, 
-              amount: smsAmount, 
+            matches.push({
+              utr: fullUTR,
+              sender: sender,
+              amount: smsAmount,
               rowIndex: i + 1 // Store the 1-based row index for updating
             });
           }
@@ -535,7 +547,7 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
 
     if (matches.length === 1) {
       const result = matches[0];
-      
+
       // A. Update the SMS Log Sheet (Column C)
       sheet.getRange(result.rowIndex, 3).setValue("Verified");
 
@@ -578,7 +590,7 @@ function cleanupSmsSheet() {
   // Row 1 is header, so we check if there are more than 21 rows total
   if (lastRow > maxRowsToKeep + 1) {
     const rowsToDelete = lastRow - (maxRowsToKeep + 1);
-    
+
     // Delete from Row 2 (the oldest records) downward
     sheet.deleteRows(2, rowsToDelete);
     console.log("Cleanup: Deleted " + rowsToDelete + " old SMS rows.");
@@ -589,11 +601,11 @@ function cleanupSmsSheet() {
 function logToMainLedger(data) {
   try {
     const ss = SpreadsheetApp.openById(ID_LEDGER);
-    const sheet = ss.getSheetByName(TAB_LEDGER_MAIN_LEDGER); 
+    const sheet = ss.getSheetByName(TAB_LEDGER_MAIN_LEDGER);
 
     const dr = (data.type === "Expense") ? data.amount : "";
     const cr = (data.type === "Income") ? data.amount : "";
-    
+
     const formData = [
       data.date,         // Date
       data.mainCategory, // Category
@@ -614,7 +626,7 @@ function logToMainLedger(data) {
     var lastRow = sheet.getLastRow();
     var targetRow = 2; // Default to row 2 if sheet is empty
 
-  
+
     if (lastRow > 0) {
       var columnValues = sheet.getRange(1, 2, lastRow, 1).getValues(); // Look at Column B
       for (var i = columnValues.length - 1; i >= 0; i--) {
@@ -625,9 +637,9 @@ function logToMainLedger(data) {
       }
     }
 
-   // 2. Use setValues instead of appendRow to respect the targetRow
+    // 2. Use setValues instead of appendRow to respect the targetRow
     sheet.getRange(targetRow, 1, 1, 12).setValues([formData]);
-   
+
     return true;
   } catch (e) {
     console.error("Ledger Update Error: " + e.toString());
@@ -701,7 +713,7 @@ function registerGuest(event, month, guestName, mobile, futureAssociate) {
     const guestId = (lastRow === 1) ? 1 : lastRow;
 
     const timestamp = "Registered: " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
-    
+
     // Column 1: Event, Column 2: Name, Column 3: Month, Column 4: Mobile, etc.
     // Based on your request, Month goes to Column 3
     guestSheet.appendRow([
@@ -717,16 +729,16 @@ function registerGuest(event, month, guestName, mobile, futureAssociate) {
     // FIX: Changed 'name' to 'guestName' to match your parameter
     logActivity(guestName, "GUEST_SIGNUP", `Event: ${event} | ID: ${guestId} | Month: ${month}`, "Guest_Sheet");
 
-    return { 
-      success: true, 
-      name: guestName, 
+    return {
+      success: true,
+      name: guestName,
       id: guestId,
       varga: "Guest",
-      event: event, 
-      discount: 0, 
-      balance: 0, 
+      event: event,
+      discount: 0,
+      balance: 0,
       credit: 0,
-      isGuest: true 
+      isGuest: true
     };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -904,7 +916,7 @@ function auditInventoryData() {
 
 /* Test payment status code */
 function debug_TestPaymentSystem() {
-  
+
   const testUTR = "645941740760"; // Matches your sample SMS
   const testAmount = 1.00;
   const testUser = "Test Debug User";
@@ -913,8 +925,8 @@ function debug_TestPaymentSystem() {
 
   // TEST VERIFICATION LOGIC (checkPaymentInLogs)
   console.log("Step : Running verification for UTR: " + testUTR);
-  const result = autoCheckPayment(testAmount, testUser,"4316");
-   
+  const result = autoCheckPayment(testAmount, testUser, "4316");
+
   console.log("Verification Result Status: " + result.status);
   console.log("Verification Result Message: " + result.message);
 
@@ -924,6 +936,6 @@ function debug_TestPaymentSystem() {
   } else {
     console.error("❌ TEST FAILED: Logic did not find or match the mock SMS.");
   }
-  
+
   console.log("--- DEBUG TEST COMPLETE ---");
 }

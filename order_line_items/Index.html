@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <?!= include('Styles'); ?>
@@ -118,7 +119,7 @@
       <div class="row">
         <div class="col-lg-8">
           <div class="row g-2 mb-3">
-           <div class="col-md-4">
+            <div class="col-md-4">
               <div class="input-group">
                 <input type="text" id="search-bar" class="form-control" placeholder="Search Name or SKU..." onkeyup="filterItems()">
                 <button class="btn btn-outline-secondary d-flex align-items-center" onclick="startScanner()" title="Scan Barcode">
@@ -127,9 +128,11 @@
               </div>
             </div>
 
-            <div id="scanner-wrapper" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999;">
+            <div id="scanner-wrapper"
+              style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999;">
               <div class="p-3 text-center">
-                <div id="reader" style="width: 100%; max-width: 400px; margin: auto; border-radius: 10px; overflow: hidden;"></div>
+                <div id="reader"
+                  style="width: 100%; max-width: 400px; margin: auto; border-radius: 10px; overflow: hidden;"></div>
                 <button class="btn btn-danger mt-3" onclick="stopScanner()">Cancel Scan</button>
               </div>
             </div>
@@ -150,6 +153,9 @@
         <div class="col-lg-4">
           <div id="cart-sidebar">
             <h6 class="fw-bold mb-3 border-bottom pb-2">Your Cart</h6>
+
+            <div id="sales-toggle-container"></div>
+
             <div id="cart-list" class="mb-3" style="max-height: 300px; overflow-y: auto;">Empty</div>
 
             <div class="border-top pt-2">
@@ -181,20 +187,22 @@
                 Please pay the final amount to proceed.
               </div>
 
-              <button id="pay-now-btn" class="btn btn-primary btn-sm w-100 mb-2" onclick="initiatePayment()">
+              <div id="payment-action-container">
+                <button id="pay-now-btn" class="btn btn-primary btn-sm w-100 mb-2" onclick="initiatePayment()">
                 Pay Now <span id="pay-amt-label">₹0</span>
               </button>
+              </div>
 
-             <div id="verify-box" style="display:none;">
+              <div id="verify-box" style="display:none;">
                 <button id="auto-verify-btn" class="btn btn-success w-100 mb-2 d-flex align-items-center justify-content-center gap-2" onclick="handleVerification()">
-                  <i class="material-icons">fact_check</i> Click to Verify Payment
-                </button>
+                <i class="material-icons">fact_check</i> Click to Verify Payment
+              </button>
 
                 <div class="input-group input-group-sm mb-1">
                   <input type="text" id="txn-id-input" class="form-control" placeholder="UTR (Locked)" disabled>
                   <button id="manual-verify-btn" class="btn btn-secondary" onclick="handleVerification(true)" disabled>Verify ID</button>
                 </div>
-                
+
                 <small id="verify-error" style="font-size: 0.75rem; display: block; margin-top: 5px;"></small>
               </div>
 
@@ -202,16 +210,14 @@
                 <p class="fw-bold text-danger mb-1" style="font-size: 0.7rem;">Verification Failed?</p>
                 <p class="text-muted mb-2" style="font-size: 0.65rem;">
                   If you've already paid, please upload the screenshot.
-                  <strong>Note:</strong> This order will be processed after manual verification (2-4 hours).
+                  <strong>Note:</strong> This order will be processed after manual verification.
                 </p>
                 <input type="file" id="screenshot-file" class="form-control form-control-sm" accept="image/*">
               </div>
-
             </div>
 
             <textarea id="order-notes" class="form-control form-control-sm mt-3" placeholder="Add delivery notes..."></textarea>
             <button id="place-order-btn" class="btn w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
-
           </div>
         </div>
       </div>
@@ -242,6 +248,19 @@
           <div class="d-flex gap-2 mt-4">
             <button type="button" class="btn btn-light flex-grow-1" data-bs-dismiss="modal">Stay</button>
             <button type="button" class="btn btn-danger flex-grow-1" onclick="confirmLogout()">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="payment-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-body p-0">
+          <div id="cash-confirm-section"></div>
+
+          <div id="upi-scan-section" style="display:none;">
           </div>
         </div>
       </div>

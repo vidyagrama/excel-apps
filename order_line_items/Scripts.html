@@ -1,6 +1,14 @@
 <script>
   let currentUser = null, fullInventory = [], cart = [], currentOrderId = "";
-  let verificationRetries = 0; 
+  let verificationRetries = 0;
+  let isGiftOrder = false; 
+  let salesDiscountEnabled = false; 
+  let manualPaymentMode = null;
+  let vkPaymentMode = null; 
+  let manualTxnId = null;
+
+  // Global State for Sales Mode
+
   const successModal = new bootstrap.Modal(document.getElementById('successModal'));
 
   function showAlert(message, type = 'success') {
@@ -177,8 +185,7 @@
       
       // --- BUG FIX 1: RESET GLOBAL STATE ---
       cart = []; 
-      salesDiscountEnabled = true; // Reset toggle for Sales users
-      
+
       // Reset Verification UI
       const vBox = document.getElementById('verify-box');
       const gate = document.getElementById('payment-gate');
@@ -399,89 +406,314 @@
   
 
   function updateCartUI() {
+    console.log("--- updateCartUI Triggered ---");
     if (!currentUser) return;
 
-    const list = document.getElementById('cart-list'), 
-          btn = document.getElementById('place-order-btn'),
-          gate = document.getElementById('payment-gate'); 
-    let gross = 0;
+    const isSales = (currentUser.varga === "Sales");
+    const toggleContainer = document.getElementById('sales-toggle-container');
 
+    console.log("User Varga:", currentUser.varga);
+    console.log("Is Sales User?:", isSales);
+    console.log("Toggle Container Found?:", toggleContainer !== null);
+        
+    // 1. Staff Controls Injection
+    if (isSales && toggleContainer) {
+      toggleContainer.style.display = 'block';
+        toggleContainer.innerHTML = `
+            <div class="card mb-3 border-0 shadow-sm" style="background: linear-gradient(145deg, #fffdf5, #fff9e6); border-left: 4px solid #ffc107 !important;">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center mb-2 text-warning">
+                        <i class="material-icons" style="font-size:16px;">security</i>
+                        <span class="fw-bold ms-1" style="font-size:0.65rem; letter-spacing:1px; text-transform:uppercase;">Staff Controls</span>
+                    </div>
+                    <div class="form-check form-switch mb-1">
+                        <input class="form-check-input" type="checkbox" id="disc-toggle" 
+                               ${salesDiscountEnabled ? 'checked' : ''} onchange="toggleSalesDiscount(this)">
+                        <label class="form-check-label small" for="disc-toggle">Apply Member Discount</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="gift-toggle" 
+                               ${isGiftOrder ? 'checked' : ''} onchange="toggleGiftOrder(this)">
+                        <label class="form-check-label small text-success fw-bold" for="gift-toggle">Vidyakshetra Gift (₹0)</label>
+                    </div>
+                </div>
+            </div>`;
+    }else if (toggleContainer) {
+    // Hide controls completely for normal users
+    toggleContainer.style.display = 'none';
+    toggleContainer.innerHTML = ''; 
+    }
+
+    if (!isSales) {
+      isGiftOrder = false;
+      salesDiscountEnabled = false;
+    }
+
+    if(isGiftOrder)
+      vkPaymentMode = "Gift";
+    else
+      vkPaymentMode = null;
+
+    const list = document.getElementById('cart-list');
+    const btn = document.getElementById('place-order-btn');
+    const gate = document.getElementById('payment-gate'); 
+
+    // 2. Accounting Values
     const userCredit = parseFloat(currentUser.credit || 0);
     const userBalance = parseFloat(currentUser.balance || 0);
+    const balEl = document.getElementById('balance-val');
+    const creEl = document.getElementById('credit-val');
+    if (balEl) balEl.innerText = "₹" + userBalance.toFixed(2);
+    if (creEl) creEl.innerText = "-₹" + userCredit.toFixed(2);
 
-    document.getElementById('balance-val').innerText = "₹" + userBalance.toFixed(2);
-    document.getElementById('credit-val').innerText = "-₹" + userCredit.toFixed(2);
+    // --- CRITICAL FIX: Define variables BEFORE they are used ---
+    let gross = 0;
+    let cartHtml = ""; 
 
+    // 3. Empty Cart Check
     if (cart.length === 0) {
-      list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
-      document.getElementById('gross-val').innerText = "₹0";
-      document.getElementById('disc-val').innerText = "-₹0";
-      let netAccount = userBalance - userCredit;
-      document.getElementById('final-val').innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
-      btn.classList.add('disabled');
-      if (gate) gate.style.display = 'none';
-      return;
+        if (list) list.innerHTML = '<div class="text-muted small text-center py-3">Your cart is empty</div>';
+        const gVal = document.getElementById('gross-val');
+        const dVal = document.getElementById('disc-val');
+        const fVal = document.getElementById('final-val');
+        if (gVal) gVal.innerText = "₹0.00";
+        if (dVal) dVal.innerText = "-₹0.00";
+        let netAccount = userBalance - userCredit;
+        if (fVal) fVal.innerText = "₹" + (netAccount > 0 ? netAccount : 0).toFixed(2);
+        if (btn) { btn.classList.add('disabled'); btn.disabled = true; }
+        if (gate) gate.style.display = 'none';
+        return;
     }
 
-    // --- GROUPING LOGIC ---
+    // 4. Grouping & Generation
     const grouped = cart.reduce((acc, item) => {
-      if (!acc[item.mainCategory]) acc[item.mainCategory] = [];
-      acc[item.mainCategory].push(item);
-      return acc;
+        if (!acc[item.mainCategory]) acc[item.mainCategory] = [];
+        acc[item.mainCategory].push(item);
+        return acc;
     }, {});
 
-    let cartHtml = "";
     for (const cat in grouped) {
-      cartHtml += `
-        <div class="category-divider d-flex align-items-center my-2">
-          <span class="fw-bold small text-uppercase" style="color:var(--vg-brown); letter-spacing:1px;">${cat}</span>
-          <div class="flex-grow-1 ms-2" style="border-bottom: 1px dashed #ccc;"></div>
-        </div>`;
+        cartHtml += `
+            <div class="category-divider d-flex align-items-center my-2">
+                <span class="fw-bold small text-uppercase" style="color:var(--vg-brown); letter-spacing:1px;">${cat}</span>
+                <div class="flex-grow-1 ms-2" style="border-bottom: 1px dashed #ccc;"></div>
+            </div>`;
 
-      cartHtml += grouped[cat].map(i => {
-        const subtotalNum = parseFloat(i.fullSubtotal);
-        gross += subtotalNum;
-        return `
-          <div class="cart-item d-flex justify-content-between align-items-center py-1 mb-1">
-            <div style="flex: 1; min-width: 0;">
-              <div class="fw-bold text-truncate" style="font-size:0.8rem">${i.itemName}</div>
-              <small class="text-muted" style="font-size:0.7rem">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
-            </div>
-            <div class="d-flex align-items-center">
-              <div class="input-group input-group-sm me-2" style="width: 80px;">
-                <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', -1)">-</button>
-                <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.7rem; min-height:24px;">${i.quantity}</span>
-                <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', 1)">+</button>
-              </div>
-              <div class="text-end" style="min-width: 55px;"><span class="fw-bold" style="font-size:0.8rem">₹${subtotalNum.toFixed(2)}</span></div>
-              <i class="material-icons ms-2 remove-btn" style="font-size:16px; cursor:pointer; color:#dc3545;" onclick="removeFromCart(${i.cartId})">cancel</i>
-            </div>
-          </div>`;
-      }).join('');
+        cartHtml += grouped[cat].map(i => {
+            const subtotalNum = parseFloat(i.fullSubtotal);
+            gross += subtotalNum;
+            return `
+                <div class="cart-item d-flex justify-content-between align-items-center py-1 mb-1">
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="fw-bold text-truncate" style="font-size:0.8rem">${i.itemName}</div>
+                        <small class="text-muted" style="font-size:0.7rem">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div class="input-group input-group-sm me-2" style="width: 80px;">
+                            <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', -1)">-</button>
+                            <span class="form-control text-center p-0 d-flex align-items-center justify-content-center" style="font-size: 0.7rem; min-height:24px;">${i.quantity}</span>
+                            <button class="btn btn-outline-secondary px-1 py-0" onclick="changeCartQty('${i.sku}', 1)">+</button>
+                        </div>
+                        <div class="text-end" style="min-width: 55px;"><span class="fw-bold" style="font-size:0.8rem">₹${subtotalNum.toFixed(2)}</span></div>
+                        <i class="material-icons ms-2 remove-btn" style="font-size:16px; cursor:pointer; color:#dc3545;" onclick="removeFromCart(${i.cartId})">cancel</i>
+                    </div>
+                </div>`;
+        }).join('');
     }
 
-    list.innerHTML = cartHtml;
+    // Inject the generated HTML into the list
+    if (list) list.innerHTML = cartHtml;
 
-    // SAFETY CHECK: Ensure discount exists before math
-    const userDisc = parseFloat(currentUser.discount || 0);
-    const discAmt = (gross * (userDisc / 100));
+    // 5. Calculations
+    let discAmt = 0;
+    if (isGiftOrder) {
+        discAmt = gross; 
+    } else if (isSales) {
+        discAmt = salesDiscountEnabled ? (gross * (parseFloat(currentUser.discount || 0) / 100)) : 0;
+    } else {
+        discAmt = (gross * (parseFloat(currentUser.discount || 0) / 100));
+    }
+
     const finalTotal = (gross - discAmt) + userBalance - userCredit;
     const displayTotal = finalTotal > 0 ? finalTotal : 0;
 
-    document.getElementById('gross-val').innerText = "₹" + gross.toFixed(2);
-    document.getElementById('disc-val').innerText = "-₹" + discAmt.toFixed(2);
-    document.getElementById('final-val').innerText = "₹" + displayTotal.toFixed(2);
+    const gVal = document.getElementById('gross-val');
+    const dVal = document.getElementById('disc-val');
+    const fVal = document.getElementById('final-val');
     
-    // Show payment gateway if there is a balance to pay
+    if (gVal) gVal.innerText = "₹" + gross.toFixed(2);
+    if (dVal) dVal.innerText = "-₹" + discAmt.toFixed(2);
+    if (fVal) fVal.innerText = "₹" + displayTotal.toFixed(2);
+    
+    // 6. Payment Gateway
     if (gate) {
-      gate.style.display = 'block';
-      document.getElementById('pay-amt-label').innerText = "₹" + displayTotal.toFixed(2);
+        gate.style.display = 'block';
+        const payLabel = document.getElementById('pay-amt-label');
+        if (payLabel) payLabel.innerText = "₹" + displayTotal.toFixed(2);
+        if (typeof updatePaymentButtons === "function") {
+            updatePaymentButtons(isSales, displayTotal);
+        }
     }
     
-    // Keep order button disabled until payment is verified (if you want that logic)
-    btn.classList.add('disabled'); 
+    // 7. Button Lock/Unlock
+    if (btn) {
+        if (isGiftOrder && displayTotal === 0) {
+            btn.classList.remove('disabled');
+            btn.disabled = false;
+        } else {
+            btn.classList.add('disabled');
+            btn.disabled = true;
+        }
+    }
+}
+  /* Cash order processing*/
+
+function toggleSalesDiscount(el) {
+  salesDiscountEnabled = el.checked;
+  console.log("Sales Discount Toggle:", salesDiscountEnabled);
+  updateCartUI(); // Refresh the prices
+}
+
+function toggleGiftOrder(el) {
+  isGiftOrder = el.checked;
+  console.log("Gift Order Toggle:", isGiftOrder);
+  
+  // Logic: If it's a gift, we usually force the discount toggle to match 
+  // or at least refresh the UI to show ₹0.
+  updateCartUI(); 
+}
+
+function updatePaymentButtons(isSales, amount) {
+  const container = document.getElementById('payment-action-container');
+  if (!container) return;
+
+  if (isSales && amount > 0) {
+    container.innerHTML = `
+      <div class="d-flex flex-column mt-3">
+        <p class="text-center mb-2 fw-bold" style="font-size:0.65rem; letter-spacing:1.5px; color: var(--vg-brown); opacity: 0.7;">
+          SELECT PAYMENT METHOD
+        </p>
+        
+        <button class="btn btn-primary w-100 mb-2 p-0 overflow-hidden" style="min-height: 55px; display: flex;" onclick="showCashConfirmation(${amount})">
+          <div class="d-flex align-items-center justify-content-center bg-black-20 px-3">
+             <i class="material-icons text-white">payments</i>
+          </div>
+          <div class="d-flex flex-column justify-content-center text-start ps-3 py-2">
+            <span class="fw-bold text-white" style="font-size:0.9rem; line-height: 1.1;">Physical Cash</span>
+            <span class="text-white-50" style="font-size:0.65rem; font-weight: normal;">Hand-to-hand collection</span>
+          </div>
+        </button>
+
+        <div class="text-center position-relative my-2">
+          <hr class="m-0" style="border-color: var(--vg-brown); opacity: 0.1;">
+          <span class="position-absolute top-50 start-50 translate-middle px-3" 
+                style="font-size:0.6rem; background: var(--vg-cream); color: var(--vg-brown); font-weight: bold;">OR</span>
+        </div>
+
+        <button class="btn btn-primary w-100 mb-2 p-0 overflow-hidden" style="min-height: 55px; display: flex;" onclick="initiatePayment('UPI')">
+          <div class="d-flex align-items-center justify-content-center bg-black-20 px-3">
+             <i class="material-icons text-white">qr_code_scanner</i>
+          </div>
+          <div class="d-flex flex-column justify-content-center text-start ps-3 py-2">
+            <span class="fw-bold text-white" style="font-size:0.9rem; line-height: 1.1;">UPI Payment</span>
+            <span class="text-white-50" style="font-size:0.65rem; font-weight: normal;">Digital Scan & Verify</span>
+          </div>
+        </button>
+      </div>`;
+  } else if (amount > 0) {
+    container.innerHTML = `
+      <button class="btn btn-primary btn-sm w-100 mb-2" onclick="initiatePayment('UPI')">
+        Pay Now ₹${amount.toFixed(2)}
+      </button>`;
   }
+}
+
+let paymentModalObj = null; // Declare this at the top of your script
+
+function showCashConfirmation(amount) {
+    const modalElement = document.getElementById('payment-modal');
     
+    // Create the instance once or reuse it
+    if (!paymentModalObj) {
+        paymentModalObj = new bootstrap.Modal(modalElement);
+    }
+
+    const cashSection = document.getElementById('cash-confirm-section');
+    if (cashSection) {
+        cashSection.innerHTML = `
+            <div class="text-center p-4">
+                <i class="material-icons text-success mb-3" style="font-size:4rem;">check_circle</i>
+                <h4 class="fw-bold">Cash Collection</h4>
+                <p class="text-muted">Receive <span class="fw-bold text-dark">₹${amount.toFixed(2)}</span> from member</p>
+                <button class="btn btn-success w-100 py-3 mt-2 shadow fw-bold" onclick="processCashOrder(${amount})">
+                    CONFIRM & PLACE ORDER
+                </button>
+                <button class="btn btn-link text-muted mt-2 btn-sm" data-bs-dismiss="modal">Cancel</button>
+            </div>`;
+    }
+
+    paymentModalObj.show();
+}
+
+/**
+ * Processes cash receipt manually.
+ * Bypasses SMS log verification.
+ */
+ function processCashOrder(amount) {
+
+    // CLOSE THE MODAL MANUALLY
+    const modalElement = document.getElementById('payment-modal');
+    const modalInstance = bootstrap.Modal.getInstance(modalElement); 
+    
+    if (modalInstance) {
+        modalInstance.hide();
+    }
+
+    // 3. CLEAN UP STUCK BACKDROPS (Safety Fix)
+    // Sometimes Bootstrap leaves the 'modal-backdrop' behind if hidden via JS
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(b => b.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
+    // 4. SHOW LOADING ON MAIN SCREEN
+    const grid = document.getElementById('inventory-grid');
+    if (grid) {
+        grid.innerHTML = `
+            <div class="col-12 text-center py-5 animate__animated animate__fadeIn">
+                <div class="spinner-border text-success" role="status"></div>
+                <h5 class="mt-3 fw-bold">Recording Cash Sale...</h5>
+                <p class="text-muted small">Updating inventory and accounts</p>
+            </div>`;
+    }
+
+    // 5. PLACE THE ORDER
+    // We generate a unique Cash ID for your records
+    const cashTxnId = "CASH-" + new Date().getTime();
+    executeOrderPlacement(cashTxnId, "Cash");
+}
+
+/**
+ * Ensures the order is finalized.
+ * Note: You should have a function like this that calls your final Google Script order function.
+ */
+  function executeOrderPlacement(txnId, mode) {
+    // Assuming you have a function called placeOrder() that handles the Google Sheets write
+    // You might need to adjust parameters based on your existing setup.
+    handleFinalOrder(txnId, mode); 
+  }
+
+  /**
+ * Helper to trigger order from Cash/Gift buttons
+ */
+  function handleFinalOrder(txnId, mode) {
+    manualTxnId = txnId;
+    manualPaymentMode = mode;
+    placeOrder(); // Trigger the main placement logic
+  }
+
+  /**** Change cart Quantity *****/    
   function changeCartQty(sku, direction) {
     const itemInCart = cart.find(i => i.sku === sku); if (!itemInCart) return;
     const step = 1, minAllowed = itemInCart.moq || 0.5;
@@ -501,16 +733,16 @@
     const err = document.getElementById('verify-error');
 
     // 1. DEFINE VARIABLES
-    let paymentMode = "Auto-Verified"; 
+    let paymentMode =  vkPaymentMode || manualPaymentMode || "Auto-Verified";  
     let base64Image = null;
-    let txnId = tidInput ? tidInput.value.trim() : "N/A";
+    let txnId = manualTxnId || tidInput ? tidInput.value.trim() : "N/A";
 
     // 2. CHECK VERIFICATION STATUS
     // Check if verified color is GREEN
     const isAutoVerified = (err.style.color === "rgb(25, 135, 84)" || err.style.color === "#198754");
 
-    if (!isAutoVerified) {
-      // If not auto-verified, check if a file is uploaded
+    if (!vkPaymentMode && !isAutoVerified && !manualPaymentMode) {
+      // If not auto-verified AND not a manual Sales action, check for screenshot
       if (fileInput && fileInput.files.length > 0) {
         paymentMode = "Manual Screenshot";
       } else {
@@ -549,24 +781,41 @@
       // 6. Run Server Script
       google.script.run
         .withSuccessHandler(res => {
-          if (res.success) {
+
+          // Reset manual flags
+          manualPaymentMode = null;
+          manualTxnId = null;
+
+          /*if (res.success) {
             const idList = res.orderIds.join(", ");
             
             // UPDATED SUCCESS MESSAGE: Notify user of manual check if screenshot was used
             let successMessage = `<strong>Order Placed!</strong><br>IDs: ${idList}`;
             if (paymentMode === "Manual Screenshot") {
               successMessage += `<br><br><small class="text-danger">⚠️ Screenshot uploaded. Your order will be processed after manual verification (2-4 hours).</small>`;
+            }*/
+
+            if (res.success) {
+            const idList = res.orderIds.join(", ");
+            let successMessage = `<strong>Order Placed!</strong><br>IDs: ${idList}`;
+            
+            if (paymentMode === "Manual Screenshot") {
+              successMessage += `<br><br><small class="text-danger">⚠️ Screenshot uploaded. Awaiting verification.</small>`;
+            } else if (paymentMode === "Cash") {
+              successMessage += `<br><br><span class="badge bg-success">Paid via Cash</span>`;
+            } else if (paymentMode === "Gift") {
+              successMessage += `<br><br><span class="badge bg-primary">Vidyakshetra Gift</span>`;
             }
 
-            document.getElementById('modal-id').innerHTML = successMessage;
-            successModal.show();
-            cart = [];
-            updateCartUI();
+            onOrderSuccess(successMessage);
+            
           } else {
             throw new Error(res.error || "Unknown server error");
           }
         })
         .withFailureHandler(err => {
+          manualPaymentMode = null;
+          manualTxnId = null;
           showAlert("Failed to save order: " + err, "error");
           btn.disabled = false;
           btn.innerHTML = "Place Order";
@@ -574,13 +823,32 @@
         .finalizeOrderBulk(summary, cart, paymentMode, base64Image, txnId);
 
     } catch (error) {
+      manualPaymentMode = null;
+      manualTxnId = null;
       showAlert("Error: " + error.message, "error");
       btn.disabled = false;
       btn.innerHTML = "Place Order";
     }
   }
 
- // function closeSuccessModal() { successModal.hide(); hardReset(); }
+function onOrderSuccess(response) {
+  console.log("Order placed successfully!");
+
+  // 1. Reset Staff toggles to OFF
+  isGiftOrder = false;
+  salesDiscountEnabled = false;
+
+  // 2. Clear the cart (assuming you have a clearCart function)
+  cart = []; 
+
+  document.getElementById('modal-id').innerHTML = response;
+  successModal.show();
+
+  // 4. Refresh UI - This will render toggles as UNCHECKED
+  updateCartUI(); 
+
+}
+
 
  // Replace your old function with this:
 function closeSuccessModal() { 
@@ -728,31 +996,75 @@ function closeSuccessModal() {
     }).join(' ');
   }
 
-  function initiatePayment() {
+function initiatePayment(method) {
     if (!currentUser) return;
 
     const finalValEl = document.getElementById('final-val');
     if (!finalValEl) return;
 
-    const amountStr = finalValEl.innerText.replace(/[₹,]/g, '').trim();
-    const amount = parseFloat(amountStr) || 0;
+    const amount = parseFloat(finalValEl.innerText.replace(/[₹,]/g, '').trim()) || 0;
+    const isSales = (currentUser.varga === "Sales");
 
-    if (amount <= 0) {
-      showAlert("Total must be greater than zero. Add items to your cart first! 🛒", "error");
-      return;
+    // 1. Handle Gift Orders immediately
+    if (isGiftOrder && amount === 0) {
+        showGiftConfirmation();
+        return;
     }
 
-    const upiId = "gokripa@icici";
-    const name = "Vidyakshetra";
-    const amountFixed = amount.toFixed(2);
-    
-    // UPI URL only used for generating the QR Code
-    const upiUrl = "upi://pay?pa=" + upiId + "&pn=" + encodeURIComponent(name) + "&am=" + amountFixed + "&cu=INR";
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(upiUrl);
-
+    // 2. Clear the main inventory grid for the "Checkout Screen"
     const grid = document.getElementById('inventory-grid');
-    if (grid) {
-      grid.innerHTML = `
+    if (!grid) return;
+
+    if (method === 'CASH' && isSales) {
+        renderCashScreen(grid, amount);
+    } else {
+        renderUPIScreen(grid, amount);
+    }
+
+}
+
+
+function renderCashScreen(container, amount) {
+    container.innerHTML = `
+        <div class="col-12 animate__animated animate__fadeIn">
+            <div class="card border-0 shadow-lg text-center overflow-hidden" style="border-radius: 15px;">
+                <div class="bg-success py-3 text-white">
+                    <i class="material-icons" style="font-size: 3rem;">payments</i>
+                    <h5 class="mb-0 fw-bold">Cash Collection</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-1">Total Amount to Collect</p>
+                    <h2 class="display-5 fw-bold text-dark mb-4">₹${amount.toFixed(2)}</h2>
+                    
+                    <div class="p-3 bg-light rounded mb-4 border">
+                        <p class="small text-muted mb-0">Please verify the currency notes before confirming.</p>
+                    </div>
+
+                    <button class="btn btn-success btn-lg w-100 py-3 fw-bold shadow" 
+                            onclick="processCashOrder(${amount})">
+                        CONFIRM CASH RECEIVED
+                    </button>
+                    
+                    <button class="btn btn-link text-muted mt-3" onclick="filterItems()">
+                        <i class="material-icons align-middle" style="font-size:18px;">arrow_back</i> Cancel & Go Back
+                    </button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderUPIScreen(container, amount) {
+  if (!container) return;
+  
+  // Safety check for amount
+  const validAmount = parseFloat(amount) || 0;
+  const upiId = "gokripa@icici";
+  const amountFixed = validAmount.toFixed(2);
+  const upiUrl = "upi://pay?pa=" + upiId + "&pn=Vidyakshetra&am=" + amountFixed + "&cu=INR";
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" + encodeURIComponent(upiUrl);
+
+  // Using a cleaner template literal structure
+  container.innerHTML = `
         <div class="col-12 text-center py-4 bg-white shadow rounded border-top border-warning border-4">
           <h5 class="fw-bold mb-3" style="color: var(--vg-brown);">Complete Your Payment</h5>
           
@@ -778,19 +1090,14 @@ function closeSuccessModal() {
             </div>
           </div>
         </div>`;
-    }
 
-    // Show the verification input in the sidebar
-    const verifyBox = document.getElementById('verify-box');
-    if (verifyBox) verifyBox.style.display = 'block';
-
-    // Disable 'Place Order' until verification is successful or screenshot is uploaded
-    const placeOrderBtn = document.getElementById('place-order-btn');
-    if (placeOrderBtn) {
-      placeOrderBtn.classList.add('disabled');
-      placeOrderBtn.disabled = true;
-    }
+  // Verification sidebar logic
+  const verifyBox = document.getElementById('verify-box');
+  if (verifyBox) {
+    verifyBox.style.display = 'block';
   }
+}
+
   // Add this function to your <script> to make the Copy button work
   function copyUpiId() {
     const copyText = document.getElementById("upi-copy-target");

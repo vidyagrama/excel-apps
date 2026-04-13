@@ -657,7 +657,8 @@
   .input-group .btn-outline-secondary {
     border-color: #ced4da;
     background-color: #f8f9fa;
-    color: var(--vg-brown); /* Matches your Vidyagrama theme */
+    color: var(--vg-brown);
+    /* Matches your Vidyagrama theme */
   }
 
   .input-group .btn-outline-secondary:hover {
@@ -671,9 +672,17 @@
   }
 
   @keyframes flash-border {
-    0% { box-shadow: 0 0 0px var(--vg-amber); }
-    50% { box-shadow: 0 0 15px var(--vg-amber); }
-    100% { box-shadow: 0 0 0px var(--vg-amber); }
+    0% {
+      box-shadow: 0 0 0px var(--vg-amber);
+    }
+
+    50% {
+      box-shadow: 0 0 15px var(--vg-amber);
+    }
+
+    100% {
+      box-shadow: 0 0 0px var(--vg-amber);
+    }
   }
 
   /*Haptic feedback battery optimization*/
@@ -691,4 +700,73 @@
     font-weight: bold;
   }
 
+  /*Cash accept*/
+  /* Styling for the Sales Switch */
+  /* --- THEMED CASH & STAFF CONTROLS --- */
+
+  /* --- UPI BUTTON THEME FIX --- */
+
+  /* Targets the specific UPI button class and standard primary buttons */
+  .upi-link-btn,
+  .btn-primary {
+    background-color: var(--vg-brown) !important;
+    border-color: var(--vg-brown) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600;
+  }
+
+  /* Hover state for the UPI button */
+  .upi-link-btn:hover,
+  .btn-primary:hover {
+    background-color: #4d321a !important;
+    /* A slightly darker brown */
+    filter: brightness(110%);
+    color: white !important;
+  }
+
+  /* Ensure the pre-order card doesn't use blue dashed lines */
+  .pre-order-card {
+    border: 1px dashed var(--vg-amber) !important;
+    background-color: #fffdf5 !important;
+  }
+
+  /* Replace standard Green with Vidyagrama Amber for Toggle Switches */
+  .form-check-input:checked {
+    background-color: var(--vg-amber) !important;
+    border-color: var(--vg-amber) !important;
+  }
+
+  /* Staff Indicator Card */
+  #sales-toggle-container {
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  #sales-toggle-container .card {
+    border-left: 4px solid var(--vg-amber) !important;
+  }
+
+  /* Force white text inside themed buttons */
+  .btn-primary,
+  .btn-primary * {
+    color: #ffffff !important;
+  }
+
+  /* Semi-transparent background for the icon section to give depth */
+  .bg-black-20 {
+    background-color: rgba(0, 0, 0, 0.15);
+  }
+
+  /* Fix for the sub-text (Digital Scan / Hand collection) */
+  .text-white-50 {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
+
+  /* Ensure button doesn't look flat on hover */
+  .btn-primary:active {
+    background-color: #382413 !important;
+    transform: scale(0.98);
+  }
 </style>
