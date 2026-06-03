@@ -1,0 +1,2179 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1PBuuL7VO6SE_ivpPU6aNDVFJVDQV-LCDougrZpaM-cA",
+          "mode": "list",
+          "cachedResultName": "Price-Apr26",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PBuuL7VO6SE_ivpPU6aNDVFJVDQV-LCDougrZpaM-cA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2123397339,
+          "mode": "list",
+          "cachedResultName": "Selling PRice",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PBuuL7VO6SE_ivpPU6aNDVFJVDQV-LCDougrZpaM-cA/edit#gid=2123397339"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -256,
+        80
+      ],
+      "id": "58d6c334-2221-40fb-8757-2ce0da70938d",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ohZkGbevPi5KQIlG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        1136
+      ],
+      "id": "099fc21f-df61-46ca-9cd0-c6e1c2a93882",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "content": "## Getting Grocery Stocks and prices from excel\n'\n",
+        "height": 448,
+        "width": 1856,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -720,
+        16
+      ],
+      "typeVersion": 1,
+      "id": "ef7972f8-87c8-4fbd-bcd4-bb5afd55821f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4",
+          "mode": "list",
+          "cachedResultName": "Google download -Apr26",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 906566253,
+          "mode": "list",
+          "cachedResultName": "April2026",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4/edit#gid=906566253"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -416,
+        896
+      ],
+      "id": "1ef0b16d-a1d5-41af-9e59-0efa5a5fc1a1",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ohZkGbevPi5KQIlG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Read data from each db's and caculate the total bill for each person \n",
+        "height": 640,
+        "width": 2240,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -816,
+        1488
+      ],
+      "typeVersion": 1,
+      "id": "065179c8-d15c-4c63-8c94-abe7dc3f209b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Fetch order and customer details\n",
+        "height": 944,
+        "width": 1936,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -784,
+        512
+      ],
+      "typeVersion": 1,
+      "id": "199d735f-f52a-464a-82c2-b43e33e818bb",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c652e80a-d854-4664-a59f-6b81a327a350",
+              "name": "ItemName",
+              "value": "={{ $json['Red Rice / ಕೆಂಪಕ್ಕಿ'] }}",
+              "type": "string"
+            },
+            {
+              "id": "606430e6-8a8e-495d-a6b8-e3503c4d538a",
+              "name": "Price",
+              "value": "={{ $json['110'] }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        208
+      ],
+      "id": "00bc310f-5894-445a-b2a4-bd6c65d85efc",
+      "name": "PriceList"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "156621a8-7e12-4814-80ff-0530db07b857",
+              "name": "Name",
+              "value": "={{ $json[\"Name:\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "42810670-872d-49ae-9781-04626db0a076",
+              "name": "WhatsappNo",
+              "value": "={{ $json[\"Whatsapp No:\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "de962281-fd75-40bd-a161-a12b515a9f2a",
+              "name": "Email",
+              "value": "={{ $json.Username }}",
+              "type": "string"
+            },
+            {
+              "id": "3d82a8cf-59dd-4c8b-857d-6c898e5d2eea",
+              "name": "Red Rice / ಕೆಂಪಕ್ಕಿ",
+              "value": "={{ $json[\"RICE [Rajamudi Rice/à²°à²¾à²œà²®à³à²¡à²¿ à²…à²•à³à²•à²¿ Rs. 110/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "7ffaa03d-01d9-4195-bdf9-0a59f6c0e85e",
+              "name": "Ponni Rice Raw /ಪೋನ್ನಿ ಅಕ್ಕಿ",
+              "value": "={{ $json[\"RICE [Ponni Rice Raw /à²ªà³‹à²¨à³à²¨à²¿ à²…à²•à³à²•à²¿ Rs. 100/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "5055ecb0-3741-433c-b824-ee4448f96daf",
+              "name": "Sona Masuri Rice - Polish/ಸೋನಾ ಮಸೂರಿ ಅಕ್ಕಿ ಪಾಲಿಷ್ಡ್",
+              "value": "={{ $json[\"RICE [Sona Masuri Rice - Polish/à²¸à³‹à²¨à²¾ à²®à²¸à³‚à²°à²¿ à²…à²•à³à²•à²¿ à²ªà²¾à²²à²¿à²·à³à²¡à³ Rs. 100/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b4948516-c67b-488e-a58f-243c728fc199",
+              "name": "Idli Rice/ ಇಡ್ಲಿ ಅಕ್ಕಿ",
+              "value": "={{ $json[\"RICE [Idli Rice/ à²‡à²¡à³à²²à²¿ à²…à²•à³à²•à²¿ Rs. 89/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "8142eb7f-de75-45e5-ae40-6bb010a702e9",
+              "name": "White Basumathi Rice/ ಬಾಸ್ಮತಿ ಅಕ್ಕಿ ಪಾಲಿಶ್",
+              "value": "={{ $json[\"RICE [White Basumathi Rice/ à²¬à²¾à²¸à³à²®à²¤à²¿ à²…à²•à³à²•à²¿ à²ªà²¾à²²à²¿à²¶à³ Rs. 190/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0e6402f5-fcfd-428f-a4d8-f766f8691bdf",
+              "name": "Black Rice/ ಕಪ್ಪಕ್ಕಿ",
+              "value": "={{ $json[\"RICE [Black Rice/ à²•à²ªà³à²ªà²•à³à²•à²¿ Rs. 225/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c7f64d09-128c-400e-a60c-a2cd89e079b8",
+              "name": "Thooya Malli Rice‌ / ತೂಯಾ ಮಲ್ಲಿ ಅಕ್ಕಿ",
+              "value": "={{ $json[\"RICE [Thooya Malli Riceâ€Œ / à²¤à³‚à²¯à²¾ à²®à²²à³à²²à²¿ à²…à²•à³à²•à²¿ Rs. 140/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d6f6086f-c240-435b-8bca-9650f2d47e25",
+              "name": "Foxtail Millet Grits / ನವಣೆ ತರಿ",
+              "value": "={{ $json[\"MILLETS [Foxtail Millet Grits / à²¨à²µà²£à³† à²¤à²°à²¿ Rs. 116/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "f3f64ed6-a633-417f-90c9-d5fa8972c7fe",
+              "name": "Little Millet (Same) Grits / ಸಾಮೆ ತರಿ",
+              "value": "={{ $json[\"MILLETS [Little Millet (Same) Grits / à²¸à²¾à²®à³† à²¤à²°à²¿ Rs. 135/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b2b94f05-f362-4d50-af56-186e2f01be3d",
+              "name": "Kodo Millet Grits / ಹರ್ಕಾ ತರಿ",
+              "value": "={{ $json[\"MILLETS [Kodo Millet Grits / à²¹à²°à³à²•à²¾ à²¤à²°à²¿ Rs.112/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "65dd5ee9-48e0-4e8f-9782-8bc1650fe1f7",
+              "name": "Barnyard Millet Grits /ಊದಲು ತರಿ",
+              "value": "={{ $json[\"MILLETS [Barnyard Millet Grits /à²Šà²¦à²²à³ à²¤à²°à²¿ Rs. 128/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "8823d190-2166-4256-912b-2d2f9f693a75",
+              "name": "Proso Millet Grits / ಬರಗು ತರಿ",
+              "value": "={{ $json[\"MILLETS [Proso Millet Grits / à²¬à²°à²—à³ à²¤à²°à²¿ Rs. 113/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "298fab59-60cf-4bb0-84df-2cb718aac296",
+              "name": "Channa Dal/ಕಡ್ಲೆಬೇಳೆ",
+              "value": "={{ $json[\"Dals [Channa Dal/à²•à²¡à³à²²à³†à²¬à³‡à²³à³† Rs. 185/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "2d268e01-767f-4c36-b71a-d0957e2d40d7",
+              "name": "Moong Dal/ಹೆಸರು ಬೇಳೆ",
+              "value": "={{ $json[\"Dals [Moong Dal/à²¹à³†à²¸à²°à³ à²¬à³‡à²³à³† Rs. 245/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "90358204-b97f-4785-8d2f-06d3c0701587",
+              "name": "Toor dal/ ತೊಗರಿ ಬೇಳೆ",
+              "value": "={{ $json[\"Dals [Toor dal/à²¤à³Šà²—à²°à²¿ à²¬à³‡à²³à³† Rs. 255/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e66d90fc-bd64-4396-81b4-c27b6af94982",
+              "name": "Urad dal/ ಉದ್ದಿನ ಬೇಳೆ",
+              "value": "={{ $json[\"Dals [Urad dal/à²‰à²¦à³à²¦à²¿à²¨ à²¬à³‡à²³à³† Rs. 215/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e3dbd119-2035-48a8-9dfb-fe7311cc497a",
+              "name": "Urad Whole White (Gola)/ ಉದ್ದಿನ ಕಾಳು ಬಿಳಿ (ಗೋಲ್)",
+              "value": "={{ $json[\"Dals [Urad Whole White (Gola)/à²‰à²¦à³à²¦à²¿à²¨ à²•à²¾à²³à³ à²¬à²¿à²³à²¿ (à²—à³‹à²²à³) Rs. 220/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "7e89a02e-2baa-4588-aba5-a8f2fcdeb7ee",
+              "name": "Urad dal With Skin/ ಉದ್ದಿನ ಬೇಳೆ ಸಿಪ್ಪೆಸಹಿತ",
+              "value": "={{ $json[\"Dals [Urad dal With Skin/à²‰à²¦à³à²¦à²¿à²¨ à²¬à³‡à²³à³† à²¸à²¿à²ªà³à²ªà³†à²¸à²¹à²¿à²¤ Rs. 275/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "edc0de29-0b66-4306-b68d-4a6861178bce",
+              "name": "Moong Dal With Skin/ಹೆಸರು ಬೇಳೆ ಸಿಪ್ಪೆಸಹಿತ",
+              "value": "={{ $json[\"Dals [Moong Dal With Skin/à²¹à³†à²¸à²°à³ à²¬à³‡à²³à³† à²¸à²¿à²ªà³à²ªà³†à²¸à²¹à²¿à²¤ Rs. 185/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "f0a8bbd9-86c9-4570-8a3f-dbd2082769bd",
+              "name": "Bengal Gram(Brown)/ಕಡ್ಲೆಕಾಳು",
+              "value": "={{ $json[\"PULSES [Bengal Gram(Brown)/à²•à²¡à³à²²à³†à²•à²¾à²³à³ Rs. 165/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "4a0ddd09-710e-414f-ba8d-c5ad5e15e89f",
+              "name": "Cowpea White/ಅಲಸಂದಿ ಬಿಳಿ",
+              "value": "={{ $json[\"PULSES [Cowpea White/à²…à²²à²¸à²‚à²¦à²¿ à²¬à²¿à²³à²¿ Rs. 170/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "db76bf4b-a77c-44e7-bc6b-bf0771093e7b",
+              "name": "Green Gram Whole/ಹೆಸರು ಕಾಳು",
+              "value": "={{ $json[\"PULSES [Green Gram Whole/à²¹à³†à²¸à²°à³ à²•à²¾à²³à³ Rs.245/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "4e378422-12e2-4bf4-82dc-d49f53e5a5bf",
+              "name": "Green Peas Dry White/ಒಣ ಬಿಳಿ ಬಟಾಣಿ",
+              "value": "={{ $json[\"PULSES [Green Peas Dry White/à²’à²£ à²¬à²¿à²³à²¿ à²¬à²Ÿà²¾à²£à²¿ Rs. 190/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "509673a3-09d3-416d-80bc-217682d90aa7",
+              "name": "Horse Gram/ಹುರುಳಿ",
+              "value": "={{ $json[\"PULSES [Horse Gram/à²¹à³à²°à³à²³à²¿ Rs. 250/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "7a33549a-93a3-4070-947d-3897441388f6",
+              "name": "Kabuli Chana/ಕಾಬೂಲಿ ಕಡಲೆ",
+              "value": "={{ $json[\"PULSES [Kabuli Chana/à²•à²¾à²¬à³‚à²²à²¿ à²•à²¡à²²à³† Rs. 270/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "ccef9dcc-ff72-44d9-9105-a03eaa325483",
+              "name": "Masoor Whole with Skin",
+              "value": "={{ $json[\"PULSES [Masoor Whole with Skin/à²®à²¸à³‚à²°à³ à²¹à³‹à²²à³ Rs. 160/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "db22e6c4-3278-4f0f-ba3b-ffb81512e169",
+              "name": "Moth (Matki)/ಮಡಿಕೆ ಕಾಳು",
+              "value": "={{ $json[\"PULSES [Moth (Matki)/à²®à²¡à²¿à²•à³† à²•à²¾à²³à³ Rs. 185/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "45f0b4df-95f6-463e-90f5-78f11409bfb3",
+              "name": "Rajma Chitra/ ರಾಜ್ಮಾ ಚಿತ್ರಾ",
+              "value": "={{ $json[\"PULSES [Rajma Chitra/à²°à²¾à²œà³à²®à²¾ à²šà²¿à²¤à³à²°à²¾ Rs.260/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0793190d-d3db-465d-b754-dede23313e0e",
+              "name": "Roasted Gram/ ಹುರಿಗಡಲೆ",
+              "value": "={{ $json[\"PULSES [Roasted Gram/à²¹à³à²°à²¿à²—à²¡à²²à³† Rs. 198/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d809b080-7a20-46fd-b6ed-6c2eb829ecf1",
+              "name": "Soya bean Whole/ಸೋಯಾ ಬೀನ್",
+              "value": "={{ $json[\"PULSES [Soya bean Whole/à²¸à³‹à²¯à²¾ à²¬à³€à²¨à³ Rs. 150/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "bc1572f8-37dd-4be6-99fe-bb552e9e3582",
+              "name": "Bansi Sooji (yellow)/ಬನ್ಸಿ ರವೇ",
+              "value": "={{ $json[\"CEREALS [Bansi Sooji (yellow)/à²¬à²¨à³à²¸à²¿ à²°à²µà³‡ Rs. 80/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "948badd8-516a-47ae-ad63-eb400415b45d",
+              "name": "Jave Sevai / ಜವೆ ಶ್ಯಾವಿಗೆ/ ಸೇಮಿಗೆ",
+              "value": "={{ $json[\"CEREALS [Jave Sevai / à²œà²µà³† à²¶à³à²¯à²¾à²µà²¿à²—à³†/ à²¸à³‡à²®à²¿à²—à³† Rs.170/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "2b2e98da-9a60-481c-a24b-9f02541fc06e",
+              "name": "Red beaten Rice Thick/ಕೆಂಪು ದಪ್ಪ ಅವಲಕ್ಕಿ",
+              "value": "={{ $json[\"CEREALS [Red beaten Rice Thick/à²•à³†à²‚à²ªà²•à³à²•à²¿ à²…à²µà²²à²•à³à²•à²¿ à²¦à²ªà³à²ª Rs. 100/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "f91508f9-de96-44c0-84e9-56330d8638de",
+              "name": "Jave Rave / ಜವೆ ರವೆ",
+              "value": "={{ $json[\"CEREALS [Jave Rava/à²œà²µà³† à²°à²µà²¾ Rs. 170/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "08af70fc-6ad6-480f-9f3b-9cdd0f0c05c5",
+              "name": "White beaten Rice Thin /ಬಿಳಿ ತೆಳು ಅವಲಕ್ಕಿ",
+              "value": "={{ $json[\"CEREALS [White beaten Rice Thin /à²¬à²¿à²³à²¿ à²…à²µà²²à²•à³à²•à²¿ à²¤à³†à²³à³ Rs. 92/kg. ]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d78dab3b-b7e5-41b5-b7aa-9bddd01d9fd6",
+              "name": "White beaten Rice Thick/ ಬಿಳಿ ದಪ್ಪ ಅವಲಕ್ಕಿ",
+              "value": "={{ $json[\"CEREALS [White beaten Rice Thick/à²¬à²¿à²³à²¿ à²…à²µà²²à²•à³à²•à²¿ à²¦à²ªà³à²ª Rs. 92/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "efe0c386-15be-406c-af8a-d564a8c81523",
+              "name": "Groundnut/ಶೇಂಗಾ",
+              "value": "={{ $json[\"CEREALS [Groundnut/à²¶à³‡à²‚à²—à²¾ Rs. 245/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "74f2b313-8548-411f-8241-d38d3bf9a034",
+              "name": "Ragi Flour/ರಾಗಿ ಹಿಟ್ಟು",
+              "value": "={{ $json[\"FLOURS [Ragi Flour/à²°à²¾à²—à²¿ à²¹à²¿à²Ÿà³à²Ÿà³ Rs.95/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "84016749-8154-41eb-8e50-a8391c4ec5bd",
+              "name": "Gram Flour/ಬೇಸನ್ ಹಿಟ್ಟು",
+              "value": "={{ $json[\"FLOURS [Gram Flour/à²¬à³‡à²¸à²¨à³ à²¹à²¿à²Ÿà³à²Ÿà³ Rs. 170/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "7f517273-18ea-4956-9c2d-d215dcbfe62c",
+              "name": "Rice Flour/ಅಕ್ಕಿ ಹಿಟ್ಟು",
+              "value": "={{ $json[\"FLOURS [Rice Flour/à²…à²•à³à²•à²¿ à²¹à²¿à²Ÿà³à²Ÿà³ Rs. 80/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "1823d0d2-02a0-47ce-b61b-e0b992a3e60f",
+              "name": "Jowar Flour/ಜೋಳದ ಹಿಟ್ಟು",
+              "value": "={{ $json[\"FLOURS [Jowar Flour/à²œà³‹à²³à²¦ à²¹à²¿à²Ÿà³à²Ÿà³ Rs. 86/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e2fb2c4d-d153-4613-a916-0e31fdaab735",
+              "name": "JAVE Godhi Atta / ಜವೆ ಗೋಧಿ ಹಿಟ್ಟು",
+              "value": "={{ $json[\"FLOURS [Wheat Kapli Flour/Jave Godhi Atta/à²œà²µà³† à²—à³‹à²§à²¿ à²¹à²¿à²Ÿà³à²Ÿà³ Rs. 170/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "43029576-8dec-43c1-bb5a-2df86b668376",
+              "name": "Wheat Maida/ಗೋಧಿ ಮೈದಾ",
+              "value": "={{ $json[\"FLOURS [Wheat Maida/à²—à³‹à²§à²¿ à²®à³ˆà²¦à²¾ Rs. 82/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "103eb216-87ae-40b7-bf27-c93ee743d927",
+              "name": "Chia seeds White / ಚಿಯಾ ಬೀಜ (ಬಿಳಿ)",
+              "value": "={{ $json[\"OIL SEEDS [Chia seeds White/ à²šà²¿à²¯à²¾ à²¬à³€à²œà²—à²³à³ (à²¬à²¿à²³à²¿) Rs. 503/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "067b6427-a23a-4da2-8433-8ef03445feb1",
+              "name": "Chia seeds black/ ಚಿಯಾ ಬೀಜ (ಕಪ್ಪು)",
+              "value": "={{ $json[\"OIL SEEDS [Chia seeds black/ à²šà²¿à²¯à²¾ à²¬à³€à²œà²—à²³à³ (à²•à²ªà³à²ªà³) Rs. 484/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d41d5248-acdb-4294-8f58-59eef23d1266",
+              "name": "Flax Seed/ಅಗಸೆ ಬೀಜ",
+              "value": "={{ $json[\"OIL SEEDS [Flax Seed/à²…à²—à²¸à³† à²¬à³€à²œ Rs. 175/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "198e9bcb-5f27-4571-8c6d-779f48bc69cd",
+              "name": "White Sesame/ ಬಿಳಿ ಎಳ್ಳು",
+              "value": "={{ $json[\"OIL SEEDS [Sesame White/à²¬à²¿à²³à²¿ à²Žà²³à³à²³à³ Rs. 370/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a6ccd734-9d5e-4358-bbe4-b5de33264053",
+              "name": "Ajwain / ಓಂ ಕಾಳು",
+              "value": "={{ $json[\"SPICES & HERBS [Ajwain/à²…à²œà²¿à²µà²¾à²¨ / à²“à²‚ à²•à²¾à²³à³ Rs. 455/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "577d8f9b-568f-421b-9ceb-ef26554e4735",
+              "name": "Black Pepper/ಕಾಳುಮೆಣಸು",
+              "value": "={{ $json[\"SPICES & HERBS [Black Pepper/à²•à²¾à²³à³à²®à³†à²£à²¸à³ Rs. 1230/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b07ad658-05ec-4fc6-b9d6-9e0565bf62cf",
+              "name": "Cardamom Green/ಏಲಕ್ಕಿ : ಹಸಿರು",
+              "value": "={{ $json[\"SPICES & HERBS [Cardamom Green/à²à²²à²•à³à²•à²¿ : à²¹à²¸à²¿à²°à³ Rs. 4877/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b67b9cf8-4516-41fa-a127-b3cfb17a539f",
+              "name": "Chilli Byadagi/ಬ್ಯಾಡಗಿ ಮೆಣಸಿನಕಾಯಿ",
+              "value": "={{ $json[\"SPICES & HERBS [Chilli Byadagi/à²¬à³à²¯à²¾à²¡à²—à²¿ à²®à³†à²£à²¸à²¿à²¨à²•à²¾à²¯à²¿ Rs. 849/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "742a7fc0-b6cb-44ef-bb0d-48837f864187",
+              "name": "Chilly Powder/ಮೆಣಸಿನಕಾಯಿ ಪುಡಿ",
+              "value": "={{ $json[\"SPICES & HERBS [Chilly Powder/à²®à³†à²£à²¸à²¿à²¨à²•à²¾à²¯à²¿ à²ªà³à²¡à²¿ Rs. 178/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "11085733-f97c-4347-824c-31e2c799e97b",
+              "name": "Red Chilly Whole/ಒಣಮೆಣಸಿನಕಾಯಿ ಗುಂಟೂರು",
+              "value": "={{ $json[\"SPICES & HERBS [Red Chilly Whole/à²’à²£à²®à³†à²£à²¸à²¿à²¨à²•à²¾à²¯à²¿ à²—à³à²‚à²Ÿà³‚à²°à³ Rs. 600/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "205b6b3f-db06-45b1-8a9c-ea16ca7480e7",
+              "name": "Cinnamon/ಚಕ್ಕೆ",
+              "value": "={{ $json[\"SPICES & HERBS [Cinnamon/à²šà²•à³à²•à³† Rs. 540/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "44417e93-6181-425a-a88b-9545fdf0d4b7",
+              "name": "Clove / ಲವಂಗ",
+              "value": "={{ $json[\"SPICES & HERBS [Clove/à²²à²µà²‚à²— Rs. 1824/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c6a2e1c0-a8bd-4be1-98ad-d47c811a4b22",
+              "name": "Coriander Whole/ಧನಿಯಾ (ಹವೀಜ) / ಕೊತ್ತಂಬರಿ",
+              "value": "={{ $json[\"SPICES & HERBS [Coriander Whole/à²§à²¨à²¿à²¯à²¾ (à²¹à²µà³€à²œ) - Rs. 275/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b4d98128-ab06-48b7-bf84-d171b7f7da35",
+              "name": "Coriander  Powder/ಧನಿಯಾ ಪುಡಿ",
+              "value": "={{ $json[\"SPICES & HERBS [Coriander Powder/à²§à²¨à²¿à²¯à²¾ à²ªà³à²¡à²¿ Rs. 272/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e16ab81b-241b-4281-8d6c-6af42f8b2a2f",
+              "name": "Cumin/ಜೀರಿಗೆ",
+              "value": "={{ $json[\"SPICES & HERBS [Cumin/à²œà³€à²°à²¿à²—à³† Rs. 1150/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "9440f796-2daa-4059-81d7-0dcfb36ea77f",
+              "name": "Dry Ginger Powder (ಒಣ ಶುಂಠಿ ಪುಡಿ)",
+              "value": "={{ $json[\"SPICES & HERBS [Dry Ginger Powder/à²’à²£à²¶à³à²‚à² à²¿ à²ªà³à²¡à²¿ Rs. 632/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a154ee72-3075-49df-b7a7-ee3f0e539930",
+              "name": "Fennel seeds (ಬಡಿ ಸೊಂಪು)",
+              "value": "={{ $json[\"SPICES & HERBS [Fennel seeds/à²¸à³‹à²‚à²ªà³ Rs. 595/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "8390c520-eb9c-4eeb-a673-19161a4fc228",
+              "name": "Methi/ಮೆಂತ್ಯ",
+              "value": "={{ $json[\"SPICES & HERBS [Methi/à²®à³†à²‚à²¤à³à²¯ Rs. 185/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "590c2595-eb7d-41f2-acd2-f0485e9081f6",
+              "name": "Mustard Black/ಸಾಸಿವೆ ಕಪ್ಪು",
+              "value": "={{ $json[\"SPICES & HERBS [Mustard Black/à²¸à²¾à²¸à²¿à²µà³† à²•à²ªà³à²ªà³ Rs. 175/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0003a055-6eee-4560-9c10-3ec5b87106c9",
+              "name": "Tamarind / ಹುಣಸೆಹಣ್ಣು",
+              "value": "={{ $json[\"SPICES & HERBS [Tamarind/ à²¹à³à²£à²¸à³†à²¹à²£à³à²£à³ Rs. 275/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d086b57a-3d6b-4ce4-a7bb-ea3a9deec4e8",
+              "name": "Turmeric Powder/ಅರಿಷಿಣಪುಡಿ",
+              "value": "={{ $json[\"SPICES & HERBS [Turmeric Powder/à²…à²°à²¿à²·à²¿à²£à²ªà³à²¡à²¿ Rs. 110/250 gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b44e98e4-6573-454a-95b1-12777592bfaa",
+              "name": "Hing / ಇಂಗು",
+              "value": "={{ $json[\"SPICES & HERBS [Hing Rs. 400/20gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "d7da6ea8-8440-4226-a3ee-6d0311be7f62",
+              "name": "Honey / ಜೇನು",
+              "value": "={{ $json[\"SWEETNERS [Honey/à²œà³‡à²¨à³à²¤à³à²ªà³à²ª Rs. 660/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c6ded694-daf5-4c24-a644-709b19ea72b7",
+              "name": "Jaggery Powder/ ಪುಡಿ ಬೆಲ್ಲ",
+              "value": "={{ $json[\"SWEETNERS [Jaggery Powder/à²¬à³†à²²à³à²²à²¦ à²ªà³à²¡à²¿ Rs. 160/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "9a74b18a-dee4-4ffe-a942-00cb6e395ec9",
+              "name": "Jaggery Bucket / ಬಕೆಟ್‌ ಬೆಲ್ಲ",
+              "value": "={{ $json[\"SWEETNERS [Jaggery Bucket Rs.120/piece]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "4684a1f0-61c9-4d9e-989b-7dfe70cb2311",
+              "name": "Brown Sugar/ಬ್ರೌನ್ ಶುಗರ್ ಪುಡಿ",
+              "value": "={{ $json[\"SWEETNERS [Brown Sugar /à²¬à³à²°à³Œà²¨à³ à²¶à³à²—à²°à³ Rs. 115/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "96947393-357b-48fd-9ffc-0d65c116d839",
+              "name": "Organic white sugar/ಸಾವಯವ ಬಿಳಿ ಸಕ್ಕರೆ",
+              "value": "={{ $json[\"SWEETNERS [Organic white sugar/à²¸à²¾à²µà²¯à²µ à²¸à²•à³à²•à²°à³† Rs. 110/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0decd4fb-fc3e-41af-8a87-050cfd5e8ee6",
+              "name": "Almond/ಬದಾಮಿ",
+              "value": "={{ $json[\"DRY FRUITS [Almond/à²¬à²¦à²¾à²®à²¿ Rs. 1315/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "9ffd680f-728f-4c79-81b3-1150dbddae3e",
+              "name": "Cashew Nut / ಗೋಡಂಬಿ",
+              "value": "={{ $json[\"DRY FRUITS [Cashew Nut/à²—à³‹à²¡à²‚à²¬à²¿ Rs. 1485/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "f602c09e-fad5-42d2-8812-435b2ed221b2",
+              "name": "Dry Grapes/ಒಣ ದ್ರಾಕ್ಷಿ",
+              "value": "={{ $json[\"DRY FRUITS [Dry Grapes/à²’à²£ à²¦à³à²°à²¾à²•à³à²·à²¿ Rs. 499/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "02199bcb-0047-40d9-92d9-c21961bcd6ae",
+              "name": "Himalayan Rock Salt powder/ ಹಿಮಾಲಯನ್ ಕಲ್ಲುಪ್ಪಿನ ಪುಡಿ",
+              "value": "={{ $json[\"SALTS [Himalayan Rock Salt powder/à²¹à²¿à²®à²¾à²²à²¯à²¨à³ à²•à²²à³à²²à³à²ªà³à²ªà³ à²ªà³à²¡à²¿ Rs. 95/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "aee066bc-9c71-4de4-a332-2980e6a06f08",
+              "name": "Sea Salt / ಸಮುದ್ರ ಉಪ್ಪು",
+              "value": "={{ $json[\"SALTS [Sea Salt Crystal/à²¸à²®à³à²¦à³à²° à²‰à²ªà³à²ªà³ à²¹à²°à²³à³ Rs. 45/kg]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "587eac33-d367-49d6-b0c4-c45bc37dfcdb",
+              "name": "Desi Cow Ghee ತುಪ್ಪ",
+              "value": "={{ $json[\"OILS & GHEE [Desi Cow Ghee/à²¸à²¾à²µà²¯à²µ à²¤à³à²ªà³à²ª (à²¹à²¸à³ ) Rs. 1285/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "07827d7e-d7ba-4f86-a5e7-a31bf52b0eb4",
+              "name": "Groundnut Oil - Wood Pressed/ಶೇಂಗಾ ಎಣ್ಣೆ ",
+              "value": "={{ $json[\"OILS & GHEE [Groundnut Oil/à²¶à³‡à²‚à²—à²¾ à²Žà²£à³à²£à³† Rs. 337/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "6e6905af-f6e9-4a88-abdf-c4bbb36cd289",
+              "name": "Mustard Oil/ಸಾಸಿವೆ ಎಣ್ಣೆ",
+              "value": "={{ $json[\"OILS & GHEE [Mustard Oil/à²¸à²¾à²¸à²¿à²µà³† à²Žà²£à³à²£à³† Rs. 355/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "6a4f8a00-5d88-46dc-b1fa-d6bae930ea85",
+              "name": "Safflower Oil/ಕುಸುಬೆ ಎಣ್ಣೆ",
+              "value": "={{ $json[\"OILS & GHEE [Safflower Oil/à²•à³à²¸à³à²¬à³† à²Žà²£à³à²£à³† Rs. 375/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "25a05c54-12d4-419b-8a71-fe172e0f9270",
+              "name": "Sunflower Oil/ಸೂರ್ಯಕಾಂತಿ ಎಣ್ಣೆ",
+              "value": "={{ $json[\"OILS & GHEE [Sunflower Oil/à²¸à³‚à²°à³à²¯à²•à²¾à²‚à²¤à²¿ à²Žà²£à³à²£à³† Rs. 365/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e9fb359f-194b-41e5-9db0-93d90cf45947",
+              "name": "Sesame Oil/ ಎಳ್ಳೆಣ್ಣೆ",
+              "value": "={{ $json[\"OILS & GHEE [Sesame Oil/ à²Žà²³à³à²³à³†à²£à³à²£à³† Rs. 420/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "e013ffca-17d0-4120-9a09-6f76bac4948b",
+              "name": "Virgin Coconut Oil/ತೆಂಗಿನ ತಾಜಾ ಎಣ್ಣೆ ",
+              "value": "={{ $json[\"OILS & GHEE [Coconut Oil/à²¤à³†à²‚à²—à²¿à²¨ à²Žà²£à³à²£à³† Rs. 695/ltr]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "eb0f4bf2-e4e5-491f-898b-4687f6e0fd56",
+              "name": "Flax Seed chutney/ ಅಗಸೆ ಬೀಜದ ಚಟ್ನಿಪುಡಿ",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Flax Seed chutney/ à²…à²—à²¸à³† à²¬à³€à²œà²¦ à²šà²Ÿà³à²¨à²¿à²ªà³à²¡à²¿ Rs.220/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "3586c2a6-d074-4604-b7d0-9a8dac1da87a",
+              "name": "Garam Masala / ಗರಂ ಮಸಾಲೆ",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Garam Masala / à²—à²°à²‚ à²®à²¸à²¾à²²à³† Rs. 485/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "4c73c507-840f-4a03-aeee-d161836b9e8e",
+              "name": "Rasam Powder / ಸಾರು/ ರಸಂ ಪುಡಿ",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Rasam Powder / à²¸à²¾à²°à³/ à²°à²¸à²‚ à²ªà³à²¡à²¿ Rs.288/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "63abd15c-4cff-4427-b6f8-dac2b956a1c7",
+              "name": "Sambar Powder / ಸಾಂಬಾರ್‌ ಪುಡಿ",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Sambar Powder / à²¸à²¾à²‚à²¬à²¾à²°à³â€Œ à²ªà³à²¡à²¿ Rs.150/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "f05f9214-1547-475c-baec-46ecb617e904",
+              "name": "Vangibath Powder / ವಾಂಗೀಬಾತ್‌ ಪುಡಿ",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Vangibath Powder / à²µà²¾à²‚à²—à³€à²¬à²¾à²¤à³â€Œ à²ªà³à²¡à²¿ Rs.]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "10e3287d-cedc-4885-9fc9-98e279fd1fe5",
+              "name": "Kashaya Powder",
+              "value": "={{ $json[\"Homemade Masala / Chutney Powders [Kashaya Powder Rs.225/250gms]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "68403e7e-d6b2-4ccf-8538-c8f01448352e",
+              "name": "Shyama Soap / ಶ್ಯಾಮ ಸಾಬೂನು",
+              "value": "={{ $json[\"Organic Handmade Soaps [Shyama (Charcoal) Rs. 120/piece]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "fde424ba-79a7-428c-be1c-d8b91b6371f8",
+              "name": "Pushpam Soap / ಪುಷ್ಪಂ ಸಾಬೂನು",
+              "value": "={{ $json[\"Organic Handmade Soaps [Pushpam (Extra Sensitive Skin) Rs. 110/peice]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c9a0899a-f232-4e18-838c-8ab2cb19b5c5",
+              "name": "Sugandham Soap / ಸುಗಂಧಂ ಸಾಬೂನು",
+              "value": "={{ $json[\"Organic Handmade Soaps [Sugandham ( Sandal) Rs.150/peice]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "54a47272-47f5-4780-aaea-ce45ba66aeec",
+              "name": "Rosemary Soap / ರೋಸ್ಮೆರಿ ಸಾಬೂನು",
+              "value": "={{ $json[\"Organic Handmade Soaps [Rosemary Soap Rs.110/peice]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "8721b4be-fc79-4b2e-a93e-b7aeb70f30cf",
+              "name": "Peppermint Soap",
+              "value": "={{ $json[\"Organic Handmade Soaps [Peppermint Soap Rs.110/piece]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "505da8ba-281a-416d-b8b1-2c5a73a70070",
+              "name": "Dhoop / ಧೂಪ",
+              "value": "={{ $json[\"Dhoop [Dhoop Rs. 65/packet]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b85b90c5-235b-4419-9781-7b02ca8621c3",
+              "name": "Sambrani Dhoop Cup",
+              "value": "={{ $json[\"Dhoop [Sambrani Dhoop Cup Rs.220/packet]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "da9a5a3f-b4ea-40d9-8c5f-06b6396b92e4",
+              "name": "Shampoo",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Venu Madhuri's Natural Shampoo Rs.105/bottle]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "1512adf6-f88d-46a4-b8ef-779bc589894f",
+              "name": "Bamboo Toothbrush for Children / ಮಕ್ಕಳಿಗೆ ಬಿದಿರಿನ ಹಲ್ಲುಜ್ಜುವ ಬ್ರಷ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Bamboo Toothbrush for Children Rs. 60/piece]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "c3d13b00-7329-4d31-83f5-942a52a271a9",
+              "name": "Bamboo Tooth Brush / ಬಿದಿರಿನ ಹಲ್ಲುಜ್ಜುವ ಬ್ರಷ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Bamboo Tooth Brush for Adults Rs. 65/piece]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "a5478848-a953-40ee-b023-07e36762c4b2",
+              "name": "Bamboo Ear Buds / ಬಿದಿರಿನ ಇಯರ್ ಬಡ್ಸ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Bamboo Ear Buds Rs.50/pack]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "013b57c9-0cc7-41fe-a934-25b5e9b09fc0",
+              "name": "Plantable Seed Pencil / ಪ್ಲಾಂಟಬಲ್‌ ಸೀಡ್‌ ಪೆನ್ಸಿಲ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Plantable Seed Pencil pack of 10 Rs. 134/box]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "23c188ae-363f-4d77-8484-4b6b5e43d63d",
+              "name": "Plantable Seed Pen‌ / ಪ್ಲಾಂಟಬಲ್‌ ಸೀಡ್‌ ಪೆನ್‌",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Plantable Seed Pen pack of 5 Rs. 91/box]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "1f718b22-1fd3-4886-b8f7-69c7096cd993",
+              "name": "Bio Diswash Liquid / ಬಯೋ ಡಿಶ ವಾಶ್‌ ಲಿಕ್ವಿಡ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [BIO Diswash Liquid Rs. 269/500ml]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "53e48f92-83bd-4b0c-b942-f851eb223cd1",
+              "name": "Bio Toilet Cleaner‌ / ಬಯೋ ಟಾಯ್ಲೆಟ್‌ ಕ್ಲೀನರ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [BIO Toilet Cleaner Rs.269/500ml]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "3af42801-d0c9-4dc1-b20a-96d14f4832de",
+              "name": "Bio Floor Cleaner‌ / ಬಯೋ ಫ್ಲೋರ್‌ ಕ್ಲೀನರ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [BIO Floor Cleaner Rs. 269/500ml]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "521eebf7-f974-4e1e-a105-b32d0b9a4c08",
+              "name": "Bio Laundry Wash‌ / ಬಯೋ ಲಾಂಡ್ರಿ ವಾಶ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Bio Laundry Wash Rs. 269/500ml]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "80ab087e-fa2e-42fd-96c7-27f7d6c318db",
+              "name": "Bio Kitchen Cleaner‌ / ಬಯೋ ಕಿಚನ್‌ ಕ್ಲೀನರ್",
+              "value": "={{ $json[\"Natural and Eco Friendly Products [Bio Kitchen Cleaner Rs. 269/500ml]\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "35dfab1b-4b29-4712-93fa-4c9e2c6b8e4a",
+              "name": "Quinoa",
+              "value": "={{ $json[\"Quinoa \"] }}",
+              "type": "string"
+            },
+            {
+              "id": "7d02522b-8325-4ae0-8b8e-bd1f3095ec30",
+              "name": "Local/Bombay/Chiroti Rava",
+              "value": "={{ $json[\"Local/Bombay/Chiroti Rava\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b27bf9d9-b9db-458d-a359-a8fe21b9684b",
+              "name": "Poppy Seeds - Khus khus",
+              "value": "={{ $json[\"Poppy Seeds - Khus khus\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "0bda04b5-2a27-47f7-a723-22219acb40ed",
+              "name": "Marathi Moggu",
+              "value": "={{ $json[\"Marathi Moggu\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "26433954-e153-4f4f-bedc-c05e0cd15ece",
+              "name": "Nutmeg - Jakayi",
+              "value": "={{ $json[\"Nutmeg - Jakayi\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "b9fd3aaf-0498-4949-ac06-e76e72831b34",
+              "name": "Mace - Japathri",
+              "value": "={{ $json[\"Mace - Japathri\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "04b62d42-517c-4b97-b1cb-1b2acdc26a3d",
+              "name": "Star Anise - Pineapple Flower",
+              "value": "={{ $json[\"Star Anise - Pineapple Flower\"] }}",
+              "type": "string"
+            },
+            {
+              "id": "64bb690a-63a5-4da5-8695-f2c50945891b",
+              "name": "Kasuri Methi",
+              "value": "={{ $json[\"Kasuri Methi\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -208,
+        896
+      ],
+      "id": "0e86b788-6b3a-409d-bfad-4cd9faa837c5",
+      "name": "Orders"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "87wtnEXfmFZBDAyN",
+          "mode": "list",
+          "cachedResultName": "pricelist",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/87wtnEXfmFZBDAyN"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "item",
+              "keyValue": "={{ $json.ItemName }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "item": "={{ $json.ItemName }}",
+            "price": "={{ $json.Price }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "item",
+              "displayName": "item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "price",
+              "displayName": "price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        592,
+        272
+      ],
+      "id": "3c96c325-a413-43a7-840d-8c9d43d4acc7",
+      "name": "price-db"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "dataTableId": {
+          "__rl": true,
+          "value": "gQCMTggNuSA9quiU",
+          "mode": "list",
+          "cachedResultName": "customers",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/gQCMTggNuSA9quiU"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "keyValue": "={{ $json['Name:'] }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json['Name:'] }}",
+            "mobile": "={{ $json['Whatsapp No:'] }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mobile",
+              "displayName": "mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        144,
+        720
+      ],
+      "id": "dbdc8307-787e-4597-8f59-3509f22e7499",
+      "name": "customer-details-db"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nitems.forEach(item => {\n  const data = item.json;\n\n  Object.keys(data)\n    .filter(key => \n      !['Name', 'WhatsappNo', 'Email', 'submitted_at', 'id'].includes(key) && \n      data[key] !== '' && data[key] !== null && data[key] !== undefined\n    )\n    .forEach(key => {\n      const val = String(data[key]); \n      \n      // 1. Split by comma OR semicolon OR any other common separator\n      const parts = val.split(/[;,]/);\n      \n      let totalQty = 0;\n      let detectedUnit = \"\";\n\n      parts.forEach(part => {\n        // Extract numeric part (handles integers and decimals)\n        const qtyMatch = part.match(/(\\d+(\\.\\d+)?)/);\n        if (qtyMatch) {\n          totalQty += parseFloat(qtyMatch[0]);\n        }\n        \n        // Extract the unit (the text part like \"kg\" or \"Nos\")\n        if (!detectedUnit) {\n          const unitMatch = part.replace(/[\\d\\.]+/, '').trim();\n          if (unitMatch) detectedUnit = unitMatch;\n        }\n      });\n\n      if (totalQty > 0) {\n        results.push({\n          json: {\n            Name: data.Name,\n            Mobile: data.WhatsappNo || data.Mobile,\n            Email: data.Email,\n            ItemName: key,\n            Qty: totalQty,       // Results in 3\n            Weight: detectedUnit // Results in \"kg\"\n          }\n        });\n      }\n    });\n});\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        960
+      ],
+      "id": "f1c1271a-ee9f-4401-ae47-52dfe1e1f9bb",
+      "name": "sort-orders"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "dTwwd3LXLEqzGQOx",
+          "mode": "list",
+          "cachedResultName": "orders",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/dTwwd3LXLEqzGQOx"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "item": "={{ $json.ItemName }}",
+            "qty": "={{ $json.Qty }}",
+            "unit": "={{ $json.Weight }}",
+            "name": "={{ $json.Name }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "item",
+              "displayName": "item",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "qty",
+              "displayName": "qty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "unit",
+              "displayName": "unit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        1024
+      ],
+      "id": "5ca0992f-602f-4d5b-9459-37a3ad084f51",
+      "name": "orders-db"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -480,
+        1760
+      ],
+      "id": "f6b5163b-2d7c-4325-b158-1f59aa5e5e3c",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "gQCMTggNuSA9quiU",
+          "mode": "list",
+          "cachedResultName": "customers",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/gQCMTggNuSA9quiU"
+        },
+        "limit": 200
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        1760
+      ],
+      "id": "094a8323-04c5-4dc4-97fb-4f0059f76fca",
+      "name": "Get-Customers-Details"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "dTwwd3LXLEqzGQOx",
+          "mode": "list",
+          "cachedResultName": "orders",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/dTwwd3LXLEqzGQOx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "keyValue": "={{ $json.name }}"
+            }
+          ]
+        },
+        "limit": 70
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        1648
+      ],
+      "id": "f4fdee93-786e-45a0-a008-eed2eaf3ea53",
+      "name": "Get-Orders"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "87wtnEXfmFZBDAyN",
+          "mode": "list",
+          "cachedResultName": "pricelist",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/87wtnEXfmFZBDAyN"
+        },
+        "matchType": "allConditions",
+        "limit": 400
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        32,
+        1504
+      ],
+      "id": "a95fd23c-6d1d-4e80-ab03-50bcfc908a74",
+      "name": "Get row(s)",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "item",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        272,
+        1568
+      ],
+      "id": "369af149-7a41-4331-a45a-cf5be6f48a96",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "htmlInvoice",
+        "options": {
+          "fileName": "={{ $json.name }}_Invoice_{{ $now.format('yyyy-MM-dd') }}"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        1264
+      ],
+      "id": "5de67144-ba8b-41a9-90eb-74d68724293d",
+      "name": "invoice"
+    },
+    {
+      "parameters": {
+        "name": "={{ $binary.data.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1a4S1Mwtzek4dA-ocnbH7ZI-2PWEoIkXD",
+          "mode": "list",
+          "cachedResultName": "Invoices-Apr26",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1a4S1Mwtzek4dA-ocnbH7ZI-2PWEoIkXD"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1120,
+        1824
+      ],
+      "id": "dd110746-e764-4236-b1ed-a6e48d37b23d",
+      "name": "Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "wMOmi4EfOimaFtVE",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "dTwwd3LXLEqzGQOx",
+          "mode": "list",
+          "cachedResultName": "orders",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/dTwwd3LXLEqzGQOx"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "gt",
+              "keyValue": "0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        864
+      ],
+      "id": "58626529-a15a-4e5d-bc5d-a60774efa2a9",
+      "name": "delete-old orders"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        848
+      ],
+      "id": "882507a9-19b2-4e8c-83f4-60e56672bd06",
+      "name": "Wait",
+      "webhookId": "7c02c018-e8cd-4e17-872f-872886ded2c9"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1OYb3DPXAfWMaEGbxcx7CPAPq1rEAkAqXMozDzNreTq4",
+          "mode": "list",
+          "cachedResultName": "customers-discount",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1OYb3DPXAfWMaEGbxcx7CPAPq1rEAkAqXMozDzNreTq4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1OYb3DPXAfWMaEGbxcx7CPAPq1rEAkAqXMozDzNreTq4/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        368,
+        544
+      ],
+      "id": "54da0db1-86c4-486c-8d32-091450985b33",
+      "name": "Get Customer Discounts",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ohZkGbevPi5KQIlG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c652e80a-d854-4664-a59f-6b81a327a350",
+              "name": "name",
+              "value": "={{ $json.Name }}",
+              "type": "string"
+            },
+            {
+              "id": "606430e6-8a8e-495d-a6b8-e3503c4d538a",
+              "name": "discount",
+              "value": "={{ $json[\"Discount (% percentage)\"] }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        528
+      ],
+      "id": "de05dac0-59a0-42ec-b3f0-85cc7f76b2ac",
+      "name": "customer-discounts-list"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "value": "gQCMTggNuSA9quiU",
+          "mode": "list",
+          "cachedResultName": "customers",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/gQCMTggNuSA9quiU"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "keyValue": "={{ $json.name }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "discount": "={{ $json.discount }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mobile",
+              "displayName": "mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "discount",
+              "displayName": "discount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        528
+      ],
+      "id": "9552ffb0-45df-4108-8d9f-2b8e151bdf20",
+      "name": "Update discounts"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        1744
+      ],
+      "id": "010578fb-afd4-402b-aeb2-b7131e4df88e",
+      "name": "Merge-discounts"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Access n8n Workflow Static Data\nconst staticData = $getWorkflowStaticData('global');\nlet lastInvoiceNumber = staticData.lastInvoiceNumber || 2; \n\nlastInvoiceNumber = 113;\n// 1. ACCESS STATIC DATA (The \"Memory\")\n//const staticData = $getWorkflowStaticData('global');\n\n// 2. ACCESS DATA TABLE (The \"Manual Override\")\n// We look for a field named 'manualInvoiceStart' in your Data Table node\n//const tableSource = $('invoice-no').first().json;\n\n// Logic: Use Manual Table input IF it exists, otherwise use Static Data, otherwise default to 100\n//let lastInvoiceNumber = parseInt(tableSource.invoice_counter || staticData.lastInvoiceNumber || 100);\n\nconst items = $input.all();\n\nconst grouped = items.reduce((acc, item) => {\n  const data = item.json; \n  const name = data.name || 'Unknown Customer';\n  if (!acc[name]) acc[name] = [];\n  acc[name].push(data); \n  return acc;\n}, {});\n\nconst results = Object.keys(grouped).map(customerName => {\n  \n  const currentInvoiceNo = `INV-${lastInvoiceNumber}`;\n\n  const customerItems = grouped[customerName];\n  let tableRows = '';\n  let overallTotal = 0;\n\n  const firstItem = customerItems[0]; \n  const discountRate = parseFloat(firstItem.discount || 0);\n  \n  customerItems.forEach(item => {\n    let quantity = parseFloat(item.qty || 0);\n    let pricePerUnit = parseFloat(item.price || 0);\n    let displayUnit = item.unit || '';\n\n    if (displayUnit.toLowerCase() === 'gms') {\n      quantity = quantity / 1000;\n      displayUnit = 'kg';\n    }\n\n    const lineTotal = quantity * pricePerUnit;\n    overallTotal += lineTotal;\n\n    const formattedPrice = pricePerUnit.toLocaleString('en-IN', { minimumFractionDigits: 2 });\n    const formattedLineTotal = lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 });\n\n    tableRows += `\n      <tr>\n        <td style=\"border: 1px solid #cccccc; padding: 10px;\">${item.item}</td>\n        <td align=\"right\" style=\"border: 1px solid #cccccc; padding: 10px;\">${quantity} ${displayUnit}</td>\n        <td align=\"right\" style=\"border: 1px solid #cccccc; padding: 10px;\">₹ ${formattedPrice}</td>\n        <td align=\"right\" style=\"border: 1px solid #cccccc; padding: 10px;\">₹ ${formattedLineTotal}</td>\n      </tr>`;\n  });\n\n  let discountAmount = overallTotal * (discountRate / 100);\n  let finalAmount = overallTotal - discountAmount;\n\n  // --- LOGO LOGIC (Base64 is the most reliable) ---\n  // PASTE YOUR BASE64 STRING BETWEEN THE QUOTES BELOW\n  const logoBase64 = \"data:image/png;base64,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\" \n\n  // --- QR CODE LOGIC (Using a reliable public API) ---\n  const upiId = \"9035734752@icici\"; \n  const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;\n  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;\n\n  const htmlInvoice = `\n    <!DOCTYPE html>\n    <html>\n    <body style=\"font-family: sans-serif; padding: 20px; color: #333;\">\n      <table width=\"100%\" style=\"margin-bottom: 20px; border-bottom: 2px solid #444; padding-bottom: 10px;\">\n        <tr>\n          <td><img src=\"${logoBase64}\" height=\"70\" alt=\"Logo\"></td>\n          <td align=\"right\">\n            <h1 style=\"margin:0; font-size: 24px;\">TAX INVOICE</h1>\n            <p style=\"margin:5px 0;\">No: <strong>${currentInvoiceNo}</strong></p>\n            <p style=\"margin:5px 0;\">Date: ${new Date().toLocaleDateString('en-IN')}</p>\n          </td>\n        </tr>\n      </table>\n\n      <p><strong>Billed To:</strong> ${customerName}</p>\n      \n      <table width=\"100%\" style=\"border-collapse: collapse;\">\n        <thead>\n          <tr style=\"background: #f4f4f4;\">\n            <th align=\"left\" style=\"padding: 10px; border: 1px solid #ccc;\">Description</th>\n            <th align=\"right\" style=\"padding: 10px; border: 1px solid #ccc;\">Qty</th>\n            <th align=\"right\" style=\"padding: 10px; border: 1px solid #ccc;\">Price</th>\n            <th align=\"right\" style=\"padding: 10px; border: 1px solid #ccc;\">Total</th>\n          </tr>\n        </thead>\n        <tbody>${tableRows}</tbody>\n        <tfoot>\n          <tr>\n            <td colspan=\"3\" align=\"right\" style=\"padding: 10px;\">Subtotal</td>\n            <td align=\"right\" style=\"padding: 10px;\">₹ ${overallTotal.toLocaleString('en-IN')}</td>\n          </tr>\n          ${discountRate > 0 ? `<tr><td colspan=\"3\" align=\"right\" style=\"padding: 10px;\">Discount (${discountRate}%)</td><td align=\"right\" style=\"padding: 10px; color: #1e88e5;\">- ₹ ${discountAmount.toLocaleString('en-IN')}</td></tr>` : ''}\n          <tr style=\"font-size: 18px;\">\n            <td colspan=\"3\" align=\"right\" style=\"padding: 10px; font-weight: bold;\">Final Amount Due</td>\n            <td align=\"right\" style=\"padding: 10px; font-weight: bold; color: #d32f2f;\">₹ ${finalAmount.toLocaleString('en-IN')}</td>\n          </tr>\n        </tfoot>\n      </table>\n\n      <div style=\"margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;\">\n        <table width=\"100%\">\n          <tr>\n            <td width=\"70%\" style=\"vertical-align: top;\">\n               <p style=\"font-size: 14px; font-weight: bold; margin-bottom: 5px;\">A COMMUNITY ENTERPRISE INSPIRED BY THE VISION OF VIDYAKSHETRA</p>\n               <p style=\"font-size: 11px; color: #666;\">Thank you for your support!</p>\n            </td>\n            <td width=\"30%\" align=\"right\">\n              <p style=\"font-size: 11px; margin-bottom: 5px; font-weight: bold;\">Scan to Pay via UPI</p>\n              <img src=\"${qrCodeUrl}\" width=\"130\" height=\"130\" style=\"border: 1px solid #ccc; padding: 5px;\">\n            </td>\n          </tr>\n        </table>\n      </div>\n    </body>\n    </html>`;\n\n  return {\n    json: {\n      invoiceNo: currentInvoiceNo,\n      htmlInvoice: htmlInvoice,\n      total: finalAmount,\n      name: customerName\n    }\n  };\n});\nstaticData.lastInvoiceNumber = lastInvoiceNumber;\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        1536
+      ],
+      "id": "902d4170-94d7-4db3-876a-7ec0fbd369ed",
+      "name": "generate-invoice"
+    },
+    {
+      "parameters": {
+        "content": "## Pending  items\n1. Insertng payment QR code\n2. Adding date of invoice\n3. Adding Invoice No- custom or increment no\n 4. \n\nEncoding UPI link of final amount\n// --- GENERATE QR CODE (UPI or Website) ---\n// Replace YOUR_UPI_ID with your actual VPA (e.g., name@okaxis)\nconst upiLink = `upi://pay?pa=YOUR_UPI_ID&pn=Vidyakshetra&am=${finalAmount}&cu=INR`;\nconst qrCodeUrl = `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(upiLink)}`;\n\n// Then, inside your htmlInvoice template:\nconst htmlInvoice = `\n  ...\n  <div style=\"text-align: right; margin-top: 20px;\">\n    <p style=\"font-size: 10px; margin-bottom: 5px;\">Scan to Pay</p>\n    <img src=\"${qrCodeUrl}\" width=\"120\" height=\"120\" alt=\"Payment QR Code\" />\n  </div>\n  ...\n`;",
+        "height": 976,
+        "width": 768
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1440,
+        1136
+      ],
+      "typeVersion": 1,
+      "id": "0caf9e28-b665-4320-8636-f1f87252a485",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1xgcQfWYczXmkwpQsbonkRUraAMvlWExNRtm7D_iSJbk",
+          "mode": "list",
+          "cachedResultName": "parents_list",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xgcQfWYczXmkwpQsbonkRUraAMvlWExNRtm7D_iSJbk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1802631484,
+          "mode": "list",
+          "cachedResultName": "main",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1xgcQfWYczXmkwpQsbonkRUraAMvlWExNRtm7D_iSJbk/edit#gid=1802631484"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        1280
+      ],
+      "id": "7a770043-0324-4ca8-9d46-c672a764a189",
+      "name": "read_invoice_node1",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SV3IWEiBFZutEJtm",
+          "name": "Google Sheets account vidyagrama"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "nXINF6VEa6rPgfMs",
+          "mode": "list",
+          "cachedResultName": "invoice-counter",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/nXINF6VEa6rPgfMs"
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        1728
+      ],
+      "id": "0d5fd898-8511-4694-b738-a270ce5d882b",
+      "name": "Get invoice-no",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "mZ2cSPLjBdGyD8iw",
+          "mode": "list",
+          "cachedResultName": "parents-list",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/mZ2cSPLjBdGyD8iw"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "varga": "={{ $json.varga }}",
+            "name": "={{ $json.name }}",
+            "father": "={{ $json.father }}",
+            "mother": "={{ $json.mother }}",
+            "mobile": "={{ $json.mobile }}",
+            "email": "={{ $json.email }}",
+            "discount": "={{ $json.discount }}",
+            "notes": "={{ $json.Notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "varga",
+              "displayName": "varga",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "father",
+              "displayName": "father",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mother",
+              "displayName": "mother",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "mobile",
+              "displayName": "mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "discount",
+              "displayName": "discount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        496,
+        1264
+      ],
+      "id": "ba258940-c1d9-491e-ba37-f69c280ef45d",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4",
+          "mode": "list",
+          "cachedResultName": "Google download -Apr26",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 906566253,
+          "mode": "list",
+          "cachedResultName": "April2026",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1clgVcUnUbmELPXZJ2eB9JPXhO6JjTTwthbxUCUnhYo4/edit#gid=906566253"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -576,
+        608
+      ],
+      "id": "827944bf-2b14-4f14-8296-202fab6d4b76",
+      "name": "read_customers",
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ohZkGbevPi5KQIlG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "gQCMTggNuSA9quiU",
+          "mode": "list",
+          "cachedResultName": "customers",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/gQCMTggNuSA9quiU"
+        },
+        "filters": {
+          "conditions": [
+            {
+              "condition": "gt",
+              "keyValue": "0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -304,
+        528
+      ],
+      "id": "700c77b2-fc6b-4a3d-a586-c07d95a09f6e",
+      "name": "delete-old-customers"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        560
+      ],
+      "id": "e02eca58-a49c-42b9-8006-3b44899e74e6",
+      "name": "Wait1",
+      "webhookId": "7c02c018-e8cd-4e17-872f-872886ded2c9"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        96
+      ],
+      "id": "f473ad49-53c2-4607-9901-047991a62fc2",
+      "name": "Wait2",
+      "webhookId": "7c02c018-e8cd-4e17-872f-872886ded2c9"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "87wtnEXfmFZBDAyN",
+          "mode": "list",
+          "cachedResultName": "pricelist",
+          "cachedResultUrl": "/projects/e0YYJK2pKt245gvL/datatables/87wtnEXfmFZBDAyN"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "condition": "gt",
+              "keyValue": "0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        96
+      ],
+      "id": "045ea123-36e5-4998-9282-4493af8d607e",
+      "name": "price-db-delete"
+    },
+    {
+      "parameters": {
+        "authentication": "apiKey",
+        "outputFormat": "pdf"
+      },
+      "type": "@cloudconvert/n8n-nodes-cloudconvert.cloudConvert",
+      "typeVersion": 1,
+      "position": [
+        912,
+        1264
+      ],
+      "id": "a3765a16-87db-4811-96dc-942d3b841f87",
+      "name": "CloudConvert",
+      "credentials": {
+        "cloudConvertApi": {
+          "id": "cFcZ9TOitQBGzzyC",
+          "name": "CloudConvert account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdf.co/v1/pdf/convert/from/html",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "html",
+              "value": "={{ $json.htmlInvoice }}"
+            },
+            {
+              "name": "name",
+              "value": "={{ $json.name }}_Invoice_{{ $now.format('yyyy-MM-dd') }}.pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        992,
+        1536
+      ],
+      "id": "042bca3b-5022-4243-adce-c7eae60f71ad",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "4ibBobnJjoMz0NpY",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1200,
+        1536
+      ],
+      "id": "f9e69484-0143-459c-b7d5-79188320023d",
+      "name": "HTTP Request1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "PriceList",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get-Customers-Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PriceList": {
+      "main": [
+        [
+          {
+            "node": "price-db",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "price-db-delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orders": {
+      "main": [
+        [
+          {
+            "node": "sort-orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "price-db": {
+      "main": [
+        []
+      ]
+    },
+    "sort-orders": {
+      "main": [
+        [
+          {
+            "node": "delete-old orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "orders-db",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "orders-db": {
+      "main": [
+        [
+          {
+            "node": "Get-Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Get-Orders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge-discounts",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get-Customers-Details": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get-Orders": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge-discounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "invoice": {
+      "main": [
+        []
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete-old orders": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Customer Discounts": {
+      "main": [
+        [
+          {
+            "node": "customer-discounts-list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "customer-discounts-list": {
+      "main": [
+        [
+          {
+            "node": "Update discounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "customer-details-db": {
+      "main": [
+        [
+          {
+            "node": "Get Customer Discounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge-discounts": {
+      "main": [
+        [
+          {
+            "node": "generate-invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-invoice": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read_invoice_node1": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get invoice-no": {
+      "main": [
+        []
+      ]
+    },
+    "read_customers": {
+      "main": [
+        [
+          {
+            "node": "delete-old-customers",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "customer-details-db",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "delete-old-customers": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "price-db-delete": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CloudConvert": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "0ddd8c1f-3ba8-4199-9591-5868fb2462ea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8828de591657c8402f3760c17129e59e0e5ba87696468077cf3def6cbff577aa"
+  },
+  "id": "HFCzPilAHPLnYc8A",
+  "tags": []
+}
