@@ -108,6 +108,12 @@
       background-size: 20px;
       appearance: none;
     }
+
+    .required-asterisk {
+      color: #e57373; /* A soft red that matches your "Clear Form" button */
+      margin-left: 3px;
+    }
+
   </style>
 </head>
 
@@ -119,35 +125,35 @@
       <form id="entryForm">
 
         <div class="field">
-          <label>Varga</label>
+          <label>Varga <span class="required-asterisk">*</span></label>
           <select id="vargaSelect" name="varga" required>
             <option value="" disabled selected>Loading Vargas...</option>
           </select>
         </div>
 
         <div class="field">
-          <label>Name</label>
+          <label>Name <span class="required-asterisk">*</span></label>
           <input type="text" name="name" required>
         </div>
 
         <div class="field">
-          <label>Father's Name</label>
-          <input type="text" id="fatherInput" name="father" required>
+          <label>Father's Name <span class="required-asterisk">*</span></label>
+          <input type="text" id="fatherInput" name="father" placeholder="Father's Name" required>
         </div>
 
         <div class="field">
-          <label>Mother's Name</label>
-          <input type="text" id="motherInput" name="mother" required>
+          <label>Mother's Name <span class="required-asterisk">*</span></label>
+          <input type="text" id="motherInput" name="mother" placeholder="Mother's Name"required>
         </div>
 
         <div class="field">
-          <label>Mobile Number (Max 13 digits with +91)</label>
+          <label>Mobile Number (Max 13 digits with +91) <span class="required-asterisk">*</span></label>
           <input type="text" id="mobileInput" name="mobile" placeholder="+919900000000" required>
         </div>
 
         <div class="field">
           <label>Email Address</label>
-          <input type="email" name="email" required>
+          <input type="email" name="email" placeholder="example@gmail.com">
         </div>
 
         <div class="field">
@@ -157,12 +163,11 @@
 
         <div class="field">
           <label>Notes</label>
-          <textarea name="notes" rows="3"></textarea>
+          <textarea name="notes" rows="3" placeholder="Notes"></textarea>
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 10px;">
-          <button type="button" onclick="confirmReset()" id="resetBtn" style="background-color: #e57373; flex: 1;">Clear
-            Form</button>
+          <button type="button" onclick="confirmReset()" id="resetBtn" style="background-color: #e57373; flex: 1;">Clear Form</button>
           <button type="submit" id="submitBtn" style="flex: 2;">Register</button>
         </div>
       </form>
@@ -172,37 +177,48 @@
       <div class="check-icon">✓</div>
       <h2 style="color: #28a745;">Registration Successful!</h2>
       <p>The details have been recorded.</p>
-      <button onclick="resetToForm()" style="background-color: var(--primary-purple); margin-top:20px;">Add
-        Another</button>
+      <button onclick="resetToForm()" style="background-color: var(--primary-purple); margin-top:20px;">Add Another</button>
     </div>
   </div>
 
   <script>
-    // 1. Mobile formatting logic
+    // Global DOM references declared at top to safely access across all scopes
+    const vargaSelect = document.getElementById('vargaSelect');
+    const discountInput = document.getElementById('discountInput');
+    const fatherInput = document.getElementById('fatherInput');
+    const motherInput = document.getElementById('motherInput');
     const mobileField = document.getElementById('mobileInput');
+    
+    const fieldsToToggle = [discountInput, fatherInput, motherInput];
+
+    // 1. Mobile formatting logic
     mobileField.addEventListener('input', function (e) {
       let val = e.target.value;
       if (!val.startsWith('+91')) {
         val = '+91' + val.replace(/\D/g, '');
+      } else {
+        // Prevent typing non-digits after +91
+        val = '+91' + val.substring(3).replace(/\D/g, '');
       }
       e.target.value = val.slice(0, 13);
     });
 
-    // 2. Clear success and show form again
-    // 2. Clear success and show form again (plus unlocking logic)
+    // 2. Clear success panel and restore default form configurations
     function resetToForm() {
       const form = document.getElementById('entryForm');
       form.reset();
 
-      // Ensure all fields are re-enabled and styling is restored
-      const fieldsToRestore = [discountInput, fatherInput, motherInput];
-      fieldsToRestore.forEach(field => {
+      // Ensure all fields are re-enabled, stripped of forced placeholders, and styling is restored
+      fieldsToToggle.forEach(field => {
         field.disabled = false;
         field.style.backgroundColor = "#fff";
         field.setAttribute('required', 'required');
       });
+      
+      // Explicit reset for default values
+      discountInput.value = "0";
 
-      // UI Reset
+      // UI Element Toggling
       document.getElementById('success-msg').style.display = 'none';
       document.getElementById('form-container').style.display = 'block';
 
@@ -211,50 +227,44 @@
       btn.innerHTML = "Register";
     }
 
-    // 4. Safety check before clearing data manually
+    // 3. Safety check before clearing data manually
     function confirmReset() {
       if (confirm("Are you sure you want to clear all entered data?")) {
         resetToForm();
       }
     }
 
-    //3. Disable discount,father's,mother's name for guest and Acharya Nirmaan
-    // Get references to all affected elements
-    const vargaSelect = document.getElementById('vargaSelect');
-    const discountInput = document.getElementById('discountInput');
-    const fatherInput = document.getElementById('fatherInput');
-    const motherInput = document.getElementById('motherInput');
-
-    // Put fields into an array for easy looping
-    const fieldsToToggle = [discountInput, fatherInput, motherInput];
-
+    // 4. Disable discount, father's, and mother's names dynamically based on selection
     vargaSelect.addEventListener('change', function () {
       const isGuestOrAacharya = (this.value === "Guest" || this.value === "Aacharya Nirmaan");
 
       fieldsToToggle.forEach(field => {
         if (isGuestOrAacharya) {
-          field.value = (field.type === "number") ? "0" : "N/A"; // Set placeholder values
+          field.value = (field.type === "number") ? "0" : "N/A"; 
           field.disabled = true;
           field.style.backgroundColor = "#eeeeee";
-          field.removeAttribute('required'); // Remove required so form can submit
+          field.removeAttribute('required'); 
         } else {
-          if (field.value === "N/A" || field.value === "0") field.value = ""; // Clear placeholders
+          // Clear conditional default values when switching back to regular selections
+          if (field.value === "N/A" || (field.type !== "number" && field.value === "0")) {
+            field.value = ""; 
+          }
           field.disabled = false;
           field.style.backgroundColor = "#fff";
-          field.setAttribute('required', 'required'); // Re-enable required
+          field.setAttribute('required', 'required'); 
         }
       });
 
-      // Special case: Discount should not be 'N/A', it should stay 0
       if (isGuestOrAacharya) discountInput.value = "0";
     });
 
+    // 5. Submit event handler handling interactions with Apps Script
     function handleFormSubmit(formObject) {
       const btn = document.getElementById('submitBtn');
 
-      // Validate mobile length before sending
-      if (mobileField.value.length < 12) {
-        alert("Please enter a valid mobile number with +91");
+      // Validate mobile length before sending (+91 followed by 10 digits = 13 total length)
+      if (mobileField.value.length < 13) {
+        alert("Please enter a valid 10-digit mobile number following your +91 extension.");
         return;
       }
 
@@ -280,33 +290,26 @@
     });
 
     /** Loading vargas from admins sheet **/
-    // Run this when the page loads
     window.addEventListener('load', function() {
       google.script.run
         .withSuccessHandler(populateVargas)
         .withFailureHandler(function(err) {
-          const select = document.getElementById('vargaSelect');
-          select.options[0].text = "Error loading list";
+          vargaSelect.options[0].text = "Error loading list";
         })
-        .getVargaList(true); // Calls the function we added to code.gs
+        .getVargaList(true); 
     });
 
     function populateVargas(vargas) {
-      const select = document.getElementById('vargaSelect');
-      
       // Clear the "Loading..." message
-      select.innerHTML = '<option value="" disabled selected>Select Varga</option>';
+      vargaSelect.innerHTML = '<option value="" disabled selected>Select Varga</option>';
       
       vargas.forEach(function(item) {
         const opt = document.createElement('option');
         opt.value = item;
         opt.innerHTML = item;
-        select.appendChild(opt);
+        vargaSelect.appendChild(opt);
       });
     }
-
   </script>
-
 </body>
-
 </html>

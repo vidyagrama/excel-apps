@@ -1,10 +1,9 @@
 var ID_PARENTS = "1xgcQfWYczXmkwpQsbonkRUraAMvlWExNRtm7D_iSJbk";
 var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
 
-
 var TAB_PARENTS_MAIN = "main";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
-var TAB_ADMINS_VARGA = "varga"
+var TAB_ADMINS_VARGA = "varga";
 
 function doGet() {
   return HtmlService.createHtmlOutputFromFile('Index')
@@ -13,7 +12,6 @@ function doGet() {
     .setFaviconUrl('https://i.ibb.co/1txQwJMC/vk-main-icon.png');
 }
 
-// 1. Logic for Form Submissions
 function processForm(formObject) {
   var lock = LockService.getScriptLock();
   try {
@@ -24,55 +22,56 @@ function processForm(formObject) {
 
     // 1. Find the last row that actually has data in the ID column (Column A)
     var idColumnValues = sheet.getRange("A:A").getValues();
-    var lastDataRow = 0;
     var maxId = 0;
 
-    // Loop backwards to find the last row with a number
+    // Loop backwards to find the highest ID number currently in use
     for (var i = idColumnValues.length - 1; i >= 0; i--) {
       var val = idColumnValues[i][0];
       if (val !== "" && !isNaN(val)) {
-        lastDataRow = i + 1; // Index is 0-based, rows are 1-based
         maxId = Number(val);
         break;
       }
     }
 
     var nextId = maxId + 1;
-    var targetRow = lastDataRow + 1;
 
     // CLEAN MOBILE NUMBER: Remove +91 and any whitespace
-    var cleanMobile = formObject.mobile.replace('+91', '').trim();
+    var cleanMobile = formObject.mobile ? formObject.mobile.replace('+91', '').trim() : "";
 
+    // TYPE CONVERSIONS: Enforce matching types cleanly
+    var numericDiscount = formObject.discount ? Number(formObject.discount) : 0;
+    var numericCredit = formObject.credit ? Number(formObject.credit) : 0;
+    var numericBalance = formObject.balance ? Number(formObject.balance) : 0;
+
+    // Must match exact column ordering: id, varga, name, father, mother, mobile, email, discount, credit, balance, Notes
     var rowData = [
       nextId,
-      formObject.varga,
-      formObject.name,
-      formObject.father,
-      formObject.mother,
+      formObject.varga || "",
+      formObject.name || "",
+      formObject.father || "",
+      formObject.mother || "",
       cleanMobile,
-      formObject.email,
-      formObject.discount,
-      formObject.credit,
-      formObject.balance,
-      formObject.notes
+      formObject.email || "",
+      numericDiscount, 
+      numericCredit,   
+      numericBalance,  
+      formObject.notes || ""
     ];
-    sheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
+    
+    // Append row cleanly into your Data Table
+    sheet.appendRow(rowData);
 
-    var vargaCol = 2; // Column B 
-    const vargaColCell = sheet.getRange(targetRow, vargaCol); 
-    if (!vargaColCell.getDataValidation()) {
-        updateVargaDropdown(vargaColCell);
-     }
+    // REMOVED: The updateVargaDropdown logic here was causing the crash.
+    // The Data Table will automatically inherit the "Varga" dropdown configuration setup in Column B.
 
-    sheet.appendRow();
-
-    return "Success!";
+    return "Success!"; // This will now successfully trigger the web app success handler!
   } catch (e) {
     return "Error: " + e.toString();
   } finally {
     lock.releaseLock(); // Always release the lock
   }
 }
+
 
 // 2. Logic for Manual Entries (onEdit)
 function onEdit(e) {
@@ -83,11 +82,9 @@ function onEdit(e) {
   var row = range.getRow();
   var col = range.getColumn();
 
-  // ADJUST THIS: Set to the actual column index of 'varga' in your Parents_List
   var vargaCol = 2; // Column B 
 
   if (row > 1) {
-    // 1. YOUR EXISTING AUTO-ID LOGIC
     if (col > 1) {
       var idCell = sheet.getRange(row, 1);
       if (idCell.getValue() === "") {
@@ -102,12 +99,8 @@ function onEdit(e) {
       }
     }
 
-    // we ensure the dropdown is present in Column B for that row.
-    // Varga dropdown on edit on spreadsheet manually
     if (col !== vargaCol) {
       const vargaColCell = sheet.getRange(row, vargaCol);
-
-      // Check if validation already exists to prevent redundant slow calls
       if (!vargaColCell.getDataValidation()) {
         updateVargaDropdown(vargaColCell);
       }
@@ -122,7 +115,6 @@ function onEdit(e) {
  * Fetches data from Admin SS > 'varga' sheet.
  */
 function updateVargaDropdown(cell, forceRefresh = false) {
-
   cell.clearDataValidations();
 
   const cache = CacheService.getScriptCache();
@@ -131,28 +123,28 @@ function updateVargaDropdown(cell, forceRefresh = false) {
   let vargaString = forceRefresh ? null : cache.get(cacheKey);
 
   if (vargaString === null) {
-    // ID_ADMINS should be defined globally in your code.gs
     const adminSS = SpreadsheetApp.openById(ID_ADMINS);
     const vargaSheet = adminSS.getSheetByName(TAB_ADMINS_VARGA);
     const data = vargaSheet.getDataRange().getValues();
 
-    // Extract first column (Varga), skip header, filter out empty rows
+    // Extract, filter out empty rows, and sort alphabetically
     const vargas = data.slice(1)
       .map(row => row[0])
-      .filter(String);
+      .filter(String)
+      .sort(function (a, b) {
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+      });
 
     vargaString = vargas.join(',');
-
-    // Cache for 25 minutes (1500 seconds)
     cache.put(cacheKey, vargaString, 1500);
-    console.log("Varga list refreshed from Admin.");
+    console.log("Varga list refreshed from Admin and sorted alphabetically.");
   }
 
   if (vargaString) {
     const options = vargaString.split(',');
     const rule = SpreadsheetApp.newDataValidation()
       .requireValueInList(options, true)
-      .setAllowInvalid(false)
+      .setAllowInvalid(true) 
       .build();
 
     cell.setDataValidation(rule);
@@ -174,8 +166,15 @@ function getVargaList(forceRefresh = false) {
       const adminSS = SpreadsheetApp.openById(ID_ADMINS);
       const vargaSheet = adminSS.getSheetByName(TAB_ADMINS_VARGA);
       const data = vargaSheet.getDataRange().getValues();
-      // Skip header, take first column, filter empty rows
-      const vargas = data.slice(1).map(r => r[0]).filter(String);
+      
+      // Extract, filter out empty rows, and sort alphabetically
+      const vargas = data.slice(1)
+        .map(r => r[0])
+        .filter(String)
+        .sort(function (a, b) {
+          return a.localeCompare(b, undefined, { sensitivity: 'base' });
+        });
+
       vargaString = vargas.join(',');
       cache.put(cacheKey, vargaString, 1500);
     } catch (err) {
