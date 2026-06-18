@@ -174,7 +174,7 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS_MAIN);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // 1. Handle Screenshot Upload (Happens inside the lock to be safe)
+    // Handle Screenshot Upload (Happens inside the lock to be safe)
     let screenshotUrl = "N/A";
     if (paymentMode === "Manual Screenshot" && base64Image) {
       screenshotUrl = saveScreenshotToDrive(base64Image, txnId, summary.customerName);
@@ -182,6 +182,7 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
 
     const orderStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Received" : "Pending";
     const paymentStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Paid" : "Unpaid";
+    
     const categoriesInCart = [...new Set(fullCart.map(item => item.mainCategory))];
     let generatedOrderIds = [];
 
@@ -190,6 +191,19 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       const catItems = fullCart.filter(item => item.mainCategory === cat);
       const catOrderId = generateOrderId(cat);
       generatedOrderIds.push(catOrderId);
+
+      // --- BUG FIX: Calculate the exact sum for THIS specific category ---
+      const categoryGrossTotal = catItems.reduce((sum, item) => sum + (parseFloat(item.fullSubtotal) || 0), 0);
+      
+      // Handle proportional total calculation if member discount applies
+      let categoryFinalTotal = categoryGrossTotal;
+      if (paymentMode === "Gift") {
+        categoryFinalTotal = 0; // Gifts are always recorded as 0 collected revenue
+      } else if (summary.grossTotal && summary.grossTotal > 0) {
+        // If there's a global discount, apply it proportionally to this category's total
+        const discountRatio = (summary.finalTotal / summary.grossTotal);
+        categoryFinalTotal = categoryGrossTotal * discountRatio;
+      }
 
       const lineRows = catItems.map((item, index) => [
         index + 1, catOrderId, item.mainCategory, item.subCategory || "",
@@ -200,22 +214,20 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
       liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
-      let notes = "";
-      notes = (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl;
-
+      // Construct robust notes block
+      let notes = (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl;
 
       if (paymentMode == "Cash") {
-        notes = (summary.notes || "") + "Cash Recived";
-
+        notes = "💵 CASH RECEIVED | " + notes;
       } else if (paymentMode == "Gift") {
-        notes = (summary.notes || "") + "Billed to Vidyakshetra Gift";
+        notes = "🎁 BILLED TO VIDYAKSHETRA GIFT | " + notes;
       }
 
       const ordRow = [[
         "P0", catOrderId, summary.customerId, summary.customerName,
-        new Date(), orderStatus, summary.finalTotal, paymentStatus, notes
-
+        new Date(), orderStatus, categoryFinalTotal, paymentStatus, notes
       ]];
+      
       const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
       ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
     });
@@ -508,10 +520,12 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
       if (data[i][2] === "Verified") continue;
 
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
-      const allowedSenders = ["AD-ICICIT-S", "AX-ICICIT-S"];
+      
+      // ROBUST CHECK: Matches any sender string containing "ICICIT-S" or "ICICIO-S"
+      // (e.g., "AX-ICICIT-S", "JM-ICICIT-S", "AX-ICICIO-S", etc.)
+      const isIciciSender = /ICICI[TO]-S/.test(sender);
 
-      //Strict Check: If the sender is NOT in our list, skip it
-      if (!allowedSenders.includes(sender)) {
+      if (!isIciciSender) {
         continue;
       }
 
@@ -585,7 +599,7 @@ function cleanupSmsSheet() {
   const ss = SpreadsheetApp.openById(ID_SMS);
   const sheet = ss.getSheetByName(TAB_SMS_SHEET);
   const lastRow = sheet.getLastRow();
-  const maxRowsToKeep = 20;
+  const maxRowsToKeep = 500; // Keep last 500 sms
 
   // Row 1 is header, so we check if there are more than 21 rows total
   if (lastRow > maxRowsToKeep + 1) {
@@ -917,7 +931,7 @@ function auditInventoryData() {
 /* Test payment status code */
 function debug_TestPaymentSystem() {
 
-  const testUTR = "645941740760"; // Matches your sample SMS
+  const testUTR = "24958648213"; // Matches your sample SMS
   const testAmount = 1.00;
   const testUser = "Test Debug User";
 
@@ -925,7 +939,7 @@ function debug_TestPaymentSystem() {
 
   // TEST VERIFICATION LOGIC (checkPaymentInLogs)
   console.log("Step : Running verification for UTR: " + testUTR);
-  const result = autoCheckPayment(testAmount, testUser, "4316");
+  const result = autoCheckPayment(testAmount, testUser, "8213");
 
   console.log("Verification Result Status: " + result.status);
   console.log("Verification Result Message: " + result.message);
