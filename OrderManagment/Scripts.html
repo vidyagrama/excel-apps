@@ -1,0 +1,649 @@
+<script>
+
+    window.onload = () => {
+    // 1. Run data fetch first
+    refreshLiveOrdersGrid();
+    
+    // 2. Then set up listeners
+    const loginForm = document.getElementById('login-form-container');
+    if (loginForm) {
+      loginForm.addEventListener('keypress', (e) => { 
+        if (e.key === 'Enter') doLogin(); 
+      });
+    }
+
+  };
+
+ document.addEventListener("DOMContentLoaded", function() {
+  console.log("[App Init] App loaded/refreshed. Enforcing default login security state...");
+
+  // 1. Clear any cached session tokens immediately to prevent auto-login on refresh
+  localStorage.removeItem('vidyagrama_online_session'); 
+  
+  // 2. Force the global auth state attribute back to logged-out
+  document.body.setAttribute('data-auth-state', 'logged-out');
+
+  // 3. Reset routing display states explicitly
+  const loginSection = document.getElementById('login-section'); 
+  const shopSection = document.getElementById('shop-section');
+  
+  if (loginSection) loginSection.style.display = 'block'; 
+  if (shopSection) shopSection.style.display = 'none';
+
+  // 4. Reset input fields on the login panel for a clean slate
+  const usernameInput = document.getElementById('username'); 
+  const passwordInput = document.getElementById('password'); 
+  if (usernameInput) usernameInput.value = '';
+  if (passwordInput) passwordInput.value = '';
+
+  // Run baseline UI structural flushes
+  initializeBaselineUI();
+});
+
+function initializeBaselineUI() {
+  window.VG_MASTER_ORDERS_CACHE = null;
+  if (window.SELECTED_ORDER_IDS) window.SELECTED_ORDER_IDS.clear();
+  console.log("[App Init] Global caches flushed.");
+}
+
+/**
+ * Toggles between internal sub-sections of login panel wrapper (loginBox vs pwBox)
+ */
+function toggleLoginWorkspace(viewId) {
+  document.getElementById('loginBox').classList.add('hidden');
+  document.getElementById('pwBox').classList.add('hidden');
+  
+  const targetElement = document.getElementById(viewId);
+  if(targetElement) {
+    targetElement.classList.remove('hidden');
+  }
+}
+
+/**
+ * Submits authentication metrics to Apps Script backplane
+ */
+function attemptLogin() {
+  const u = document.getElementById('user').value.trim();
+  const p = document.getElementById('pass').value;
+  const btn = document.getElementById('loginBtn');
+  
+  if (!u || !p) {
+    showGlobalToast("Enter username and password.", "⚠️");
+    return;
+  }
+  
+  btn.disabled = true;
+  btn.innerHTML = `Authenticating...`;
+
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res.success) {
+        localStorage.setItem('vidyagrama_online_session', JSON.stringify(res));
+        document.getElementById('welcome-msg').innerText = `Namaste, ${res.username || u}`;
+        
+        // Clear input metrics securely
+        document.getElementById('user').value = "";
+        document.getElementById('pass').value = "";
+        
+        // Toggle view state seamlessly
+        document.body.setAttribute('data-auth-state', 'logged-in');
+        showGlobalToast("Login Successful!", "✅");
+
+        if (typeof initializeDashboard === "function") initializeDashboard(res);
+      } else {
+        showGlobalToast(res.message || "Invalid credentials provided.", "❌");
+      }
+      btn.disabled = false;
+      btn.innerHTML = "Sign In";
+    })
+    .withFailureHandler(err => {
+      showGlobalToast("Server communication error.", "❌");
+      btn.disabled = false;
+      btn.innerHTML = "Sign In";
+    })
+    .checkLogin(u, p);
+}
+
+/**
+ * Handles updating passcodes inside Google Apps Script system
+ */
+function attemptReset() {
+  const u = document.getElementById('userReset').value.trim();
+  const oldP = document.getElementById('oldPass').value;
+  const newP = document.getElementById('newPass').value;
+  const btn = document.getElementById('resetBtn');
+
+  if (!u || !oldP || !newP) {
+    showGlobalToast("Please populate all credential input fields.", "⚠️");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `Saving...`;
+
+  google.script.run
+    .withSuccessHandler(msg => {
+      showGlobalToast(msg || "Password adjusted successfully.", "✅");
+      setTimeout(() => {
+        toggleLoginWorkspace('loginBox');
+        document.getElementById('userReset').value = "";
+        document.getElementById('oldPass').value = "";
+        document.getElementById('newPass').value = "";
+      }, 1200);
+      btn.disabled = false;
+      btn.innerHTML = "Update Password";
+    })
+    .withFailureHandler(err => {
+      showGlobalToast("Failed to mutate security credentials.", "❌");
+      btn.disabled = false;
+      btn.innerHTML = "Update Password";
+    })
+    .updatePassword(u, oldP, newP);
+}
+
+/**
+ * Programmatically forces the logout modal to show up and locks focus to it
+ */
+function openLogoutModal() {
+  console.log("[Logout] Programmatically invoking modal window initialization...");
+  
+  const modalEl = document.getElementById('logoutModal');
+  if (!modalEl) {
+    console.error("[Logout] DOM Element #logoutModal not found!");
+    return;
+  }
+  
+  // Initialize or fetch the existing Bootstrap instance
+  let modalInstance = bootstrap.Modal.getInstance(modalEl);
+  if (!modalInstance) {
+    modalInstance = new bootstrap.Modal(modalEl, {
+      backdrop: 'static', // Prevents accidental closing by clicking outside
+      keyboard: true
+    });
+  }
+  
+  // Show the modal window
+  modalInstance.show();
+  
+  // CRITICAL LAYER CURE: Force the modal container to register over any backdrop layer shifts
+  setTimeout(() => {
+    modalEl.style.zIndex = '1060';
+    
+    // Find the backdrop generated by Bootstrap and force it down a layer if necessary
+    const backdrop = document.querySelector('.modal-backdrop');
+    if (backdrop) {
+      backdrop.style.zIndex = '1050';
+    }
+  }, 150);
+}
+
+/**
+ * Executes targeted clean logout procedures and clear modal backdrop traces
+ */
+function executeAppLogout() {
+  console.log("[Logout] Initializing application teardown...");
+  
+  // 1. Clear session footprint securely
+  localStorage.removeItem('vidyagrama_online_session');
+  
+  // 2. Clear programmatically managed Bootstrap Modal states
+  const modalEl = document.getElementById('logoutModal');
+  if (modalEl) {
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) modalInstance.hide();
+  }
+  
+  // 3. Fallback hard cleanup to destroy trapped backdrop layout remnants
+  setTimeout(() => {
+    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
+    // 4. Reset routing backplane safely
+    document.body.setAttribute('data-auth-state', 'logged-out');
+    
+    if (typeof showGlobalToast === "function") {
+      showGlobalToast("Logged out successfully.", "💡");
+    }
+  }, 300);
+}
+
+/**
+ * Globally handles toast dispatches across components
+ */
+function showGlobalToast(message, icon = "⚠️") {
+  const toastElement = document.getElementById('custom-toast');
+  const msgContainer = document.getElementById('toast-msg');
+  if(toastElement && msgContainer) {
+    msgContainer.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+    const bsToast = new bootstrap.Toast(toastElement, { delay: 4000 });
+    bsToast.show();
+  }
+}
+
+// Local reactive caching matrices
+let CACHE_MASTER_DATA = [];
+let CACHE_POPUP_DATA = [];
+
+window.addEventListener('load', () => {
+  // Initialization entry points
+  //showUiNotification("System initialized. Welcome to Vidyagrama.", "💡");
+});
+
+
+/**
+ * Custom Confirmation Dialogue Box Modal Framework Handler
+ */
+function openCustomConfirmDialog(title, body, emoji, confirmCallback) {
+  const modal = document.getElementById("customConfirmModal");
+  document.getElementById("dialogTitle").innerText = title;
+  document.getElementById("dialogBody").innerText = body;
+  document.getElementById("customConfirmModal").querySelector(".dialog-emoji").innerText = emoji;
+  
+  modal.classList.remove("hidden");
+  
+  document.getElementById("dialogConfirmBtn").onclick = () => {
+    confirmCallback();
+    modal.classList.add("hidden");
+  };
+  
+  document.getElementById("dialogCancelBtn").onclick = () => {
+    modal.classList.add("hidden");
+  };
+}
+
+/**
+ * Account Session Verification Sequence Calls
+ */
+function executeAuthenticationRequest() {
+  const mobileInput = document.getElementById("inputMobileField").value;
+  
+  google.script.run
+    .withSuccessHandler((response) => {
+      if(response.success) {
+        document.getElementById("loginAuthenticationScreen").classList.add("hidden");
+        document.getElementById("mainDashboard").classList.remove("hidden");
+        document.getElementById("sessionUser").innerText = response.name;
+        showUiNotification(`Namaste, ${response.name}`, "✨");
+        refreshLiveOrdersGrid();
+      } else {
+        showUiNotification(response.error, "❌");
+      }
+    })
+    .withFailureHandler((err) => showUiNotification(err.message, "❌"))
+    .authenticateUser(mobileInput);
+}
+
+function triggerLogoutConfirmation() {
+  openCustomConfirmDialog("Ready to Leave?", "You will need to sign in again to access the dashboard views.", "👋", () => {
+    document.getElementById("mainDashboard").classList.add("hidden");
+    document.getElementById("loginAuthenticationScreen").classList.remove("hidden");
+    document.getElementById("inputMobileField").value = "";
+    showUiNotification("Logged out safely.", "🔒");
+  });
+}
+
+/**
+ * Dispatches server-side calls to load data straight to the main UI viewport table matrix
+ * with active button spin transformations modeled after your refresh mechanics.
+ */
+function refreshLiveOrdersGrid() {
+  console.log("[UI Grid] Fetching backend ledger details...");
+  
+  const refreshBtn = document.querySelector('.btn-vg-refresh');
+  const icon = refreshBtn ? refreshBtn.querySelector('.material-icons') : null;
+  const tableBody = document.getElementById('mainOrdersTableBody');
+
+  // Start spin animation inside button element and disable context interaction
+  if (icon) icon.classList.add('spinning');
+  if (refreshBtn) refreshBtn.disabled = true;
+
+  if (tableBody) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="10" class="text-center py-5 text-muted">
+          <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div> 
+          Synchronizing live log entries from data server...
+        </td>
+      </tr>
+    `;
+  }
+
+  google.script.run
+    .withSuccessHandler(data => {
+      // Deactivate animation triggers immediately
+      if (icon) icon.classList.remove('spinning');
+      if (refreshBtn) refreshBtn.disabled = false;
+      
+      renderOrdersTableRows(data);
+    })
+    .withFailureHandler(err => {
+      console.error("[UI Grid] Server delivery failed:", err);
+      if (icon) icon.classList.remove('spinning');
+      if (refreshBtn) refreshBtn.disabled = false;
+      
+      if (tableBody) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="10" class="text-center py-5 text-danger fw-bold">
+              <i class="material-icons align-middle me-1">error</i> Failed to synchronize live logs from ledger system.
+            </td>
+          </tr>
+        `;
+      }
+    })
+    .getLiveOrdersSummary();
+}
+
+/**
+ * Resets all dashboard filter components to their baseline value states
+ */
+function clearAllFilters() {
+  console.log("[Filters] Flushing all query restrictions...");
+  
+  // Clear HTML input values
+  document.getElementById('fStartDate').value = '';
+  document.getElementById('fEndDate').value = '';
+  document.getElementById('fOrderStatus').value = '';
+  document.getElementById('fPaymentStatus').value = '';
+  document.getElementById('fCustomer').value = '';
+
+  // Clear master control check indicator states if present
+  const masterCb = document.getElementById('masterSelectCheckbox');
+  if (masterCb) masterCb.checked = false;
+
+  // Restore the table back to standard view from cache
+  if (window.VG_MASTER_ORDERS_CACHE) {
+    renderOrdersTableRows(window.VG_MASTER_ORDERS_CACHE, true);
+  }
+  
+  if (typeof showGlobalToast === "function") {
+    showGlobalToast("All active filters cleared.", "🧹");
+  }
+}
+
+// Local cache tracking keys
+window.SELECTED_ORDER_IDS = new Set();
+
+/**
+ * Enhanced Client-Side Multi-Parameter Filtering Engine with Local Timezone Anchoring
+ * and absolute case-insensitive matching rules to prevent false-negative empty sets.
+ */
+function applyLiveFilters() {
+  console.log("[Filters] Re-evaluating dashboard filter matrix...");
+
+  const startDateStr = document.getElementById('fStartDate').value; 
+  const endDateStr = document.getElementById('fEndDate').value;     
+  
+  // Extract values and drop them to clean lowercase strings for evaluation
+  const statusFilter = document.getElementById('fOrderStatus').value.toLowerCase().trim();
+  const paymentFilter = document.getElementById('fPaymentStatus').value.toLowerCase().trim();
+  const searchFilter = document.getElementById('fCustomer').value.toLowerCase().trim();
+
+  let startTimestamp = null;
+  let endTimestamp = null;
+
+  if (startDateStr) {
+    const sParts = startDateStr.split('-'); 
+    startTimestamp = new Date(parseInt(sParts[0]), parseInt(sParts[1]) - 1, parseInt(sParts[2]), 0, 0, 0, 0).getTime();
+  }
+
+  if (endDateStr) {
+    const eParts = endDateStr.split('-'); 
+    endTimestamp = new Date(parseInt(eParts[0]), parseInt(eParts[1]) - 1, parseInt(eParts[2]), 23, 59, 59, 999).getTime();
+  }
+
+  if (!window.VG_MASTER_ORDERS_CACHE) {
+    console.warn("[Filters] Interrupted: Master cache storage empty.");
+    return;
+  }
+
+  const filtered = window.VG_MASTER_ORDERS_CACHE.filter(order => {
+    
+    // 1. Precise Date Boundary Verification
+    if (order.orderDate && (startTimestamp || endTimestamp)) {
+      const parts = order.orderDate.split('/'); // [dd, mm, yyyy]
+      if (parts.length === 3) {
+        const orderTimestamp = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 12, 0, 0, 0).getTime();
+        
+        if (startTimestamp && orderTimestamp < startTimestamp) return false;
+        if (endTimestamp && orderTimestamp > endTimestamp) return false;
+      }
+    }
+
+    // 2. Case-Insensitive Order Status Validation (BUG FIXED HERE)
+    if (statusFilter) {
+      const currentOrderStatus = (order.orderStatus || "").toLowerCase().trim();
+      if (currentOrderStatus !== statusFilter) return false;
+    }
+
+    // 3. Case-Insensitive Payment Status Validation (BUG FIXED HERE)
+    if (paymentFilter) {
+      const currentPaymentStatus = (order.paymentStatus || "").toLowerCase().trim();
+      if (currentPaymentStatus !== paymentFilter) return false;
+    }
+
+    // 4. Case-Insensitive Text Query Search Matcher
+    if (searchFilter) {
+      const matchCustomer = (order.customerName || "").toLowerCase().includes(searchFilter);
+      const matchId = (order.orderId || "").toLowerCase().includes(searchFilter);
+      if (!matchCustomer && !matchId) return false;
+    }
+    
+    return true; // Passed all active parameter criteria tests successfully
+  });
+
+  console.log(`[Filters] Evaluation completed. Displaying ${filtered.length} matching rows.`);
+  renderOrdersTableRows(filtered, true); // Keep original spreadsheet cache intact
+}
+
+/**
+ * Populates table rows cleanly with responsive interaction modules
+ */
+function renderOrdersTableRows(ordersList, isFiltering = false) {
+  const tableBody = document.getElementById('mainOrdersTableBody');
+  if (!tableBody) return;
+
+  if (!isFiltering) {
+    window.VG_MASTER_ORDERS_CACHE = ordersList;
+  }
+
+  if (!ordersList || ordersList.length === 0) {
+    tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-5 text-muted">No orders match selected constraints.</td></tr>`;
+    return;
+  }
+
+  let compiledHtml = "";
+  ordersList.forEach(order => {
+    const isChecked = window.SELECTED_ORDER_IDS.has(order.orderId) ? "checked" : "";
+
+    compiledHtml += `
+      <tr id="row-${order.orderId}">
+        <td class="ps-3">
+          <input type="checkbox" class="form-check-input order-row-checkbox" data-id="${order.orderId}" ${isChecked} onchange="handleOrderRowSelect(this)">
+        </td>
+        <td class="fw-bold text-muted" onclick="openDetailedItemsFocus('${order.orderId}')" style="cursor:pointer;">${order.slNo}</td>
+        <td class="font-monospace fw-bold text-secondary" onclick="openDetailedItemsFocus('${order.orderId}')" style="cursor:pointer;">${order.orderId}</td>
+        <td class="fw-bold" style="color: #634121;" onclick="openDetailedItemsFocus('${order.orderId}')" style="cursor:pointer;">${order.customerName}</td>
+        <td onclick="openDetailedItemsFocus('${order.orderId}')" style="cursor:pointer;">${order.orderDate}</td>
+        <td><span class="badge bg-light text-dark border">${order.eventName || '-'}</span></td>
+        
+        <td>
+          <select class="form-select form-select-sm fw-bold border-0 bg-light" onchange="updateLiveRowStatus('${order.orderId}', 'orderStatus', this.value)">
+            <option value="Pending" ${order.orderStatus === 'Pending' ? 'selected' : ''}>⏳ Pending</option>
+            <option value="Received" ${order.orderStatus === 'Received' ? 'selected' : ''}>📦 Received</option>
+            <option value="Delivered" ${order.orderStatus === 'Delivered' ? 'selected' : ''}>✅ Delivered</option>
+            <option value="Cancelled" ${order.orderStatus === 'Cancelled' ? 'selected' : ''}>❌ Cancelled</option>
+          </select>
+        </td>
+        
+        <td>
+          <select class="form-select form-select-sm fw-bold border-0 bg-light" onchange="updateLiveRowStatus('${order.orderId}', 'paymentStatus', this.value)">
+            <option value="Paid" ${order.paymentStatus === 'Paid' ? 'selected' : ''}>💳 Paid</option>
+            <option value="Unpaid" ${order.paymentStatus === 'Unpaid' ? 'selected' : ''}>⚠️ Unpaid</option>
+          </select>
+        </td>
+        
+        <td class="text-end fw-bold pe-3" onclick="openDetailedItemsFocus('${order.orderId}')" style="cursor:pointer;">₹${order.orderAmount.toFixed(2)}</td>
+        <td class="text-muted small text-truncate" style="max-width: 120px;" title="${order.notes}">${order.notes || '-'}</td>
+      </tr>
+    `;
+  });
+
+  tableBody.innerHTML = compiledHtml;
+  updateBulkActionBarState();
+}
+
+/**
+ * Bulk Action Processing Logic Toggles
+ */
+function handleOrderRowSelect(checkbox) {
+  const orderId = checkbox.getAttribute('data-id');
+  if (checkbox.checked) {
+    window.SELECTED_ORDER_IDS.add(orderId);
+  } else {
+    window.SELECTED_ORDER_IDS.delete(orderId);
+  }
+  updateBulkActionBarState();
+}
+
+function toggleSelectAllOrders(masterCheckbox) {
+  const visibleCheckboxes = document.querySelectorAll('.order-row-checkbox');
+  visibleCheckboxes.forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+    const orderId = cb.getAttribute('data-id');
+    if (masterCheckbox.checked) {
+      window.SELECTED_ORDER_IDS.add(orderId);
+    } else {
+      window.SELECTED_ORDER_IDS.delete(orderId);
+    }
+  });
+  updateBulkActionBarState();
+}
+
+function updateBulkActionBarState() {
+  const bar = document.getElementById('bulkActionBar');
+  const countLabel = document.getElementById('bulkCountLabel');
+  const count = window.SELECTED_ORDER_IDS.size;
+
+  if (count > 0) {
+    countLabel.innerText = count;
+    bar.classList.remove('d-none');
+  } else {
+    bar.classList.add('d-none');
+    const masterCb = document.getElementById('masterSelectCheckbox');
+    if(masterCb) masterCb.checked = false;
+  }
+}
+
+function clearSelectedOrders() {
+  window.SELECTED_ORDER_IDS.clear();
+  const checkboxes = document.querySelectorAll('.order-row-checkbox');
+  checkboxes.forEach(cb => cb.checked = false);
+  updateBulkActionBarState();
+}
+
+/**
+ * Fires Batch Print Operations to PDF layout generation engine
+ */
+function triggerBulkPrintAction(type) {
+    const idsArray = Array.from(window.SELECTED_ORDER_IDS);
+    showGlobalToast(`Processing bulk ${type} for ${idsArray.length} items...`, "🖨️");
+
+// Example pipeline execution call pointing to Apps Script document assembly hooks
+// google.script.run.withSuccessHandler(url => window.open(url)).generateBulkPDFPayload(idsArray);
+console.log(`[Bulk Print] Selected Order ID Target List:`, idsArray);
+}
+
+/**
+ * Dispatches Inline Status Modifications live to Spreadsheet Matrix Row locations
+ */
+function updateLiveRowStatus(orderId, fieldName, newValue) {
+console.log(`[Inline Update] Commencing switch for ${orderId} -> ${fieldName} = ${newValue}`);
+
+// Find local object reference and update cached memory layer
+if (window.VG_MASTER_ORDERS_CACHE) {
+  const match = window.VG_MASTER_ORDERS_CACHE.find(o => o.orderId === orderId);
+  if (match) match[fieldName] = newValue;
+}
+
+google.script.run
+  .withSuccessHandler(() => {
+    showGlobalToast("Ledger updated successfully.", "✅");
+  })
+  .withFailureHandler(err => {
+    console.error("[Inline Update] Shift failed:", err);
+    showGlobalToast("Failed to write update to sheet.", "❌");
+  })
+  .updateOrderFieldInline(orderId, fieldName, newValue);
+}
+
+function syncInlineMatrixField(orderId, fieldType, val) {
+  google.script.run
+    .withSuccessHandler((res) => {
+      if(res.success) {
+        showUiNotification(`Saved: ${res.orderId} ${res.field} updated to ${res.value}.`, "✅");
+      } else {
+        showUiNotification(res.error, "❌");
+      }
+    })
+    .updateMainFieldStatus(orderId, fieldType, val);
+}
+
+
+
+function renderPopupTable(items) {
+  let html = "";
+  items.forEach((row, i) => {
+    html += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${row[2]}</td>
+        <td>${row[4]}</td>
+        <td>${row[5]}</td>
+        <td>${row[6]}</td>
+        <td>₹${Number(row[7]).toFixed(2)}</td>
+        <td>₹${Number(row[8]).toFixed(2)}</td>
+        <td>${row[9] || '-'}</td>
+        <td><span class="status-pill status-${row[10].toLowerCase()}">${row[10]}</span></td>
+      </tr>`;
+  });
+  document.getElementById("popupItemsTableBody").innerHTML = html;
+}
+
+function filterPopupTableItems() {
+  let name = document.getElementById("pfItemName").value.toLowerCase();
+  let cat = document.getElementById("pfCategory").value.toLowerCase();
+  
+  let filtered = CACHE_POPUP_DATA.filter(row => {
+    return row[2].toLowerCase().includes(name) && row[3].toLowerCase().includes(cat);
+  });
+  renderPopupTable(filtered);
+}
+
+function closeItemsModal() {
+  document.getElementById("itemsFocusModal").classList.add("hidden");
+}
+
+
+  /**
+   * Custom Global Toast Framework Linkage
+   */
+  function showUiNotification(message, icon = "💡") {
+    // Calls your professional custom popup UI element across the app container framework
+    if (typeof showCustomToast === "function") {
+      showCustomToast(message, icon);
+    } else {
+      // Fallback alignment for individual file validation tests before main index integrations
+      const toastEl = document.getElementById('custom-toast');
+      if (toastEl) {
+        toastEl.innerHTML = `${icon} ${message}`;
+        toastEl.className = "alert alert-vg-success shadow animate-pulse";
+        toastEl.style.display = "block";
+        setTimeout(() => { toastEl.style.display = "none"; }, 4000);
+      }
+    }
+  }
+  
+</script>
