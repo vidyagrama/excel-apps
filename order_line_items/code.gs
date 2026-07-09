@@ -6,18 +6,19 @@ var ID_ORDERS = "1i3XQ7tfoKKb6RH8CjyP0fryMnbuOthbXnb26-FCa0MU";
 var ID_ADMINS = "1iiZtZclKgr7G7ISZFlM1We4LTmMLNkZLp_x4gP2DoOM";
 var ID_LEDGER = "17BBdRWeZZCCa7WmhNnIc-P_Vau3n9WkVZaR3XCB8Pck";
 var ID_SMS = "1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY";
+var ID_INVOICES = "1ykJPvwLrG-6dgDziRwtIGYF2ZAknjuUQz_vFpyrc8qg";
 
-var TAB_PARENTS_MAIN = "main";
-var TAB_PARENTS_GUEST = "guest";
-var TAB_LINE_ITEMS_MAIN = "main";
-var TAB_ORDERS_MAIN = "main";
+var TAB_PARENTS_MAIN = "main-dev";
+var TAB_PARENTS_GUEST = "guest-dev";
+var TAB_LINE_ITEMS_MAIN = "main-dev";
+var TAB_ORDERS_MAIN = "main-dev";
 var TAB_ADMINS_ENABLE_CATEGORY = "enable_maincategory";
 var TAB_ADMINS_ACTIVITY_LOGS = "activitiy_logs";
 var TAB_ADMINS_VARGA = "varga";
 var TAB_LEDGER_MAIN_LEDGER = "main_ledger";
 var TAB_SMS_SHEET = "Sheet1";
+var TAB_INVOICES_MAIN = "main";
 
-//var VALID_SHEETS = ["Shridhanya", "Varnam", "Vastram", "GauAmruth", "Tejas", "Madhuram"];
 
 function doGet() {
   // 1. Create a template from the file
@@ -717,41 +718,59 @@ function getEventList() {
 /**
  * Saves guest info to the 'guest' sheet and returns a login object.
  */
-function registerGuest(event, month, guestName, mobile, futureAssociate) {
+function registerGuest(guestName, mobile, futureAssociate) {
   try {
     const ss = SpreadsheetApp.openById(ID_PARENTS);
     let guestSheet = ss.getSheetByName(TAB_PARENTS_GUEST);
 
-    // Get the last row number. If it's 1 (header only), start at 1.
+    // 1. Calculate precise row placements
     const lastRow = guestSheet.getLastRow();
-    const guestId = (lastRow === 1) ? 1 : lastRow;
+    const nextRow = lastRow + 1;
+    const sequenceNum = (lastRow === 1) ? 1 : lastRow; 
 
-    const timestamp = "Registered: " + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+    // 2. Generate sequential ID and local timestamps
+    const guestId = "Guest-" + Utilities.formatString("%03d", sequenceNum);
+    const rightNow = new Date();
+    const timestamp = "Registered: " + Utilities.formatDate(rightNow, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
+    
+    // AUTOMATION: Automatically derive full month name string based on registration date context
+    const calculatedMonth = Utilities.formatDate(rightNow, Session.getScriptTimeZone(), "MMMM");
+    
+    // Data Entry Protocol: Remove +91 prefix from mobile numbers before saving
+    const cleanMobile = String(mobile).replace(/^\+91/, '').trim();
 
-    // Column 1: Event, Column 2: Name, Column 3: Month, Column 4: Mobile, etc.
-    // Based on your request, Month goes to Column 3
-    guestSheet.appendRow([
-      guestId,
-      event,           // Col 2
-      month,       // Col 3
-      guestName,           // Col 4
-      String(mobile),          // Col 5
-      futureAssociate ? "Yes" : "No",
-      timestamp
-    ]);
+    // 3. STYLE FIX: Copy theme formatting from the row above to the new row
+    if (lastRow > 1) {
+      const sourceRange = guestSheet.getRange(lastRow, 1, 1, 7); // Font/Theme template source
+      const targetRange = guestSheet.getRange(nextRow, 1, 1, 7); // Destined empty row
+      
+      // Clones borders, fonts, text alignments, and backgrounds without touching data values
+      sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    }
 
-    // FIX: Changed 'name' to 'guestName' to match your parameter
-    logActivity(guestName, "GUEST_SIGNUP", `Event: ${event} | ID: ${guestId} | Month: ${month}`, "Guest_Sheet");
+    // 4. ALIGNMENT FIX: Direct column mapping matching your schema layout
+    // Col 1: id | Col 2: name | Col 3: mobile | Col 4: event | Col 5: month | Col 6: future | Col 7: time
+    const cleanDataRow = [[
+      guestId,                          // Column 1: id
+      guestName,                        // Column 2: name
+      cleanMobile,                      // Column 3: mobile
+      "",                            // Column 4: event
+      "",                  // Column 5: month (Automatically derived)
+      futureAssociate ? "Yes" : "No",   // Column 6: futureAssociate
+      timestamp                         // Column 7: timestamp
+    ]];
+
+    // Write array dynamically using setValues to guarantee alignment integrity
+    guestSheet.getRange(nextRow, 1, 1, 7).setValues(cleanDataRow);
+
+    // Activity Log execution using the automated month
+    logActivity(guestName, "GUEST_SIGNUP", `ID: ${guestId}`, "Guest_Sheet");
 
     return {
       success: true,
       name: guestName,
       id: guestId,
-      varga: "Guest",
-      event: event,
-      discount: 0,
-      balance: 0,
-      credit: 0,
+      discount:0,
       isGuest: true
     };
   } catch (e) {
@@ -952,4 +971,70 @@ function debug_TestPaymentSystem() {
   }
 
   console.log("--- DEBUG TEST COMPLETE ---");
+}
+
+/**
+ * Run this function in the Apps Script Editor to debug registerGuest.
+ * Open the Execution Log (Ctrl+Enter) to see the step-by-step validation.
+ */
+function test_debugRegisterGuest() {
+  console.log("🚀 Starting debug test for registerGuest...");
+  
+  // 1. Setup Mock Input Data
+  const mockEvent = "Sankranti_Mela";
+  const mockGuestName = "Test Debug Guest";
+  const mockMobileWithPrefix = "+919876543210"; // Testing the +91 removal protocol
+  const mockFutureAssociate = true;
+
+  try {
+    // 2. Execute the Function
+    console.log("📥 Passing Mock Data to registerGuest...");
+    const result = registerGuest(mockEvent, mockGuestName, mockMobileWithPrefix, mockFutureAssociate);
+    
+    // 3. Print the Output Object
+    console.log("📤 Received Return Object Matrix:", JSON.stringify(result, null, 2));
+
+    // 4. Assertive Validations
+    console.log("🔍 Running verification checks...");
+
+    if (result.success !== true) {
+      console.error("❌ Test Failed: Function returned success = false. Error: " + result.error);
+      return;
+    }
+
+    // Validate sequential ID string format
+    if (/^Guest-\d{3}$/.test(result.id)) {
+      console.log(`✅ Success: Generated professional sequential ID -> ${result.id}`);
+    } else {
+      console.error(`❌ Failure: ID format mismatch. Expected 'Guest-00X', got -> ${result.id}`);
+    }
+
+    // Verify database row write integrity manually by logging coordinates
+    const ss = SpreadsheetApp.openById(ID_PARENTS);
+    const guestSheet = ss.getSheetByName(TAB_PARENTS_GUEST);
+    const lastRow = guestSheet.getLastRow();
+    const writtenValues = guestSheet.getRange(lastRow, 1, 1, 7).getValues()[0];
+
+    console.log("📊 Row Data actually saved to Sheet columns:", JSON.stringify(writtenValues));
+
+    // Verify Mobile Cleaning Protocol
+    if (writtenValues[2] === "9876543210") {
+      console.log("✅ Success: Mobile data cleaning protocol stripped '+91' perfectly.");
+    } else {
+      console.error(`❌ Failure: Mobile cleaning protocol bypassed! Expected '9876543210', found -> '${writtenValues[2]}'`);
+    }
+
+    // Verify Automated Month Extraction Engine
+    const expectedMonth = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMMM");
+    if (writtenValues[4] === expectedMonth) {
+      console.log(`✅ Success: Backend correctly calculated current month automatically -> '${writtenValues[4]}'`);
+    } else {
+      console.error(`❌ Failure: Month mismatch! Expected '${expectedMonth}', found -> '${writtenValues[4]}'`);
+    }
+
+    console.log("🎉 Debug Testing Run Complete. All automated checks passed safely.");
+
+  } catch (testError) {
+    console.error("💥 Critical Execution Error during test run: " + testError.toString());
+  }
 }

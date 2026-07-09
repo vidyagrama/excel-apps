@@ -128,12 +128,12 @@
 
     if (currentMode === 'guest') {
       // --- GUEST PATH ---
-      const ev = document.getElementById('event').value;
-      const month = document.getElementById('guest-month').value;
+      //const ev = document.getElementById('event').value;
+      //const month = document.getElementById('guest-month').value;
       const gn = document.getElementById('guest-name-input').value;
       const asc = document.getElementById('future-associate').checked;
 
-      if (!ev || !month || !gn) {
+      if (!gn) {
         resetLoginBtn(loginBtn);
         return showAlert("Fill all guest fields", "error");
       }
@@ -141,7 +141,7 @@
       google.script.run.withSuccessHandler(res => {
         if (res.success) { currentUser = res; startShop(); }
         else { showAlert("Registration Failed", "error"); resetLoginBtn(loginBtn); }
-      }).registerGuest(ev,month, gn, m, asc);
+      }).registerGuest(gn, m, asc);
 
     } else {
       // --- PARENT PATH ---

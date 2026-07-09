@@ -50,32 +50,6 @@
         </div>
 
         <div id="guest-only-fields" style="display:none;">
-          <div class="row g-2 mb-3">
-            <div class="col-7">
-              <label class="fw-bold small">Event<span class="text-danger">*</span></label>
-              <select id="event" class="form-select" required>
-                <option value="">Select Event</option>
-              </select>
-            </div>
-            <div class="col-5">
-              <label class="fw-bold small">Month<span class="text-danger">*</span></label>
-              <select id="guest-month" class="form-select" required>
-                <option value="">Select...</option>
-                <option value="January">Jan</option>
-                <option value="February">Feb</option>
-                <option value="March">Mar</option>
-                <option value="April">Apr</option>
-                <option value="May">May</option>
-                <option value="June">Jun</option>
-                <option value="July">Jul</option>
-                <option value="August">Aug</option>
-                <option value="September">Sep</option>
-                <option value="October">Oct</option>
-                <option value="November">Nov</option>
-                <option value="December">Dec</option>
-              </select>
-            </div>
-          </div>
           <div class="mb-3">
             <label class="fw-bold small">Your Name<span class="text-danger">*</span></label>
             <input type="text" id="guest-name-input" class="form-control" placeholder="Enter full name" required>
@@ -102,17 +76,21 @@
       <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
         <h6 id="welcome-msg" class="mb-0 fw-bold"></h6>
         <div class="d-flex align-items-center gap-3">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="shortage-toggle" onchange="filterItems()">
-            <label class="form-check-label small fw-bold" for="shortage-toggle" style="color:var(--vg-brown); cursor:pointer;">
-              Low Stocks Only
+
+          <div class="d-flex align-items-center">
+            <label for="event" class="small fw-bold me-2 mb-0" style="color: var(--vg-brown); white-space: nowrap;">
+              Event<span class="text-danger">*</span>
             </label>
+            <select id="event" class="form-select form-select-sm" style="min-width: 180px; font-size: 0.8rem;" required>
+              <option value="">Select Event</option>
+            </select>
           </div>
 
           <button class="btn btn-vg-refresh btn-sm d-flex align-items-center" onclick="refreshData()">
             <i class="material-icons" style="font-size: 16px; margin-right: 4px;">sync</i> Refresh
           </button>
           <button class="btn btn-outline-danger btn-sm" onclick="showLogoutConfirmation()">Logout</button>
+
         </div>
       </div>
 
