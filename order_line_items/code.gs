@@ -160,47 +160,105 @@ function getInventoryData() {
   return allItems;
 }
 
+/** Finalize order bulk***/
 function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
-  // 1. GET THE LOCK (Critical for 50-60 users)
   const lock = LockService.getScriptLock();
   try {
-    // Wait for up to 30 seconds for other orders to finish writing
     lock.waitLock(30000);
 
-    // Fetch dynamic categories for validation
     const currentValidSheets = getCategoryMap().validSheets;
-
     const liSheet = SpreadsheetApp.openById(ID_ORDERS_LINE_ITEMS).getSheetByName(TAB_LINE_ITEMS_MAIN);
     const ordSheet = SpreadsheetApp.openById(ID_ORDERS).getSheetByName(TAB_ORDERS_MAIN);
     const invSS = SpreadsheetApp.openById(ID_INVENTORY);
 
-    // Handle Screenshot Upload (Happens inside the lock to be safe)
-    let screenshotUrl = "N/A";
-    if (paymentMode === "Manual Screenshot" && base64Image) {
-      screenshotUrl = saveScreenshotToDrive(base64Image, txnId, summary.customerName);
+    // --- STEP 1: CALCULATE DUES & WALLET ADJUSTMENTS ---
+    const parentsSS = SpreadsheetApp.openById(ID_PARENTS);
+    const parentsSheet = parentsSS.getSheetByName(TAB_PARENTS_MAIN);
+    const parentsData = parentsSheet.getDataRange().getValues();
+
+    const userRowIndex = parentsData.findIndex(row => String(row[0]).trim() === String(summary.customerId).trim());
+
+    let initialDues = 0;
+    let updatedDues = 0;
+    let updatedCredit = 0;
+    let creditUsed = 0;
+    let totalWalletDeducted = 0;
+
+    if (userRowIndex !== -1) {
+      const sheetRowNumber = userRowIndex + 1;
+
+      let currentCredit = parseFloat(parentsData[userRowIndex][8] || 0); // Col I (Credit)
+      let currentDues = parseFloat(parentsData[userRowIndex][9] || 0);   // Col J (Dues)
+      initialDues = currentDues;
+
+      const grossVal = parseFloat(summary.grossTotal || 0);
+      const savingsVal = parseFloat(summary.savingAmount || 0);
+      let orderCharge = Math.max(0, grossVal - savingsVal);
+
+      if (paymentMode !== "Gift" && paymentMode !== "Kitchen") {
+
+        // 1. Deduct from available Credit first
+        if (currentCredit > 0 && orderCharge > 0) {
+          if (currentCredit >= orderCharge) {
+            creditUsed = orderCharge;
+            currentCredit -= orderCharge;
+            orderCharge = 0;
+          } else {
+            creditUsed = currentCredit;
+            orderCharge -= currentCredit;
+            currentCredit = 0;
+          }
+          totalWalletDeducted = creditUsed;
+        }
+
+        // 2. Handle remaining charge or previous dues based on payment mode
+        if (paymentMode === "Wallet") {
+          // Uncovered order balance becomes remaining dues
+          currentDues = currentDues + orderCharge;
+        } else {
+          // Cash/UPI/Auto-Verified clears any remaining previous dues
+          if (currentDues > 0) {
+            console.log(`💵 [DUES_CLEARED] Cleared ₹${currentDues} previous dues via ${paymentMode}.`);
+            currentDues = 0.00;
+          }
+        }
+
+        updatedDues = parseFloat(currentDues.toFixed(2));
+        updatedCredit = parseFloat(currentCredit.toFixed(2));
+
+        // Batch write Col I (Credit) and Col J (Dues) together
+        parentsSheet.getRange(sheetRowNumber, 9, 1, 2).setValues([[updatedCredit, updatedDues]]);
+        SpreadsheetApp.flush();
+      } else {
+        updatedDues = currentDues;
+        updatedCredit = currentCredit;
+      }
     }
 
-    const orderStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Received" : "Pending";
-    const paymentStatus = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Auto-Verified") ? "Paid" : "Unpaid";
-    
+    // --- STEP 2: DETERMINE ORDER STATUS & TYPE ---
+    const isAutoPaid = (paymentMode === "Cash" || paymentMode === "Gift" || paymentMode === "Kitchen" || paymentMode === "Auto-Verified" || paymentMode === "Wallet" || totalWalletDeducted > 0);
+    const orderStatus = "Received";
+    const paymentStatus = isAutoPaid ? "Paid" : "Pending Verification";
+
+    let orderType = "Online";
+    if (paymentMode === "Cash") orderType = "Cash";
+    else if (paymentMode === "Gift") orderType = "Gift";
+    else if (paymentMode === "Kitchen") orderType = "Kitchen";
+    else if (paymentMode === "Wallet" || totalWalletDeducted > 0) orderType = "Wallet";
+
     const categoriesInCart = [...new Set(fullCart.map(item => item.mainCategory))];
     let generatedOrderIds = [];
 
-    // 2. Save Orders and Line Items
+    // --- STEP 3: SAVE ORDERS & LINE ITEMS ---
     categoriesInCart.forEach((cat) => {
       const catItems = fullCart.filter(item => item.mainCategory === cat);
       const catOrderId = generateOrderId(cat);
       generatedOrderIds.push(catOrderId);
 
-      // --- BUG FIX: Calculate the exact sum for THIS specific category ---
       const categoryGrossTotal = catItems.reduce((sum, item) => sum + (parseFloat(item.fullSubtotal) || 0), 0);
-      
-      // Handle proportional total calculation if member discount applies
+
       let categoryFinalTotal = categoryGrossTotal;
-      if (paymentMode === "Gift") {
-        categoryFinalTotal = 0; // Gifts are always recorded as 0 collected revenue
-      } else if (summary.grossTotal && summary.grossTotal > 0) {
-        // If there's a global discount, apply it proportionally to this category's total
+      if (summary.grossTotal && summary.grossTotal > 0 && paymentMode !== "Gift") {
         const discountRatio = (summary.finalTotal / summary.grossTotal);
         categoryFinalTotal = categoryGrossTotal * discountRatio;
       }
@@ -214,25 +272,32 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       const nextLiRow = getFirstEmptyRowInColumn(liSheet, 2);
       liSheet.getRange(nextLiRow, 1, lineRows.length, 11).setValues(lineRows);
 
-      // Construct robust notes block
-      let notes = (summary.notes || "") + " | TXN: " + (txnId || "N/A") + " | URL: " + screenshotUrl;
+      let prefix = "";
+      if (paymentMode === "Cash") prefix = "💵 CASH";
+      else if (paymentMode === "Gift") prefix = "🎁 GIFT";
+      else if (paymentMode === "Kitchen") prefix = "🍳 KITCHEN"; 
+      else if (paymentMode === "Auto-Verified") prefix = "⚡ AUTO-VERIFIED";
+      else if (paymentMode === "Manual UTR-4") prefix = "🔢 UTR-4 ENTRY";
+      else if (paymentMode === "Wallet" || totalWalletDeducted > 0) prefix = "👛 WALLET";
 
-      if (paymentMode == "Cash") {
-        notes = "💵 CASH RECEIVED | " + notes;
-      } else if (paymentMode == "Gift") {
-        notes = "🎁 BILLED TO VIDYAKSHETRA GIFT | " + notes;
+      let notes = `${prefix} | TXN/Ref: ${txnId || "N/A"}`;
+      if (totalWalletDeducted > 0) {
+        notes += ` | Adjusted ₹${totalWalletDeducted.toFixed(2)} from user credit`;
+      }
+      if (summary.notes && summary.notes.trim() !== "") {
+        notes += ` | Notes: ${summary.notes.trim()}`;
       }
 
       const ordRow = [[
         "P0", catOrderId, summary.customerId, summary.customerName,
-        new Date(), orderStatus, categoryFinalTotal, paymentStatus, notes
+        new Date(), orderStatus, categoryFinalTotal, paymentStatus, notes, orderType
       ]];
-      
+
       const nextOrdRow = getFirstEmptyRowInColumn(ordSheet, 2);
-      ordSheet.getRange(nextOrdRow, 1, 1, 9).setValues(ordRow);
+      ordSheet.getRange(nextOrdRow, 1, 1, 10).setValues(ordRow);
     });
 
-    // 3. Inventory Sync (Optimization: Minimize setValues calls)
+    // --- STEP 4: INVENTORY SYNC ---
     fullCart.forEach(cartItem => {
       if (currentValidSheets.indexOf(cartItem.mainCategory) === -1) return;
       const targetSheet = invSS.getSheetByName(cartItem.mainCategory);
@@ -253,22 +318,116 @@ function finalizeOrderBulk(summary, fullCart, paymentMode, base64Image, txnId) {
       }
     });
 
-    // 4. Email and Finalize
+    // --- STEP 5: EMAIL NOTIFICATION ---
     summary.allOrderIds = generatedOrderIds.join(", ");
     summary.paymentStatus = paymentStatus;
-    sendReceiptEmail(summary, fullCart);
+    summary.prevDues = initialDues;
+    summary.creditUsed = totalWalletDeducted;
+    summary.totalWalletDeducted = totalWalletDeducted;
+    summary.finalAmount = Math.max(0, summary.grossTotal - summary.savingAmount - totalWalletDeducted);
 
-    // Force all spreadsheet changes to commit before releasing the lock
+    try {
+      sendReceiptEmail(summary, fullCart);
+    } catch (emailErr) {
+      console.log("Receipt Email Failed: " + emailErr.toString());
+    }
+
     SpreadsheetApp.flush();
-    return { success: true, orderIds: generatedOrderIds, mode: paymentMode };
+
+    return {
+      success: true,
+      orderIds: generatedOrderIds,
+      mode: paymentMode,
+      newBalance: updatedDues,
+      newCredit: updatedCredit,
+      walletAdjusted: totalWalletDeducted
+    };
 
   } catch (e) {
     console.log("Error in finalizeOrderBulk: " + e.toString());
     return { success: false, error: e.toString() };
   } finally {
-    // 5. RELEASE THE LOCK (Always do this in 'finally')
     lock.releaseLock();
   }
+}
+
+/**
+ * Polling function called by frontend during payment overlay countdown
+ */
+function checkLatestPaymentReceived(customerId, expectedAmount) {
+  try {
+    // Search your incoming webhook transactions sheet or bank ledger tab
+    const bankSS = SpreadsheetApp.openById(ID_ORDERS);
+    const bankSheet = bankSS.getSheetByName("Bank_Transactions");
+    if (!bankSheet) return false;
+
+    const rows = bankSheet.getLastRow();
+    if (rows < 2) return false;
+
+    // Check last 10 incoming transactions for matching amount and status
+    const data = bankSheet.getRange(Math.max(2, rows - 10), 1, 10, 5).getValues();
+
+    // Whole rupee value of expected bill amount (e.g., 876.87 -> 876)
+    const expectedWhole = Math.floor(parseFloat(expectedAmount) || 0);
+
+    for (let i = data.length - 1; i >= 0; i--) {
+      const txAmount = parseFloat(data[i][2]) || 0; // Col C: Amount
+      const txStatus = String(data[i][3]).trim();   // Col D: Status (e.g. "UNMATCHED")
+
+      const txWhole = Math.floor(txAmount); // e.g., 876.00 -> 876
+
+      // Match whole rupee amount or absolute difference within 1 Rupee
+      const isAmountMatch = (txWhole === expectedWhole) || (Math.abs(txAmount - expectedAmount) <= 1.0);
+
+      if (isAmountMatch && txStatus === "UNMATCHED") {
+        return true;
+      }
+    }
+    return false;
+  } catch (err) {
+    console.log("Error in checkLatestPaymentReceived: " + err.toString());
+    return false;
+  }
+}
+
+/***************Wallet code*************************************/
+/**
+ * Fetches current credit and balance for a specific customer ID.
+ */
+function getUserWalletData(customerId) {
+  try {
+    const parentsSS = SpreadsheetApp.openById(ID_PARENTS);
+    const parentsSheet = parentsSS.getSheetByName(TAB_PARENTS_MAIN);
+    
+    // Always flush to get absolute latest values directly from sheet
+    SpreadsheetApp.flush();
+    
+    const parentsData = parentsSheet.getDataRange().getValues();
+
+    // Row 0 is headers; search matching Customer ID in Column A (index 0)
+    const userRow = parentsData.find(row => String(row[0]).trim() === String(customerId).trim());
+
+    if (userRow) {
+      // Index 8 = Column I (Credit), Index 9 = Column J (Balance)
+      const creditVal = parseFloat(userRow[8]) || 0;
+      const balanceVal = parseFloat(userRow[9]) || 0;
+
+      return {
+        success: true,
+        credit: creditVal,
+        balance: balanceVal
+      };
+    } else {
+      return { success: false, error: "User not found" };
+    }
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+
+function checkEmailQuota() {
+  Logger.log("Remaining Daily Email Quota: " + MailApp.getRemainingDailyQuota());
 }
 
 function sendReceiptEmail(summary, cart) {
@@ -276,20 +435,20 @@ function sendReceiptEmail(summary, cart) {
     const parentSS = SpreadsheetApp.openById(ID_PARENTS);
     const parentData = parentSS.getSheetByName(TAB_PARENTS_MAIN).getDataRange().getValues();
     const user = parentData.find(r => String(r[0]).trim() === String(summary.customerId).trim());
-    const userEmail = user ? user[6] : null;
 
-    if (!userEmail) return;
+    // User email from sheet or summary
+    let userEmail = user ? user[6] : summary.customerEmail;
 
+    const adminEmail = "writetovidyagrama@gmail.com";
     const logoUrl = "https://i.ibb.co/3mk7ddzj/vidyagrama-logo.png";
     const upiId = "9035734752@icici";
 
-    // --- GROUPING LOGIC FOR CONSOLIDATED VIEW ---
+    // --- 1. GROUPING LOGIC & OVERALL TOTAL CALCULATION ---
+    let overallTotal = 0;
     const categories = [...new Set(cart.map(i => i.mainCategory))];
     let tableRows = "";
-    let overallTotal = 0;
 
     categories.forEach(cat => {
-      // Category Header Row
       tableRows += `
         <tr style="background-color: #fcf8e3;">
           <td colspan="4" style="border: 1px solid #cccccc; padding: 8px; font-weight: bold; color: #8a6d3b; text-transform: uppercase; font-size: 12px;">
@@ -299,16 +458,17 @@ function sendReceiptEmail(summary, cart) {
 
       const catItems = cart.filter(i => i.mainCategory === cat);
       catItems.forEach(item => {
-        let qty = parseFloat(item.quantity);
-        let price = parseFloat(item.salePrice);
-        let unit = item.uom;
+        let qty = parseFloat(item.quantity) || 0;
+        let price = parseFloat(item.salePrice) || 0;
+        let unit = (item.uom || '').toString();
 
-        if (unit.toLowerCase() === 'gms') {
+        if (unit.toLowerCase() === 'gms' || unit.toLowerCase() === 'gm') {
           qty = qty / 1000;
           unit = 'kg';
         }
 
-        let lineTotal = qty * price;
+        // Use pre-calculated fullSubtotal from cart to prevent floating point drift
+        let lineTotal = parseFloat(item.fullSubtotal) || (qty * price);
         overallTotal += lineTotal;
 
         tableRows += `
@@ -321,17 +481,48 @@ function sendReceiptEmail(summary, cart) {
       });
     });
 
-    const discountRate = parseFloat(user[7] || 0);
-    const discountAmount = overallTotal * (discountRate / 100);
+    // --- 2. DISCOUNT, ROUND OFF & WALLET CALCULATIONS ---
+    const discountAmount = parseFloat(summary.savingAmount || 0);
+    const discountRate = overallTotal > 0 ? ((discountAmount / overallTotal) * 100).toFixed(0) : 0;
 
-    const prevBalance = parseFloat(summary.previousBalance || 0);
+    const unroundedItemTotal = Math.max(0, overallTotal - discountAmount);
+    
+    // Round to nearest whole rupee (₹1.00)
+    const roundedItemTotal = Math.round(unroundedItemTotal);
+    const roundOffAmt = roundedItemTotal - unroundedItemTotal;
+
+    // Wallet / Balance variables passed from finalizeOrderBulk
+    const prevBalance = parseFloat(summary.prevBalance || 0);
     const creditUsed = parseFloat(summary.creditUsed || 0);
-    const finalAmount = summary.finalTotal > 0 ? summary.finalTotal : 0;
+    const totalDeducted = parseFloat(summary.totalWalletDeducted || (prevBalance + creditUsed));
+
+    // Final Net Payable
+    const finalAmount = Math.max(0, roundedItemTotal - totalDeducted);
+
+    // --- 3. PAYMENT STATUS & NOTES HANDLING ---
+    const paymentStatus = summary.paymentStatus || (summary.paymentMode ? `Paid (${summary.paymentMode})` : "Paid");
+    const txnRef = summary.txnId || summary.refNo || "N/A";
+    const notesText = summary.notes || summary.remarks || "";
+
+    const isPaid = String(paymentStatus).toLowerCase().indexOf("paid") !== -1;
+
+    const paymentStatusHtml = `
+      <div style="margin: 15px 0; padding: 12px 15px; border-radius: 6px; background-color: ${isPaid ? '#e8f5e9' : '#fff3e0'}; border: 1px solid ${isPaid ? '#c8e6c9' : '#ffe0b2'};">
+        <span style="font-weight: bold; color: ${isPaid ? '#2e7d32' : '#e65100'}; font-size: 14px;">Payment Status:</span>
+        <span style="font-weight: bold; color: ${isPaid ? '#1b5e20' : '#bf360c'}; background: ${isPaid ? '#a5d6a7' : '#ffcc80'}; padding: 3px 8px; border-radius: 4px; font-size: 13px; margin-left: 5px;">${paymentStatus.toUpperCase()}</span>
+        ${txnRef !== "N/A" ? `<span style="font-size: 12px; color: #555; margin-left: 10px;">(Ref: <strong>${txnRef}</strong>)</span>` : ''}
+      </div>`;
+
+    const notesHtml = notesText ? `
+      <div style="margin: 15px 0; padding: 12px 15px; border-radius: 6px; background-color: #fff8e1; border: 1px solid #ffe082;">
+        <strong style="color: #f57f17; font-size: 13px;">📝 Notes / Remarks:</strong>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #424242;">${notesText}</p>
+      </div>` : '';
 
     const upiLink = `upi://pay?pa=${upiId}&pn=Vidyakshetra&am=${finalAmount.toFixed(2)}&cu=INR`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiLink)}`;
 
-    const mobileBannerHtml = finalAmount > 0 ? `
+    const mobileBannerHtml = finalAmount > 0 && !isPaid ? `
     <div style="margin: 25px 0; border: 2px dashed #2e7d32; padding: 20px; border-radius: 10px; background-color: #f9fdf9;">
       <p style="margin: 0 0 10px 0; font-weight: bold; color: #2e7d32; font-size: 16px;">📱 Payment Instructions:</p>
       <p style="margin: 5px 0; font-size: 14px; color: #333;">
@@ -339,6 +530,7 @@ function sendReceiptEmail(summary, cart) {
       </p>
     </div>` : '';
 
+    // --- 4. HTML INVOICE TEMPLATE ---
     const htmlInvoice = `
       <!DOCTYPE html>
       <html>
@@ -348,15 +540,19 @@ function sendReceiptEmail(summary, cart) {
             <td><img src="${logoUrl}" height="70" alt="Logo"></td>
             <td align="right">
               <h1 style="margin:0; font-size: 24px;">TAX INVOICE</h1>
-              <p style="margin:5px 0;">Ref: <strong>${summary.allOrderIds || summary.orderId}</strong></p>
+              <p style="margin:5px 0;">Ref: <strong>${summary.allOrderIds || summary.orderId || 'N/A'}</strong></p>
               <p style="margin:5px 0;">Date: ${new Date().toLocaleDateString('en-IN')}</p>
             </td>
           </tr>
         </table>
+        
         <p>Namaste <strong>${summary.customerName}</strong>,</p>
         <p>Your order has been received. Here is your consolidated invoice:</p>
         
-        <table width="100%" style="border-collapse: collapse;">
+        ${paymentStatusHtml}
+        ${notesHtml}
+
+        <table width="100%" style="border-collapse: collapse; margin-top: 15px;">
           <thead>
             <tr style="background: #f4f4f4;">
               <th align="left" style="padding: 10px; border: 1px solid #ccc;">Description</th>
@@ -367,13 +563,40 @@ function sendReceiptEmail(summary, cart) {
           </thead>
           <tbody>${tableRows}</tbody>
           <tfoot>
-            <tr><td colspan="3" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td><td align="right" style="padding: 10px; border-top: 2px solid #eee;">₹ ${overallTotal.toFixed(2)}</td></tr>
-            ${discountRate > 0 ? `<tr><td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td><td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td></tr>` : ''}
-            <tr><td colspan="3" align="right" style="padding: 10px;">Previous Balance</td><td align="right" style="padding: 10px;">₹ ${prevBalance.toFixed(2)}</td></tr>
-            <tr><td colspan="3" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td><td align="right" style="padding: 10px; color: #2e7d32;">- ₹ ${creditUsed.toFixed(2)}</td></tr>
+            <tr>
+              <td colspan="3" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td>
+              <td align="right" style="padding: 10px; border-top: 2px solid #eee;">₹ ${overallTotal.toFixed(2)}</td>
+            </tr>
+
+            ${discountAmount > 0 ? `
+            <tr>
+              <td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td>
+              <td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td>
+            </tr>` : ''}
+
+            <!-- ROUND OFF ROW -->
+            <tr>
+              <td colspan="3" align="right" style="padding: 10px; color: #666;">Round Off</td>
+              <td align="right" style="padding: 10px; color: #666;">${roundOffAmt >= 0 ? '+' : ''}₹ ${roundOffAmt.toFixed(2)}</td>
+            </tr>
+
+            ${prevBalance > 0 ? `
+            <tr>
+              <td colspan="3" align="right" style="padding: 10px; color: #00796b;">Wallet Balance Used</td>
+              <td align="right" style="padding: 10px; color: #00796b;">- ₹ ${prevBalance.toFixed(2)}</td>
+            </tr>` : ''}
+
+            ${creditUsed > 0 ? `
+            <tr>
+              <td colspan="3" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td>
+              <td align="right" style="padding: 10px; color: #2e7d32;">- ₹ ${creditUsed.toFixed(2)}</td>
+            </tr>` : ''}
+
             <tr style="font-size: 18px;">
               <td colspan="3" align="right" style="padding: 10px; font-weight: bold; border-top: 1px solid #444;">Net Amount Payable</td>
-              <td align="right" style="padding: 10px; font-weight: bold; color: #d32f2f; border-top: 1px solid #444;">₹ ${finalAmount.toFixed(2)}</td>
+              <td align="right" style="padding: 10px; font-weight: bold; color: ${finalAmount === 0 || isPaid ? '#2e7d32' : '#d32f2f'}; border-top: 1px solid #444;">
+                ₹ ${finalAmount.toFixed(2)}
+              </td>
             </tr>
           </tfoot>
         </table>
@@ -387,24 +610,32 @@ function sendReceiptEmail(summary, cart) {
                 <p style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">A COMMUNITY ENTERPRISE INSPIRED BY THE VISION OF VIDYAKSHETRA</p>
                 <p style="font-size: 11px; color: #666;">Thank you for your support!</p>
               </td>
+              ${!isPaid && finalAmount > 0 ? `
               <td width="30%" align="right">
                 <p style="font-size: 11px; margin-bottom: 5px; font-weight: bold;">Scan to Pay via UPI</p>
                 <img src="${qrCodeUrl}" width="130" height="130" style="border: 1px solid #ccc; padding: 5px;">
-              </td>
+              </td>` : ''}
             </tr>
           </table>
         </div>
       </body>
       </html>`;
 
+    // --- 5. MAIL DELIVERY ---
     const formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd-MM-yyyy");
 
+    let toList = [adminEmail];
+    if (userEmail && String(userEmail).trim() !== "" && userEmail !== adminEmail) {
+      toList.push(userEmail.trim());
+    }
+
     MailApp.sendEmail({
-      to: userEmail,
-      bcc: "writetovidyagrama@gmail.com",
+      to: toList.join(","),
       subject: `Tax-Invoice - Vidyagram - ${formattedDate}`,
       htmlBody: htmlInvoice
     });
+
+    console.log("✅ Email sent successfully to: " + toList.join(", "));
 
   } catch (e) {
     console.log("Email Error: " + e.toString());
@@ -503,7 +734,6 @@ function generateOrderId(mainCategory) {
 
 /* Auto verify transactions maid through UPI payments*/
 function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
-  // Always clean up before checking
   cleanupSmsSheet();
 
   try {
@@ -511,61 +741,70 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
     const sheet = ss.getSheetByName("Sheet1");
     const data = sheet.getDataRange().getValues();
     const searchAmount = parseFloat(userExpectedAmount);
+    const cleanLast4 = last4 ? last4.toString().trim() : "";
 
     let matches = [];
 
-    // Loop through logs (Newest to Oldest)
-    for (let i = data.length - 1; i >= 1; i--) {
+    // Loop through logs (Newest to Oldest) down to Row 1 (data[0])
+    for (let i = data.length - 1; i >= 0; i--) {
+      const status = data[i][2] ? data[i][2].toString().trim() : "";
+      
       // 1. Skip if already verified
-      if (data[i][2] === "Verified") continue;
+      if (status.toLowerCase() === "verified") continue;
 
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
-      
-      // ROBUST CHECK: Matches any sender string containing "ICICIT-S" or "ICICIO-S"
-      // (e.g., "AX-ICICIT-S", "JM-ICICIT-S", "AX-ICICIO-S", etc.)
-      const isIciciSender = /ICICI[TO]-S/.test(sender);
-
-      if (!isIciciSender) {
-        continue;
-      }
-
       const message = data[i][3] ? data[i][3].toString() : "";
-      const amtMatch = message.match(/Rs\.?\s?([0-9,.]+)/i);
+
+      if (!message) continue;
+
+      // Check sender
+      const isIciciSender = sender.includes("ICICI");
+      if (!isIciciSender) continue;
+
+      const amtMatch = message.match(/(?:Rs\.?|INR|credited\s+by\s+Rs\.?)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
 
       if (amtMatch) {
-        const smsAmount = parseFloat(amtMatch[1].replace(/,/g, ''));
+        const cleanAmtStr = amtMatch[1].replace(/,/g, '');
+        const smsAmount = parseFloat(cleanAmtStr);
 
-        if (Math.abs(smsAmount - searchAmount) < 1.0) {
-          // 2. Extract Transaction ID (Handles "UPI:462960315285-ICICI")
-          // This captures the digits immediately after 'UPI:'
-          const utrMatch = message.match(/UPI:\s?(\d+)/i);
-          const fullUTR = utrMatch ? utrMatch[1] : "UNKNOWN";
+        if (!isNaN(smsAmount) && Math.abs(smsAmount - searchAmount) < 0.05) {
 
-          // Filter by last 4 if provided
-          if (last4 === "" || fullUTR.endsWith(last4)) {
+          let fullUTR = "UNKNOWN";
+          const upiMatch = message.match(/UPI[:\/\s\-]*(\d{10,14})/i);
+
+          if (upiMatch) {
+            fullUTR = upiMatch[1];
+          } else {
+            const digitMatch = message.match(/\b\d{10,14}\b/);
+            if (digitMatch) fullUTR = digitMatch[0];
+          }
+
+          const isUtrMatch = (cleanLast4 === "") || fullUTR.endsWith(cleanLast4) || message.includes(cleanLast4);
+
+          if (isUtrMatch) {
             matches.push({
               utr: fullUTR,
               sender: sender,
               amount: smsAmount,
-              rowIndex: i + 1 // Store the 1-based row index for updating
+              rowIndex: i + 1 // Correctly maps data[0] -> Sheet Row 1
             });
           }
         }
       }
     }
 
-    // --- LOGIC GATE ---
     if (matches.length === 0) {
-      return { status: "NOT_FOUND", message: "No matching payment found yet." };
+      return { status: "NOT_FOUND", message: "No matching payment found." };
     }
 
-    if (matches.length === 1) {
+    // IF EXACT MATCH FOUND OR USER SUPPLIED LAST4 THAT MATCHES ANY UNVERIFIED ROW
+    if (matches.length === 1 || (cleanLast4 !== "" && matches.length > 0)) {
       const result = matches[0];
 
-      // A. Update the SMS Log Sheet (Column C)
+      // Mark SMS row as Verified
       sheet.getRange(result.rowIndex, 3).setValue("Verified");
 
-      // B. Update the Main Ledger
+      // Log to Main Ledger
       logToMainLedger({
         date: new Date(),
         mainCategory: "OnlineSales",
@@ -577,13 +816,14 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
         amount: result.amount,
         paymentMode: "UPI/Online",
         status: "Cleared",
-        notes: "Auto-verified. Row: " + result.rowIndex
+        notes: "Auto-verified UTR: " + result.utr + " | Row: " + result.rowIndex
       });
 
       return { status: "SUCCESS", txnId: result.utr, message: "Verified! Received Rs." + result.amount };
     }
 
-    if (matches.length > 1) {
+    // Multiple payments with no UTR provided
+    if (matches.length > 1 && cleanLast4 === "") {
       return { status: "DUPLICATES", message: "Multiple payments found. Please enter last 4 digits." };
     }
 
@@ -809,7 +1049,6 @@ function getCategoryMap(forceRefresh = false) {
 
 
 /**************************************Debug functions*******************/
-
 /**
  * Test function to verify the dynamic category mapping.
  * Run this from the Apps Script editor's function dropdown.
@@ -849,6 +1088,23 @@ function debugCategoryMap() {
  * Test function to debug the Inventory loading logic.
  * Helps identify if a category is missing due to dates, status, or tab naming.
  */
+function testSendEmailDirectly() {
+  const dummySummary = {
+    customerId: "123", // Replace with a valid ID from your sheet to test lookup
+    customerName: "Test User",
+    orderId: "ORD-9999",
+    finalTotal: 100,
+    previousBalance: 0,
+    creditUsed: 0
+  };
+
+  const dummyCart = [
+    { mainCategory: "Snacks", itemName: "Test Item", quantity: 1, salePrice: 100, uom: "Packets" }
+  ];
+
+  sendReceiptEmail(dummySummary, dummyCart);
+}
+
 function debugInventoryLoading() {
   console.log("--- Starting Inventory Debug ---");
 
@@ -952,4 +1208,20 @@ function debug_TestPaymentSystem() {
   }
 
   console.log("--- DEBUG TEST COMPLETE ---");
+}
+
+function debugCheckSmsSheet() {
+  const ss = SpreadsheetApp.openById("1o10_jI39_Pr3QjUoRvz42ZUive08UcKd12aedCWmQTY");
+  const sheet = ss.getSheetByName("Sheet1");
+  const data = sheet.getDataRange().getValues();
+  
+  console.log("Total Rows in Sheet1:", data.length);
+  
+  // Inspect the last 5 rows
+  for (let i = Math.max(1, data.length - 5); i < data.length; i++) {
+    console.log(`--- Row ${i + 1} ---`);
+    console.log("Sender (Col B):", data[i][1]);
+    console.log("Status (Col C):", data[i][2]);
+    console.log("Message (Col D):", data[i][3]);
+  }
 }

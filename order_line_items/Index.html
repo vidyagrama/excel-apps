@@ -27,7 +27,8 @@
       <div id="login-form-container" class="card-body p-4 bg-white">
         <div class="mb-4">
           <div class="btn-group w-100" role="group">
-            <input type="radio" class="btn-check" name="loginType" id="parentType" checked onclick="toggleUserMode('parent')">
+            <input type="radio" class="btn-check" name="loginType" id="parentType" checked
+              onclick="toggleUserMode('parent')">
             <label class="btn btn-outline-primary btn-sm" for="parentType">Parent Login</label>
             <input type="radio" class="btn-check" name="loginType" id="guestType" onclick="toggleUserMode('guest')">
             <label class="btn btn-outline-primary btn-sm" for="guestType">Guest Login</label>
@@ -38,14 +39,14 @@
           <div class="mb-3">
             <label class="fw-bold small">Varga</label>
             <select id="varga" class="form-select" onchange="fetchNames()" disabled>
-                  <option value="">Loading Varga...</option>
-                </select>
+              <option value="">Loading Varga...</option>
+            </select>
           </div>
           <div class="mb-3">
             <label class="fw-bold small">Name</label>
             <select id="name" class="form-select" disabled>
-                  <option value="">Select Varga first</option>
-                </select>
+              <option value="">Select Varga first</option>
+            </select>
           </div>
         </div>
 
@@ -90,8 +91,8 @@
         <div id="guest-association" class="mb-3 form-check" style="display:none;">
           <input type="checkbox" class="form-check-input" id="future-associate">
           <label class="form-check-label small text-muted" for="future-associate">
-                Would you like to associate with Vidyagrama in the future?
-              </label>
+            Would you like to associate with Vidyagrama in the future?
+          </label>
         </div>
 
         <button id="login-btn" class="btn w-100" onclick="doLogin()">Login</button>
@@ -101,14 +102,22 @@
     <div id="shop-section" class="hidden">
       <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
         <h6 id="welcome-msg" class="mb-0 fw-bold"></h6>
-        <div class="d-flex align-items-center gap-3">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" id="shortage-toggle" onchange="filterItems()">
-            <label class="form-check-label small fw-bold" for="shortage-toggle" style="color:var(--vg-brown); cursor:pointer;">
-              Low Stocks Only
-            </label>
-          </div>
 
+        <div class="wallet-badge border rounded px-3 py-1 bg-white shadow-sm d-flex align-items-center gap-2">
+          <!-- Credit Section (Green) -->
+          <span class="text-success fw-bold">
+            <i class="bi bi-plus-circle-fill me-1"></i>Credit: <span id="header-credit-val">₹0.00</span>
+          </span>
+
+          <span class="text-muted">|</span>
+
+          <!-- Dues Section (Red) -->
+          <span class="text-danger fw-bold">
+            <i class="bi bi-dash-circle-fill me-1"></i>Dues: <span id="header-dues-val">₹0.00</span>
+          </span>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
           <button class="btn btn-vg-refresh btn-sm d-flex align-items-center" onclick="refreshData()">
             <i class="material-icons" style="font-size: 16px; margin-right: 4px;">sync</i> Refresh
           </button>
@@ -121,8 +130,10 @@
           <div class="row g-2 mb-3">
             <div class="col-md-4">
               <div class="input-group">
-                <input type="text" id="search-bar" class="form-control" placeholder="Search Name or SKU..." onkeyup="filterItems()">
-                <button class="btn btn-outline-secondary d-flex align-items-center" onclick="startScanner()" title="Scan Barcode">
+                <input type="text" id="search-bar" class="form-control" placeholder="Search Name or SKU..."
+                  onkeyup="filterItems()">
+                <button class="btn btn-outline-secondary d-flex align-items-center" onclick="startScanner()"
+                  title="Scan Barcode">
                   <i class="material-icons">photo_camera</i>
                 </button>
               </div>
@@ -150,6 +161,7 @@
           <div id="inventory-grid" class="row g-2"></div>
         </div>
 
+        <!-- UPDATED SIDEBAR (Clean & Direct) -->
         <div class="col-lg-4">
           <div id="cart-sidebar">
             <h6 class="fw-bold mb-3 border-bottom pb-2">Your Cart</h6>
@@ -160,66 +172,86 @@
 
             <div class="border-top pt-2">
               <div class="d-flex justify-content-between small text-muted">
-                <span>Gross Total:</span><span id="gross-val">₹0</span>
+                <span>Gross Total:</span><span id="gross-val">₹0.00</span>
               </div>
               <div class="d-flex justify-content-between small text-danger">
-                <span id="disc-label">Discount:</span><span id="disc-val">-₹0</span>
+                <span id="disc-label">Discount:</span><span id="disc-val">-₹0.00</span>
+              </div>
+              <div class="d-flex justify-content-between small text-muted">
+                <span>Round Off:</span><span id="round-val">₹0.00</span>
               </div>
 
-              <div class="d-flex justify-content-between small text-muted border-top mt-1 pt-1">
-                <span>Previous Balance:</span><span id="balance-val">₹0</span>
+              <!-- Previous Dues (Money user owes Vidyagrama) -->
+              <div class="d-flex justify-content-between small text-danger border-top mt-1 pt-1">
+                <span>Previous Dues:</span><span id="balance-val">₹0.00</span>
               </div>
+
+              <!-- Wallet Credit (Money user has in wallet) -->
               <div class="d-flex justify-content-between small text-success">
-                <span>Available Credit:</span><span id="credit-val">-₹0</span>
+                <span>Wallet Credit:</span><span id="credit-val">₹0.00</span>
               </div>
+
               <div class="d-flex justify-content-between h5 mt-2 fw-bold" style="color:var(--vg-brown)">
-                <span>Final Total:</span><span id="final-val">₹0</span>
+                <span>Final Total:</span><span id="final-val">₹0.00</span>
               </div>
             </div>
 
-            <div id="payment-gate" class="mt-3 p-3 border rounded bg-light shadow-sm" style="display:none;">
-              <h6 class="fw-bold small mb-2">
-                <i class="material-icons" style="font-size:16px; vertical-align:middle;">payments</i> Payment
-                Verification
-              </h6>
+            <textarea id="order-notes" class="form-control form-control-sm mt-3"
+              placeholder="Add delivery notes..."></textarea>
 
-              <div id="payment-instructions" class="small text-muted mb-2" style="font-size: 0.75rem;">
-                Please pay the final amount to proceed.
-              </div>
-
-              <div id="payment-action-container">
-                <button id="pay-now-btn" class="btn btn-primary btn-sm w-100 mb-2" onclick="initiatePayment()">
-                Pay Now <span id="pay-amt-label">₹0</span>
-              </button>
-              </div>
-
-              <div id="verify-box" style="display:none;">
-                <button id="auto-verify-btn" class="btn btn-success w-100 mb-2 d-flex align-items-center justify-content-center gap-2" onclick="handleVerification()">
-                <i class="material-icons">fact_check</i> Click to Verify Payment
-              </button>
-
-                <div class="input-group input-group-sm mb-1">
-                  <input type="text" id="txn-id-input" class="form-control" placeholder="UTR (Locked)" disabled>
-                  <button id="manual-verify-btn" class="btn btn-secondary" onclick="handleVerification(true)" disabled>Verify ID</button>
-                </div>
-
-                <small id="verify-error" style="font-size: 0.75rem; display: block; margin-top: 5px;"></small>
-              </div>
-
-              <div id="manual-upload-section" class="mt-3 pt-2 border-top" style="display:none;">
-                <p class="fw-bold text-danger mb-1" style="font-size: 0.7rem;">Verification Failed?</p>
-                <p class="text-muted mb-2" style="font-size: 0.65rem;">
-                  If you've already paid, please upload the screenshot.
-                  <strong>Note:</strong> This order will be processed after manual verification.
-                </p>
-                <input type="file" id="screenshot-file" class="form-control form-control-sm" accept="image/*">
-              </div>
-            </div>
-
-            <textarea id="order-notes" class="form-control form-control-sm mt-3" placeholder="Add delivery notes..."></textarea>
-            <button id="place-order-btn" class="btn w-100 mt-3 disabled" onclick="placeOrder()">Place Order</button>
+            <button id="place-order-btn" class="btn btn-primary w-100 mt-3 py-2 fw-bold" onclick="startOrderProcess()">
+              Place Order
+            </button>
           </div>
         </div>
+
+        <!-- PROFESSIONAL PAYMENT VERIFICATION MODAL OVERLAY -->
+        <div id="payment-verify-overlay" class="verification-overlay" style="display:none;">
+          <div class="verification-card text-center shadow-lg rounded-4 p-4 bg-white"
+            style="max-width: 380px; margin: auto;">
+
+            <!-- STEP 1: POLLING / WAITING MODE (Content rendered dynamically by startOrderProcess) -->
+            <div id="pv-step-loading">
+              <div class="spinner-border text-primary my-3" style="width: 3.5rem; height: 3.5rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <h5 class="fw-bold mb-1">Verifying Payment</h5>
+              <p class="text-muted small mb-3">Checking bank notifications...</p>
+
+              <div class="progress mb-2" style="height: 6px;">
+                <div id="pv-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                  role="progressbar" style="width: 0%"></div>
+              </div>
+              <small id="pv-timer-text" class="text-muted" style="font-size: 0.75rem;">Time remaining: 60s</small>
+            </div>
+
+            <!-- STEP 2: FALLBACK UTR INPUT MODE (Hidden initially) -->
+            <div id="pv-step-manual" style="display:none;">
+              <div class="mb-2 text-warning">
+                <i class="material-icons" style="font-size: 48px;">pending_actions</i>
+              </div>
+              <h5 class="fw-bold mb-1">Payment Verification</h5>
+              <p id="utr-help-msg" class="text-muted small mb-3">Please enter the <strong>last 4 digits</strong> of your
+                transaction UTR / Ref No to complete the order.</p>
+
+              <div class="form-floating mb-3">
+                <input type="text" id="utr-last4-input" class="form-control text-center fw-bold fs-4" placeholder="1234"
+                  maxlength="4" pattern="\d{4}" inputmode="numeric"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                <label for="utr-last4-input">Last 4 Digits of UTR</label>
+              </div>
+
+              <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary btn-sm flex-fill py-2"
+                  onclick="cancelOrderProcess()">Cancel</button>
+                <button id="submit-utr-btn" class="btn btn-primary btn-sm flex-fill py-2 fw-bold"
+                  onclick="submitManualUTR()">Submit & Place Order</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

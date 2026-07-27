@@ -769,4 +769,43 @@
     background-color: #382413 !important;
     transform: scale(0.98);
   }
+
+  /*new payment verification*/
+  .verification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .verification-card {
+    max-width: 380px;
+    width: 90%;
+    animation: popIn 0.25s ease-out;
+  }
+
+  @keyframes popIn {
+    from {
+      transform: scale(0.9);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .dues-text {
+    color: #dc3545 !important;
+    /* Standard Bootstrap Red */
+    font-weight: 600;
+  }
 </style>
