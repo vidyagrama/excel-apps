@@ -445,13 +445,15 @@ function sendReceiptEmail(summary, cart) {
 
     // --- 1. GROUPING LOGIC & OVERALL TOTAL CALCULATION ---
     let overallTotal = 0;
+    let itemIndex = 1; // Running Serial Number Counter
     const categories = [...new Set(cart.map(i => i.mainCategory))];
     let tableRows = "";
 
     categories.forEach(cat => {
+      // Extended colspan to 5 for Category header
       tableRows += `
         <tr style="background-color: #fcf8e3;">
-          <td colspan="4" style="border: 1px solid #cccccc; padding: 8px; font-weight: bold; color: #8a6d3b; text-transform: uppercase; font-size: 12px;">
+          <td colspan="5" style="border: 1px solid #cccccc; padding: 8px; font-weight: bold; color: #8a6d3b; text-transform: uppercase; font-size: 12px;">
             ${cat}
           </td>
         </tr>`;
@@ -473,6 +475,7 @@ function sendReceiptEmail(summary, cart) {
 
         tableRows += `
           <tr>
+            <td align="center" style="border: 1px solid #cccccc; padding: 10px;">${itemIndex++}</td>
             <td style="border: 1px solid #cccccc; padding: 10px;">${item.itemName}</td>
             <td align="right" style="border: 1px solid #cccccc; padding: 10px;">${qty} ${unit}</td>
             <td align="right" style="border: 1px solid #cccccc; padding: 10px;">₹ ${price.toFixed(2)}</td>
@@ -555,6 +558,7 @@ function sendReceiptEmail(summary, cart) {
         <table width="100%" style="border-collapse: collapse; margin-top: 15px;">
           <thead>
             <tr style="background: #f4f4f4;">
+              <th align="center" width="5%" style="padding: 10px; border: 1px solid #ccc;">#</th>
               <th align="left" style="padding: 10px; border: 1px solid #ccc;">Description</th>
               <th align="right" style="padding: 10px; border: 1px solid #ccc;">Qty</th>
               <th align="right" style="padding: 10px; border: 1px solid #ccc;">Price</th>
@@ -564,36 +568,36 @@ function sendReceiptEmail(summary, cart) {
           <tbody>${tableRows}</tbody>
           <tfoot>
             <tr>
-              <td colspan="3" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td>
+              <td colspan="4" align="right" style="padding: 10px; border-top: 2px solid #eee;">Subtotal</td>
               <td align="right" style="padding: 10px; border-top: 2px solid #eee;">₹ ${overallTotal.toFixed(2)}</td>
             </tr>
 
             ${discountAmount > 0 ? `
             <tr>
-              <td colspan="3" align="right" style="padding: 10px;">Discount (${discountRate}%)</td>
+              <td colspan="4" align="right" style="padding: 10px;">Discount (${discountRate}%)</td>
               <td align="right" style="padding: 10px; color: #1e88e5;">- ₹ ${discountAmount.toFixed(2)}</td>
             </tr>` : ''}
 
             <!-- ROUND OFF ROW -->
             <tr>
-              <td colspan="3" align="right" style="padding: 10px; color: #666;">Round Off</td>
+              <td colspan="4" align="right" style="padding: 10px; color: #666;">Round Off</td>
               <td align="right" style="padding: 10px; color: #666;">${roundOffAmt >= 0 ? '+' : ''}₹ ${roundOffAmt.toFixed(2)}</td>
             </tr>
 
             ${prevBalance > 0 ? `
             <tr>
-              <td colspan="3" align="right" style="padding: 10px; color: #00796b;">Wallet Balance Used</td>
+              <td colspan="4" align="right" style="padding: 10px; color: #00796b;">Wallet Balance Used</td>
               <td align="right" style="padding: 10px; color: #00796b;">- ₹ ${prevBalance.toFixed(2)}</td>
             </tr>` : ''}
 
             ${creditUsed > 0 ? `
             <tr>
-              <td colspan="3" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td>
+              <td colspan="4" align="right" style="padding: 10px; color: #2e7d32;">Available Credit Applied</td>
               <td align="right" style="padding: 10px; color: #2e7d32;">- ₹ ${creditUsed.toFixed(2)}</td>
             </tr>` : ''}
 
             <tr style="font-size: 18px;">
-              <td colspan="3" align="right" style="padding: 10px; font-weight: bold; border-top: 1px solid #444;">Net Amount Payable</td>
+              <td colspan="4" align="right" style="padding: 10px; font-weight: bold; border-top: 1px solid #444;">Net Amount Payable</td>
               <td align="right" style="padding: 10px; font-weight: bold; color: ${finalAmount === 0 || isPaid ? '#2e7d32' : '#d32f2f'}; border-top: 1px solid #444;">
                 ₹ ${finalAmount.toFixed(2)}
               </td>
@@ -743,25 +747,48 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
     const searchAmount = parseFloat(userExpectedAmount);
     const cleanLast4 = last4 ? last4.toString().trim() : "";
 
-    let matches = [];
+    let todayMatches = [];
 
-    // Loop through logs (Newest to Oldest) down to Row 1 (data[0])
+    // Helper to robustly check if a sheet date is today
+    function isToday(rawDate) {
+      if (!rawDate) return false;
+      const today = new Date();
+      if (rawDate instanceof Date) {
+        return rawDate.toDateString() === today.toDateString();
+      }
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        return d.toDateString() === today.toDateString();
+      }
+      // Fallback for string representations like "August 15, 2026..."
+      const dateStr = rawDate.toString();
+      const day = today.getDate();
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthName = months[today.getMonth()];
+      return dateStr.includes(day.toString()) && dateStr.includes(monthName);
+    }
+
+    // Loop through logs (Newest to Oldest -> Bottom to Top)
     for (let i = data.length - 1; i >= 0; i--) {
       const status = data[i][2] ? data[i][2].toString().trim() : "";
       
       // 1. Skip if already verified
       if (status.toLowerCase() === "verified") continue;
 
+      const rawDate = data[i][0];
       const sender = data[i][1] ? data[i][1].toString().toUpperCase() : "";
       const message = data[i][3] ? data[i][3].toString() : "";
 
       if (!message) continue;
 
-      // Check sender
-      const isIciciSender = sender.includes("ICICI");
-      if (!isIciciSender) continue;
+      // 2. Strict Same-Day Check: Ignore older unverified days
+      if (!isToday(rawDate)) continue;
 
-      const amtMatch = message.match(/(?:Rs\.?|INR|credited\s+by\s+Rs\.?)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
+      // 3. Robust ICICI Sender Check
+      if (!sender.includes("ICICI") && !sender.includes("ICIC")) continue;
+
+      // 4. Enhanced Amount Regex
+      const amtMatch = message.match(/(?:Rs\.?|INR|credited\s+(?:with|by)\s+Rs\.?)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i);
 
       if (amtMatch) {
         const cleanAmtStr = amtMatch[1].replace(/,/g, '');
@@ -782,24 +809,24 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
           const isUtrMatch = (cleanLast4 === "") || fullUTR.endsWith(cleanLast4) || message.includes(cleanLast4);
 
           if (isUtrMatch) {
-            matches.push({
+            todayMatches.push({
               utr: fullUTR,
               sender: sender,
               amount: smsAmount,
-              rowIndex: i + 1 // Correctly maps data[0] -> Sheet Row 1
+              rowIndex: i + 1
             });
           }
         }
       }
     }
 
-    if (matches.length === 0) {
-      return { status: "NOT_FOUND", message: "No matching payment found." };
+    if (todayMatches.length === 0) {
+      return { status: "NOT_FOUND", message: "No matching payment found for today." };
     }
 
-    // IF EXACT MATCH FOUND OR USER SUPPLIED LAST4 THAT MATCHES ANY UNVERIFIED ROW
-    if (matches.length === 1 || (cleanLast4 !== "" && matches.length > 0)) {
-      const result = matches[0];
+    // If exactly 1 match today (or disambiguated by last4), pick the latest one and close it
+    if (todayMatches.length === 1 || (cleanLast4 !== "" && todayMatches.length > 0)) {
+      const result = todayMatches[0];
 
       // Mark SMS row as Verified
       sheet.getRange(result.rowIndex, 3).setValue("Verified");
@@ -822,9 +849,9 @@ function autoCheckPayment(userExpectedAmount, userName, last4 = "") {
       return { status: "SUCCESS", txnId: result.utr, message: "Verified! Received Rs." + result.amount };
     }
 
-    // Multiple payments with no UTR provided
-    if (matches.length > 1 && cleanLast4 === "") {
-      return { status: "DUPLICATES", message: "Multiple payments found. Please enter last 4 digits." };
+    // If multiple unverified payments found on the same day with no last4 provided
+    if (todayMatches.length > 1 && cleanLast4 === "") {
+      return { status: "DUPLICATES", message: "Multiple payments found today for Rs." + searchAmount + ". Please enter last 4 digits of UTR." };
     }
 
   } catch (e) {

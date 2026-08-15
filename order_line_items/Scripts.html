@@ -326,62 +326,43 @@
     renderInventory(filtered);
   }
 
-  function renderInventory(items) {
-    const grid = document.getElementById('inventory-grid');
+ function renderInventory(items) {
+  const grid = document.getElementById('inventory-grid');
 
-    if (items.length === 0) {
-      grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found matching your filters.</div>';
-      return;
-    }
-
-    grid.innerHTML = items.map(i => {
-      const itemMoq = i.moq || 0.5;
-      const formattedBadge = toTitleCase(i.mainCategory);
-      const stock = parseFloat(i.stock) || 0;
-
-      let stockStatus = '';
-      let btnText = 'Add';
-      let btnClass = 'btn-success'; // Standard green/brown
-      let cardClass = '';
-
-      if (stock <= 0) {
-        stockStatus = `<span class="badge bg-primary position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1;">PRE-ORDER</span>`;
-        btnText = 'Pre-order';
-        btnClass = 'btn-outline-primary'; // Different style for pre-order
-        cardClass = 'pre-order-card';
-      } else if (stock <= 5) {
-        stockStatus = `<span class="badge bg-warning text-dark position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1;">LOW STOCK: ${stock}</span>`;
-        cardClass = 'low-stock-card';
-      } else {
-        stockStatus = `<span class="badge bg-success position-absolute top-0 start-0 m-1" style="font-size:0.55rem; z-index:1; opacity:0.8;">${stock} IN STOCK</span>`;
-      }
-
-      return `
-      <div class="col-6 col-md-4">
-        <div class="item-card p-2 text-center d-flex flex-column shadow-sm h-100 ${cardClass}" style="position:relative;">
-          ${stockStatus}
-          <div class="text-end">
-            <span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">
-              ${formattedBadge}
-            </span>
-          </div>
-          <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://dummyimage.com/150/633a11/ffffff.png&text=Vidyagrama'">
-          <div class="small fw-bold text-truncate">${i.itemName}</div>
-          <div class="text-muted" style="font-size: 0.65rem;">SKU: ${i.sku}</div>
-          <div class="small mb-1" style="color:var(--vg-brown)">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
-          <div class="mt-auto">
-            <div class="d-flex gap-1">
-              <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
-              <button id="btn-${i.sku}" class="btn btn-sm ${btnClass} w-100" onclick="addToCart('${i.sku}')">
-                ${btnText}
-              </button>
-            </div>
-            <span class="moq-label">Min: ${itemMoq} ${i.uom}</span>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+  if (items.length === 0) {
+    grid.innerHTML = '<div class="col-12 text-center py-5 text-muted">No items found matching your filters.</div>';
+    return;
   }
+
+  grid.innerHTML = items.map(i => {
+    const itemMoq = i.moq || 0.5;
+    const formattedBadge = toTitleCase(i.mainCategory);
+
+    return `
+    <div class="col-6 col-md-4">
+      <div class="item-card p-2 text-center d-flex flex-column shadow-sm h-100" style="position:relative;">
+        <div class="text-end">
+          <span class="badge bg-light border" style="font-size:0.6rem; color:var(--vg-brown)">
+            ${formattedBadge}
+          </span>
+        </div>
+        <img src="${i.imageUrl}" class="item-img rounded mb-2" onerror="this.src='https://dummyimage.com/150/633a11/ffffff.png&text=Vidyagrama'">
+        <div class="small fw-bold text-truncate">${i.itemName}</div>
+        <div class="text-muted" style="font-size: 0.65rem;">SKU: ${i.sku}</div>
+        <div class="small mb-1" style="color:var(--vg-brown)">₹${parseFloat(i.salePrice).toFixed(2)} / ${i.uom}</div>
+        <div class="mt-auto">
+          <div class="d-flex gap-1">
+            <input type="number" id="qty-${i.sku}" class="form-control form-control-sm" value="${itemMoq}" min="${itemMoq}" step="0.1">
+            <button id="btn-${i.sku}" class="btn btn-sm btn-success w-100" onclick="addToCart('${i.sku}')">
+              Add
+            </button>
+          </div>
+          <span class="moq-label">Min: ${itemMoq} ${i.uom}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
   function addToCart(sku) {
     const item = fullInventory.find(i => i.sku === sku);
